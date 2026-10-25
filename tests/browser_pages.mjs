@@ -82,6 +82,13 @@ try{
   assert.ok(await js("document.querySelector('#content').innerText.trim().length>0"),route);
  }
  if(!liveURL&&!mirrorURL){
+  await js("location.hash='stats'");await delay(100);
+  assert.equal(await js("document.querySelector('#content').textContent.includes('NaN')"),false);
+  for(const width of [320,390,768,1440]){
+   await command('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
+   assert.equal(await js('document.documentElement.scrollWidth<=innerWidth+1'),true,`Statistics overflow at ${width}px`);
+  }
+  if(process.env.STATS_SCREENSHOT){await js("document.querySelector('.stats-top').scrollIntoView({block:'start'})");const shot=await command('Page.captureScreenshot',{format:'png'});await writeFile(process.env.STATS_SCREENSHOT,Buffer.from(shot.data,'base64'));}
   await js("location.hash='tombola'");await delay(100);
   await js("document.querySelector('[data-action=raffle-record]').click()");
   await wait("document.querySelector('#form-dialog').open");
@@ -125,6 +132,12 @@ try{
   assert.ok(await js("Object.values(JSON.parse(localStorage.getItem('heritage.preview.access.v1')).permissions).some(values=>Object.values(values).some(Boolean))"));
   await js("document.querySelector('[data-role-id=example-6]').click();document.querySelector('#apply-access-roles').click()");
   await wait("document.querySelector('#role-selection-count').textContent.includes('7 retenus')");
+  assert.ok(await js("document.querySelector('.access-matrix tbody tr').getBoundingClientRect().height<=50"),'Access rows must stay compact');
+  if(process.env.ACCESS_SCREENSHOT){
+   await command('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+   await js("document.querySelector('.access-matrix-panel').scrollIntoView({block:'center'})");
+   const shot=await command('Page.captureScreenshot',{format:'png'});await writeFile(process.env.ACCESS_SCREENSHOT,Buffer.from(shot.data,'base64'));
+  }
   await js("location.hash='external-access'");await delay(100);
   await js("const form=document.querySelector('#individual-create-form');form.elements.loginName.value='partenaire.test';form.elements.displayName.value='Partenaire test';form.querySelector('[name=pages]').checked=true;form.requestSubmit()");
   await wait("!document.querySelector('#individual-code').hidden && document.querySelectorAll('[data-account-id]').length===1");

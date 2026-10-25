@@ -34,8 +34,13 @@ assert.ok(restored.snapshot().tombolaRecords[0].vehicles.every(v=>!v.paid&&!v.bo
 const employee=vm.runInContext('Object.keys(BOT_RULES.employees)[0]',env.context);
 await env.action('add-sale',null,{group:'Groupe test',giver:'12345',employee,amount:''});
 assert.equal(env.snapshot().sales[0].amount,5000000);
+assert.equal(env.snapshot().summary.group,4000000);
+assert.equal(env.snapshot().summary.company,750000);
+assert.equal(env.snapshot().summary.loss,250000);
+assert.equal(env.snapshot().days.reduce((n,d)=>n+d.amount,0),5000000);
 await env.action('add-machine',null,{launcher:employee,amount:''});
 assert.equal(env.snapshot().machines[0].amount,1000000);
+assert.equal(env.snapshot().employeesTotal[0].count,1);
 await assert.rejects(env.action('add-machine',null,{launcher:employee}),/lot en cours/);
 await assert.rejects(env.action('recover',env.snapshot().machines[0].id),/4 h 45/);
 await env.action('cancel-machine',env.snapshot().machines[0].id);

@@ -17,7 +17,15 @@ window.heritageLocalBusiness=()=>{
    const treated=s.status==='cancelled'?0:Math.min(s.amount,(s.baseTreated||0)+pool);state.allocations[s.id]=treated;pool=Math.max(0,pool-Math.max(0,treated-(s.baseTreated||0)));
   }
   const gross=state.sales.filter(s=>s.status!=='cancelled').reduce((n,s)=>n+s.amount,0),treated=Object.values(state.allocations).reduce((n,a)=>n+a,0);
-  state.summary={gross,treated,pending:gross-treated,company:gross*.15};
+  state.summary={gross,treated,pending:gross-treated,company:gross*.15,group:gross*.8,loss:gross*.05};
+  const today=brusselsParts(),dayKey=timestamp=>{const p=brusselsParts(timestamp);return `${p.year}-${p.month}-${p.day}`;};
+  state.days=Array.from({length:7},(_,i)=>{
+   const day=new Date(Date.UTC(Number(today.year),Number(today.month)-1,Number(today.day)-6+i,12)),key=day.toISOString().slice(0,10);
+   return {label:new Intl.DateTimeFormat('fr-BE',{weekday:'short',timeZone:'UTC'}).format(day),amount:state.sales.filter(s=>s.status!=='cancelled'&&dayKey(s.created)===key).reduce((n,s)=>n+s.amount,0)};
+  });
+  const counts=new Map(),currentWeek=weekKey();
+  for(const m of state.machines){const p=brusselsParts(m.start);if(m.cancelled||weekKey(`${p.day}/${p.month}/${p.year}`)!==currentWeek)continue;counts.set(m.launchedBy,(counts.get(m.launchedBy)||0)+1);}
+  state.employeesTotal=[...counts].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'fr'));
  };
  summary();
  return async(action,id,values={})=>{
