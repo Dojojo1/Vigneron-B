@@ -1,0 +1,41 @@
+/* Compact tombola records, shared by the local and authenticated interfaces. */
+.raffle-grid { grid-template-columns: repeat(auto-fit,minmax(min(100%,480px),1fr)); align-items: start; gap: 20px; }
+.raffle-grid > .tombola-card { width: 100%; max-width: 760px; min-width: 0; padding: 22px; border: 1px solid #c5a47136; border-radius: 14px; background: linear-gradient(135deg,#26302dd9,#101b20f5 65%); box-shadow: 0 10px 32px #0002,inset 0 1px #e1ca9b0a; }
+.tombola-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 18px; }
+.tombola-card-heading .eyebrow { margin: 0 0 8px; font-size: 9px; letter-spacing: 1.8px; color: #aca38b; }
+.tombola-card-heading h3 { margin: 0; font: 500 27px/1.15 var(--serif); color: #e1c99c; }
+.tombola-count { flex-shrink: 0; padding: 6px 9px; border: 1px solid #c5a47124; border-radius: 20px; background: #c5a47109; color: #bfb298; font-size: 10px; }
+.tombola-card .vehicle-summary { display: flex; align-items: center; gap: 13px; min-width: 0; padding: 16px 0; border-top: 1px solid #c5a47120; border-bottom: 0; }
+.tombola-vehicle-icon { display: grid; place-items: center; flex-shrink: 0; width: 43px; height: 43px; border: 1px solid #c5a47125; border-radius: 11px; background: #c5a47108; color: #b59c74; }
+.tombola-vehicle-icon svg { width: 30px; height: 23px; }
+.tombola-vehicle-info { flex: 1; min-width: 0; }
+.tombola-card .vehicle-summary h4 { margin: 0; color: #eee3ce; font: 500 21px/1.2 var(--serif); overflow-wrap: anywhere; }
+.tombola-vehicle-info p { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 6px 0 0; font-size: 10px; line-height: 1.4; color: #a7a497; }
+.tombola-price { color: #d8c5a0; }
+.tombola-price.is-pending { color: #979789; font-style: italic; }
+.tombola-card .record-actions { gap: 6px; }
+.tombola-card .record-actions button { min-height: 34px; padding: 8px 11px; border: 1px solid #c5a47135; border-radius: 7px; background: #0d171b99; color: #c9b68f; font-size: 10px; line-height: 1.2; }
+.tombola-card .record-actions button:hover { background: #c5a47115; border-color: #c5a47188; }
+.tombola-card .record-actions .is-done { color: #bdcdb4; border-color: #91b18055; background: #91b18010; }
+.tombola-totals { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-top: 4px; padding: 16px 0; border-top: 1px solid #c5a47127; }
+.tombola-totals > div { display: grid; gap: 7px; min-width: 0; }
+.tombola-totals > div + div { border-left: 1px solid #c5a47120; padding-left: 14px; }
+.tombola-totals span { color: #a8a394; font-size: 10px; }
+.tombola-totals strong { color: #ded0b3; font: 500 23px/1.2 var(--serif); overflow-wrap: anywhere; }
+.tombola-totals > div:last-child strong { color: #cfb176; }
+.tombola-price-note { margin: -3px 0 14px; color: #949589; font-size: 10px; line-height: 1.5; }
+.tombola-card .tombola-card-actions { display: flex; flex-wrap: wrap; align-items: center; width: auto; margin: 0; padding: 14px 0 0; border-top: 1px solid #c5a47120; background: none; }
+.tombola-card-actions .tombola-edit { margin-left: auto; color: #edd7ab!important; background: #c5a47115!important; }
+.tombola-edit span { margin-left: 10px; }
+@media(max-width:600px) {
+ .raffle-grid > .tombola-card { padding: 17px; }
+ .tombola-card-heading h3 { font-size: 24px; }
+ .tombola-card-heading { align-items: flex-start; gap: 10px; }
+ .tombola-count { font-size: 9px; }
+ .tombola-card .vehicle-summary { flex-wrap: wrap; gap: 10px; }
+ .tombola-card .vehicle-summary .record-actions { width: 100%; padding-left: 53px; }
+ .tombola-totals { gap: 7px; }
+ .tombola-totals > div + div { padding-left: 8px; }
+ .tombola-totals strong { font-size: 21px; }
+ .tombola-card-actions .tombola-edit { margin-left: 0; }
+}

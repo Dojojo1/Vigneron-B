@@ -102,6 +102,11 @@ try{
   await js("var form=document.querySelector('#entry-form');form.elements.vehicle0.value='Brioso';form.elements.price0.value='125000';form.elements.vehicle1.value='Comet';form.elements.price1.value='250000';form.requestSubmit()");
   await wait("!document.querySelector('#form-dialog').open && state.tombolaRecords.length===1");
   assert.ok(await js("document.querySelector('.raffle').textContent.includes('Brioso')"));
+  for(const width of [320,768,1440]){
+   await command('Emulation.setDeviceMetricsOverride',{width,height:950,deviceScaleFactor:1,mobile:width<768});
+   assert.equal(await js('document.documentElement.scrollWidth<=innerWidth+1'),true,`Tombola card overflow at ${width}px`);
+  }
+  if(process.env.CARD_SCREENSHOT){await js("document.querySelector('.raffle').scrollIntoView({block:'center'})");const shot=await command('Page.captureScreenshot',{format:'png'});await writeFile(process.env.CARD_SCREENSHOT,Buffer.from(shot.data,'base64'));}
   await js("document.querySelector('[data-action=vehicle-pay]').click()");
   await wait("state.tombolaRecords[0].vehicles[0].paid===true");
   await js("document.querySelector('.raffle [data-action=raffle-record]').click()");
