@@ -2,7 +2,7 @@
 // Uses only Node built-ins and an isolated browser profile; no external services.
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
-import {readFile, mkdtemp, rm} from 'node:fs/promises';
+import {readFile, writeFile, mkdtemp, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {resolve, extname, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -82,6 +82,24 @@ try{
   assert.ok(await js("document.querySelector('#content').innerText.trim().length>0"),route);
  }
  if(!liveURL&&!mirrorURL){
+  await js("location.hash='tombola'");await delay(100);
+  await js("document.querySelector('[data-action=raffle-record]').click()");
+  await wait("document.querySelector('#form-dialog').open");
+  await js("var input=document.querySelector('[data-vehicle-picker]');input.focus();input.value='brioso';input.dispatchEvent(new Event('input',{bubbles:true}))");
+  assert.ok(await js("document.querySelectorAll('.vehicle-picker-option').length>=3"));
+  assert.equal(await js("document.querySelector('[data-vehicle-picker]').hasAttribute('list')"),false);
+  await command('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowDown',code:'ArrowDown'});
+  await command('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter'});
+  assert.equal(await js("document.querySelector('[data-vehicle-picker]').value"),'Brioso');
+  assert.equal(await js("document.querySelector('.raffle-vehicle-title').textContent"),'Brioso');
+  assert.equal(await js("document.querySelector('[data-vehicle-picker]').getAttribute('aria-expanded')"),'false');
+  await js("var input=document.querySelector('[data-vehicle-picker]');input.value='zzzzzz-no-model';input.dispatchEvent(new Event('input',{bubbles:true}))");
+  assert.equal(await js("document.querySelectorAll('.vehicle-picker-option').length"),0);
+  await js("var input=document.querySelector('[data-vehicle-picker]');input.value='brioso';input.dispatchEvent(new Event('input',{bubbles:true}))");
+  if(process.env.PICKER_SCREENSHOT){const shot=await command('Page.captureScreenshot',{format:'png'});await writeFile(process.env.PICKER_SCREENSHOT,Buffer.from(shot.data,'base64'));}
+  await command('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});
+  assert.equal(await js("document.querySelector('#form-dialog').open"),true);
+  await js("document.querySelector('#form-dialog').close()");
   await js("location.hash='council'");await delay(100);
   assert.ok(await js("document.querySelectorAll('.role-chip').length>0"));
   await js("document.querySelector('.access-toggle').click();document.querySelector('#access-form').requestSubmit()");
