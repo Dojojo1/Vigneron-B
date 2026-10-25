@@ -5,10 +5,10 @@
 .access-matrix-panel .access-matrix-heading h2 { margin: 0; font: 500 27px/1.2 var(--serif); color: #e6d7b9; }
 .access-matrix-panel #access-save-status { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: #aca694; }
 .access-matrix-panel #access-save-status::before { content: ''; width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: #a48e5d; }
-.access-matrix-panel .access-matrix-scroll { max-height: 540px; border: 0; border-radius: 0; background: transparent; scrollbar-width: thin; scrollbar-color: #7d725866 transparent; }
+.access-matrix-panel .access-matrix-scroll { max-height: 540px; padding: 7px 12px; border: 1px solid #bda36c66; border-radius: 11px; background: linear-gradient(110deg,#07121870,#10212a40); scrollbar-width: thin; scrollbar-color: #7d725866 transparent; }
 .access-matrix-panel .access-matrix { width: 100%; font: 12px/1.4 var(--sans); }
-.access-matrix-panel .access-matrix th,.access-matrix-panel .access-matrix td { height: 46px; padding: 9px 13px; border-bottom: 1px solid #c5a47114; background: transparent; }
-.access-matrix-panel .access-matrix thead th { height: 54px; min-width: 145px; max-width: 195px; padding: 10px 14px; background: #0b1419a6; backdrop-filter: blur(12px); border-bottom-color: #c5a47138; color: #c6b28b; font-size: 10px; line-height: 1.5; letter-spacing: .5px; }
+.access-matrix-panel .access-matrix th,.access-matrix-panel .access-matrix td { height: 33px; padding: 5px 12px; border-bottom: 1px solid #c5a4710d; background: transparent; }
+.access-matrix-panel .access-matrix thead th { height: 48px; min-width: 145px; max-width: 195px; padding: 8px 14px; background: #0b14197d; backdrop-filter: blur(12px); border-bottom-color: #c5a47138; color: #e0d4b8; font: 500 11px/1.4 var(--sans); letter-spacing: 0; }
 .access-matrix-panel .access-matrix th:first-child { min-width: 220px; max-width: 250px; padding-left: 0; background: #0b14194d; backdrop-filter: blur(12px); }
 .access-matrix-panel .access-matrix thead th:first-child { background: #0b1419a6; color: #aa9665; }
 .access-matrix-panel .access-matrix tbody th { color: #e3d9c3; font-size: 12px; font-weight: 500; white-space: nowrap; }
@@ -18,13 +18,13 @@
 .access-matrix-panel .access-matrix tbody tr:last-child td,.access-matrix-panel .access-matrix tbody tr:last-child th { border-bottom: 0; }
 .access-matrix-panel .access-row-all { margin-left: 9px; padding: 3px 6px; border: 1px solid #b49b6d2b; border-radius: 5px; color: #b7a782; background: transparent; font-size: 9px; line-height: 1.2; }
 .access-matrix-panel .access-row-all:hover { background: #c5a45b18; border-color: #c5a45b80; }
-.access-matrix-panel .access-toggle { width: 27px; height: 27px; border-radius: 7px; border: 1px solid #b49b6d35; background: transparent; box-shadow: none; }
-.access-matrix-panel .access-toggle:not(:checked)::after { content: '·'; color: #82775d; font-size: 13px; line-height: 1; }
+.access-matrix-panel .access-toggle { width: 18px; height: 18px; border-radius: 3px; border: 1px solid #c5ad7780; background: #06101566; box-shadow: inset 0 0 0 2px #050c1040; }
+.access-matrix-panel .access-toggle:not(:checked)::after { content: ''; }
 .access-matrix-panel .access-toggle:hover { border-color: #c5a45b99; background: #c5a45b15; }
 .access-matrix-panel .access-toggle:checked { background: #c7a75e; border-color: #d2b577; box-shadow: inset 0 1px #f1dfaa55; }
-.access-matrix-panel .access-toggle:checked::after { color: #30291b; font: 600 17px/1 var(--sans); }
+.access-matrix-panel .access-toggle:checked::after { color: #30291b; font: 600 13px/1 var(--sans); }
 .access-matrix-panel .access-toggle:focus-visible { outline: 2px solid #e0c487; outline-offset: 3px; }
-.access-matrix-panel #access-form > .form-note { margin: 15px 0 18px; max-width: 900px; font: 11px/1.7 var(--sans); color: #a9a08a; }
+.access-matrix-panel #access-form > .form-note { margin: 7px 0 15px; max-width: none; padding: 10px 13px; border: 1px solid #bda36c45; border-radius: 9px; background: #0a171c4d; font: 11px/1.6 var(--sans); color: #b4ab94; }
 .access-matrix-panel .access-controls { margin-top: 0; }
 .access-matrix-panel .access-controls > .button.primary,.access-intro .access-controls > .button.primary { min-height: 40px; padding: 11px 17px; border: 1px solid #c4a361; border-radius: 7px; background: #c3a35f; color: #272118; font-size: 11px; box-shadow: inset 0 1px #edd7a94d; }
 .access-matrix-panel .access-controls > .button.primary:hover,.access-intro .access-controls > .button.primary:hover { background: #d1b273; }
@@ -32,6 +32,22 @@
 .access-intro .role-chip[aria-pressed=true] { border-color: #c5a45ba8; background: #c5a45b20; color: #d6b875; }
 .access-intro .role-chips { gap: 8px; margin: 17px 0 20px; }
 .access-intro .role-search input { background: #0e181df2; border-color: #b49b6d38; border-radius: 6px; }
+.council-panel.access-intro { border-color: #bda36c66; background: linear-gradient(120deg,#0b1922b3,#13273370 55%,#07121a80); }
+.access-intro > h2 { margin: 10px 0 12px; font: 500 30px/1.2 var(--serif); color: #ecddbc; }
+.access-intro > p:not(.eyebrow),.access-intro .domain-roles > p { font: 12px/1.65 var(--sans); margin-bottom: 16px; }
+.access-intro .role-search { max-width: 360px; }
+.access-intro .role-chips { margin: 12px 0 16px; }
+.access-matrix-panel .access-matrix-heading { margin-bottom: 13px; }
+.access-matrix-panel .access-matrix-heading h2 { font-size: 23px; }
+.access-page-heading,.access-page-label { display: flex; align-items: center; gap: 12px; }
+.access-page-heading svg,.access-page-label svg { width: 20px; height: 20px; flex-shrink: 0; color: #d2bd90; }
+.access-page-heading small { display: block; color: #a9a08a; font-size: 10px; margin-top: 2px; }
+.access-page-label > span { min-width: 0; }
+.access-matrix-panel .access-page-label .access-row-all { margin-left: auto; border-color: #bda36c66; border-radius: 4px; color: #d7bf88; padding: 2px 7px; }
+.access-role-heading { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.access-role-symbol { font-size: 21px; line-height: 1; }
+.access-matrix-panel .access-matrix td + td { border-left: 1px solid #c5a4710b; }
+.access-matrix-panel .access-matrix tbody tr:nth-child(even) td { background: #7293a505; }
 @media(max-width:650px) {
  .council-panel.access-matrix-panel,.council-panel.access-intro { padding: 17px; border-radius: 9px; }
  .council-panel.access-matrix-panel { padding: 17px 0; border-radius: 0; }
