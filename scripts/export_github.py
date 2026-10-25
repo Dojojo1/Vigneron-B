@@ -6,112 +6,11 @@ from pathlib import Path
 import tempfile
 import zipfile
 
-ROOT=Path(__file__).resolve().parents[2]
-SITE=ROOT/'site'
-GITIGNORE='''# Configuration privée et données : ne jamais publier
-.env
-.env.*
-!.env.example
-!**/.env.example
-**/.venv/
-**/venv/
-**/__pycache__/
-**/.pytest_cache/
-**/node_modules/
-**/data/**
-!**/data/.gitkeep
-**/archives/
-**/exports/
-**/backups/
-**/avatars/
-*.sqlite3*
-*.sqlite*
-*.db
-*.db-*
-*.key
-*.pem
-*credentials*.json
-site/sales-reset-state.json
-'''
-README='''# L’Héritage — site unique
-
-Le site actuel est dans `site/`. Ce dépôt contient le backend Python, le frontend,
-les images, les animations et les tests de la dernière version. Le fichier `bot.py`
-et ses modules sont conservés à la racine : le site lit ses fonctions pures de
-progression sans démarrer le bot.
-
-## Accueil sur GitHub Pages
-
-Le fichier `index.html` à la racine est généré depuis la véritable interface du
-site. Après publication, il affiche l'accueil avec le design et les images, au
-lieu du README. Les ressources restent dans `site/static/`.
-Sur GitHub Pages, la connexion reste indiquée comme indisponible : aucune session
-fictive ni donnée privée n'est créée. Les fonctionnalités privées restent gérées
-par le serveur Python. Ce correctif d'affichage ne les transforme pas en fonctions
-exécutables sur GitHub Pages.
-
-## Ce qui ne va pas sur GitHub
-
-Les fichiers `.env`, les jetons, les clés Google, les environnements Python, les
-bases SQLite, les comptes, les photos privées, les archives et les logs ne sont
-pas dans cet export. Ils restent sur le PC Linux et ne sont pas effacés.
-Le `.gitignore` les exclut aussi des futurs commits. La configuration publique
-du code et les exemples de paramètres restent présents.
-
-## Démarrage local sous Windows
-
-Python 3.11 minimum est nécessaire. Dans PowerShell, depuis ce dossier :
-
-```powershell
-py -3 -m venv site\\.venv
-.\\site\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt
-Copy-Item site\\.env.example site\\.env
-.\\site\\.venv\\Scripts\\python.exe site\\scripts\\configure_oauth.py
-.\\site\\.venv\\Scripts\\python.exe site\\scripts\\serve.py
-```
-
-La copie de `.env.example` concerne la première configuration seulement ; ne pas
-remplacer un `.env` privé existant. La configuration OAuth2 reste à saisir en privé.
-Le site neuf utilise ses données de démonstration tant que les données privées
-Linux n’ont pas été transférées séparément. Le `.gitignore` ne constitue pas une
-sauvegarde de ces données. Pour le mode local sans Discord, le paramètre privé
-`HERITAGE_LOCAL_PREVIEW=1` conserve sa restriction à la machine locale.
-
-Adresse locale : http://127.0.0.1:8081/.
-L’environnement virtuel Linux n’est pas transféré : Windows recrée le sien.
-
-## Démarrage local sous Linux
-
-```bash
-python3 -m venv site/.venv
-site/.venv/bin/python -m pip install -r requirements.txt
-cp site/.env.example site/.env
-chmod 600 site/.env
-site/.venv/bin/python site/scripts/configure_oauth.py
-./lancer-site.sh
-```
-
-## GitHub et hébergement
-
-GitHub conserve et versionne le code. GitHub Pages ne sert que des sites
-statiques et ne fait pas tourner ce backend Python, indispensable aux comptes,
-permissions et API. Il faudra un hébergeur capable d’exécuter Python, avec HTTPS
-et stockage persistant, ou conserver le backend sur un PC correctement configuré.
-Aucun hébergement public n’est activé par cet export. Le mode local sans Discord
-doit être désactivé avant une mise en ligne validée.
-
-La copie manuelle des données du bot nécessite toujours son environnement de
-lecture et ses paramètres privés sur la machine d’exécution. Ce transfert de
-code ne crée pas de synchronisation bidirectionnelle avec Discord.
-
-Documentation : `site/README.md` et `site/ACCES-INDIVIDUELS.md`.
-Référence GitHub Pages : https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages
-'''
-
-
+ROOT=Path(__file__).resolve().parents[1]
+SITE=ROOT
 def sources():
     paths=[]
-    for name in ('backend','static','scripts','integration','tests'):
+    for name in ('backend','static','scripts','integration','tests','docs'):
         for path in (SITE/name).rglob('*'):
             relative=path.relative_to(SITE/name)
             if path.is_symlink():raise ValueError('Lien symbolique inattendu dans le code à exporter.')
@@ -128,7 +27,7 @@ def sources():
 def export(output):
     from dotenv import dotenv_values
     private_values=[]
-    for path in (ROOT/'.env',SITE/'.env'):
+    for path in (ROOT/'.env',):
         if path.is_file():
             for key,value in dotenv_values(path).items():
                 if value and len(value)>=12 and any(word in key.upper() for word in ('TOKEN','SECRET','PASSWORD','PRIVATE_KEY')):
@@ -138,16 +37,16 @@ def export(output):
     if not bot_requirements.is_file():bot_requirements=ROOT/'requirements.txt'
     # L'entrée publiée est générée depuis l'unique interface, avec les mêmes
     # ressources. Les fonctions privées ne sont jamais simulées dans Pages.
-    entry=(SITE/'static/index.html').read_text().replace('<head>','<head>\n<base href="./site/static/">\n<meta name="heritage-hosting" content="github-pages">',1)
-    contents.update({'.gitignore':GITIGNORE.encode(),'README.md':README.encode(),'index.html':entry.encode(),
-                     'requirements.txt':b'-r site/requirements.lock\n-r requirements-bot.txt\n',
+    entry=(SITE/'static/index.html').read_text(encoding='utf-8').replace('<meta charset="utf-8">','<meta charset="utf-8">\n<base href="./static/">\n<meta name="heritage-hosting" content="github-pages">',1)
+    contents.update({'.gitignore':(ROOT/'.gitignore').read_bytes(),'README.md':(ROOT/'README.md').read_bytes(),'index.html':entry.encode(),
+                     'requirements.txt':b'-r requirements.lock\n-r requirements-bot.txt\n',
                      'requirements-bot.txt':bot_requirements.read_bytes()+b'\n',
-                     'site/data/.gitkeep':b''})
+                     'data/.gitkeep':b''})
     for name,body in contents.items():
         if any(value in body for value in private_values):raise ValueError('Un secret privé apparaît dans un fichier source : export refusé.')
         if len(body)>=100*1024*1024:raise ValueError('Fichier trop volumineux pour le dépôt GitHub.')
     manifest={'files':{name:hashlib.sha256(body).hexdigest() for name,body in sorted(contents.items())},
-              'source':'site','privateDataIncluded':False,'pythonEnvironmentIncluded':False}
+              'source':'.','privateDataIncluded':False,'pythonEnvironmentIncluded':False}
     contents['EXPORT-MANIFEST.json']=json.dumps(manifest,indent=2).encode()
     output=Path(output);output.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.NamedTemporaryFile(prefix='.github-export-',suffix='.zip',dir=output.parent,delete=False) as file:temporary=Path(file.name)

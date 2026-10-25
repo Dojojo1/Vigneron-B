@@ -1,9 +1,11 @@
 'use strict';
 (() => {
+ const assetRoot=new URL('.',document.currentScript.src).href;
  const notice=document.querySelector('#site-error');
  const title=notice.querySelector('h2'),message=notice.querySelector('p');
  const retry=notice.querySelector('[data-error-retry]');
  window.heritageFinishLoading=()=>{
+  clearTimeout(window.heritageStartupTimer);
   const loader=document.querySelector('#initial-loading');if(loader)loader.hidden=true;
   document.body.setAttribute('aria-busy','false');
  };
@@ -37,6 +39,8 @@
  window.addEventListener('error',event=>{
   // Une photo ou une vidéo manquante ne doit pas annoncer une panne du site.
   if(event.target!==window&&event.target?.tagName!=='SCRIPT')return;
+  if(event.target?.tagName==='SCRIPT'&&!event.target.src.startsWith(assetRoot))return;
+  if(event.target===window&&event.filename&&!event.filename.startsWith(assetRoot))return;
   window.heritageReportError?.('script');
   show({message:'Une partie du site n’a pas pu fonctionner correctement. Réessaie ou actualise la page si le problème persiste.',key:'script'});
  },true);

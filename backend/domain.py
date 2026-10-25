@@ -8,7 +8,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 from fastapi import HTTPException
 
-CONFIG = json.loads(Path(__file__).with_name('business_config.json').read_text())
+CONFIG = json.loads(Path(__file__).with_name('business_config.json').read_text(encoding='utf-8'))
 RULES = CONFIG['rules']
 TZ = ZoneInfo(RULES['timeZone'])
 ACTIONS = {

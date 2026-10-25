@@ -28,6 +28,6 @@ else:
 values['HERITAGE_CONNECTOR_SECRET'] = values.get('HERITAGE_CONNECTOR_SECRET') or secrets.token_urlsafe(48)
 if any('\n' in str(value) or '\r' in str(value) for value in values.values()): raise SystemExit('Configuration invalide.')
 tmp = file.with_suffix('.tmp')
-tmp.write_text('\n'.join(f'{key}={value or ""}' for key,value in values.items())+'\n')
+tmp.write_text('\n'.join(f'{key}={value or ""}' for key,value in values.items())+'\n',encoding='utf-8')
 tmp.chmod(0o600);tmp.replace(file)
 print('Configuration privée enregistrée. Aucun secret affiché. Lance ou redémarre ./run.sh.')

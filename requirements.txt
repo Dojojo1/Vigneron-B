@@ -1,2 +1,2 @@
--r site/requirements.lock
+-r requirements.lock
 -r requirements-bot.txt

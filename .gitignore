@@ -21,4 +21,7 @@
 *.key
 *.pem
 *credentials*.json
-site/sales-reset-state.json
+sales-reset-state.json
+*.pyc
+*.pyo
+*.log

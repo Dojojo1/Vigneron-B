@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 import sqlite3
+import sys
 import time
 import unicodedata
 from datetime import datetime, timedelta, timezone
@@ -18,7 +19,7 @@ from .traffic import APIBudgetExceeded
 from .auditing import business_changes
 
 TZ=ZoneInfo('Europe/Brussels')
-BOT_ROOT=Path(__file__).resolve().parents[2]
+BOT_ROOT=Path(__file__).resolve().parents[1]
 
 
 def plain(value):
@@ -112,7 +113,7 @@ def validate_tombola(records):
 def progress_rules():
     """Reuse only the four pure functions, without importing or starting the bot."""
     names={'sale_progress_datetime','sale_progress_week_key','sale_progress_recovered_machines','sale_progress_allocate'}
-    tree=ast.parse((BOT_ROOT/'bot.py').read_text())
+    tree=ast.parse((BOT_ROOT/'bot.py').read_text(encoding='utf-8'))
     functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names]
     if {node.name for node in functions}!=names: raise RuntimeError('Bot progression rules missing')
     scope={'datetime':datetime,'timedelta':timedelta,'timezone':timezone,'TIMEZONE':TZ,'print':lambda *args,**kwargs:None}
@@ -305,7 +306,13 @@ async def enrich(snapshot,api,settings):
 
 
 async def synchronize(settings,store,api,actor_id=None):
-    root=BOT_ROOT;python=root/'venv/bin/python';script=settings.root/'scripts/export_bot_snapshot.py'
+    root=BOT_ROOT
+    # Prefer an existing bot environment; otherwise use the server environment,
+    # which installs requirements-bot.txt as well (including on Windows).
+    python=next((candidate for candidate in (
+        root/'venv/bin/python',root/'venv/Scripts/python.exe',
+    ) if candidate.is_file()),Path(sys.executable))
+    script=settings.root/'scripts/export_bot_snapshot.py'
     destination=settings.data_dir/f'bot-snapshot-{time.time_ns()}.json'
     with store.connect() as db:
         expected=hashlib.sha256(db.execute('SELECT body FROM domain_store WHERE id=1').fetchone()['body'].encode()).hexdigest()
@@ -324,9 +331,9 @@ async def synchronize(settings,store,api,actor_id=None):
             raise APIBudgetExceeded('Google',max(1,error['retryAfter']))
         raise HTTPException(503,'La lecture des données Google du bot a échoué. La copie actuelle est conservée.')
     try:
-        snapshot=json.loads(destination.read_text())
+        snapshot=json.loads(destination.read_text(encoding='utf-8'))
         await enrich(snapshot,api,settings)
-        destination.write_text(json.dumps(snapshot,ensure_ascii=False))
+        destination.write_text(json.dumps(snapshot,ensure_ascii=False),encoding='utf-8')
         return apply_snapshot(store,snapshot,actor_id,expected)
     except (KeyError,ValueError,TypeError):
         raise HTTPException(503,'Les données du bot ne peuvent pas être importées. La copie actuelle est conservée.') from None

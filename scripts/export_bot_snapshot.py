@@ -28,13 +28,13 @@ def configuration(root):
     environment = {}
     env_file = root / '.env'
     if env_file.is_file():
-        for line in env_file.read_text().splitlines():
+        for line in env_file.read_text(encoding='utf-8').splitlines():
             key, sep, value = line.removeprefix('export ').partition('=')
             if sep and key.strip() in allowed:
                 environment[key.strip()] = value.strip().strip('\"\'')
     environment.update({key: os.environ[key] for key in allowed if key in os.environ})
     constants = {}
-    for node in ast.parse((root/'bot.py').read_text()).body:
+    for node in ast.parse((root/'bot.py').read_text(encoding='utf-8')).body:
         if isinstance(node,ast.Assign) and len(node.targets)==1 and isinstance(node.targets[0],ast.Name):
             name=node.targets[0].id
             if name in {'SALES_SHEET_ID','MACHINES_SHEET_ID','SALES_WORKSHEET','MACHINES_WORKSHEET','SALES_CHANNEL_ID','MACHINE_REMINDER_CHANNEL_ID','MACHINE_LOGS_CHANNEL_ID','SALE_EMPLOYEES','SALE_GROUPS'}:
@@ -48,7 +48,7 @@ def export(root, destination, limits_database=None, google_per_minute=30, google
     for key,(option,default) in FILES.items():
         path=Path(environment.get(option,default))
         if not path.is_absolute(): path=root/path
-        if path.is_file(): snapshot['files'][key]=json.loads(path.read_text())
+        if path.is_file(): snapshot['files'][key]=json.loads(path.read_text(encoding='utf-8'))
         else: snapshot['missingFiles'].append(key)
     import gspread
     from google.oauth2.service_account import Credentials

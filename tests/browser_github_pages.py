@@ -11,7 +11,7 @@ import threading
 import time
 import zipfile
 
-PROJECT=Path(__file__).resolve().parents[2]
+PROJECT=Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='heritage-pages-test-') as temporary:
     root=Path(temporary);web=root/'Vigneron-B';web.mkdir()
     with zipfile.ZipFile(PROJECT/'exports/Vigneron-B-github.zip') as archive:archive.extractall(web)
@@ -58,8 +58,8 @@ with tempfile.TemporaryDirectory(prefix='heritage-pages-test-') as temporary:
         wait("return document.querySelector('.entry-glass-details').complete && document.querySelector('.entry-glass-details').naturalWidth>0;")
         assert js("return !document.querySelector('#entry-screen').hidden && document.querySelector('main').hidden && document.querySelector('#site-error').hidden && window.heritageSession===null;")
         assert js("return document.querySelector('#enter-demo').disabled && document.querySelector('.access-code-entry').hidden && document.querySelector('.entry-demo-note').textContent.includes('pas encore disponible');")
-        assert any('/Vigneron-B/site/static/secure.js' in path for path in requests)
-        assert any('/Vigneron-B/site/static/assets/' in path for path in requests)
+        assert any('/Vigneron-B/static/secure.js' in path for path in requests)
+        assert any('/Vigneron-B/static/assets/' in path for path in requests)
         assert not any(path.startswith(('/api/','/auth/')) for path in requests)
         Path('/tmp/heritage-github-pages-desktop.png').write_bytes(base64.b64decode(command('WebDriver:TakeScreenshot',{'id':None,'full':False,'hash':False})))
         js("location.hash='overview';")

@@ -1,73 +1,84 @@
-# L’Héritage — site unique
+# L’Héritage
 
-Le site actuel est dans `site/`. Ce dépôt contient le backend Python, le frontend,
-les images, les animations et les tests de la dernière version. Le fichier `bot.py`
-et ses modules sont conservés à la racine : le site lit ses fonctions pures de
-progression sans démarrer le bot.
+Site de gestion du domaine RP : interface web, serveur Python et bot Discord.
 
-## Accueil sur GitHub Pages
+## Organisation
 
-Le fichier `index.html` à la racine est généré depuis la véritable interface du
-site. Après publication, il affiche l'accueil avec le design et les images, au
-lieu du README. Les ressources restent dans `site/static/`.
-Sur GitHub Pages, la connexion reste indiquée comme indisponible : aucune session
-fictive ni donnée privée n'est créée. Les fonctionnalités privées restent gérées
-par le serveur Python. Ce correctif d'affichage ne les transforme pas en fonctions
-exécutables sur GitHub Pages.
+| Emplacement | Contenu |
+| --- | --- |
+| `index.html` | Accueil publié sur GitHub Pages |
+| `static/` | Interface, styles, scripts, images et animations |
+| `backend/` | Serveur FastAPI, comptes, permissions et données métier |
+| `scripts/` | Lancement, configuration, export et vérifications |
+| `integration/` | Extension de connexion au bot Discord |
+| `tests/` | Tests Python et parcours navigateur |
+| `docs/` | Documentation technique et fonctionnelle |
+| `data/` | Données locales privées, exclues de GitHub |
+| `bot.py` et modules à la racine | Bot Discord et règles partagées avec le serveur |
 
-## Ce qui ne va pas sur GitHub
+## GitHub Pages
 
-Les fichiers `.env`, les jetons, les clés Google, les environnements Python, les
-bases SQLite, les comptes, les photos privées, les archives et les logs ne sont
-pas dans cet export. Ils restent sur le PC Linux et ne sont pas effacés.
-Le `.gitignore` les exclut aussi des futurs commits. La configuration publique
-du code et les exemples de paramètres restent présents.
+Publier la branche depuis sa racine (`/`). Conserver `index.html` et le dossier
+`static/` ensemble : l’accueil charge ses ressources depuis `./static/`.
 
-## Démarrage local sous Windows
+GitHub Pages affiche l’interface publique. Les comptes, la connexion Discord et
+les fonctions privées nécessitent le serveur Python : GitHub Pages seul ne les exécute pas.
 
-Python 3.11 minimum est nécessaire. Dans PowerShell, depuis ce dossier :
+## Démarrage sous Windows
+
+Installer Python 3.11 ou plus récent, puis dans PowerShell depuis ce dossier :
 
 ```powershell
-py -3 -m venv site\.venv
-.\site\.venv\Scripts\python.exe -m pip install -r requirements.txt
-Copy-Item site\.env.example site\.env
-.\site\.venv\Scripts\python.exe site\scripts\configure_oauth.py
-.\site\.venv\Scripts\python.exe site\scripts\serve.py
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
+.\.venv\Scripts\python.exe scripts\configure_oauth.py
+.\.venv\Scripts\python.exe scripts\serve.py
 ```
 
-La copie de `.env.example` concerne la première configuration seulement ; ne pas
-remplacer un `.env` privé existant. La configuration OAuth2 reste à saisir en privé.
-Le site neuf utilise ses données de démonstration tant que les données privées
-Linux n’ont pas été transférées séparément. Le `.gitignore` ne constitue pas une
-sauvegarde de ces données. Pour le mode local sans Discord, le paramètre privé
-`HERITAGE_LOCAL_PREVIEW=1` conserve sa restriction à la machine locale.
+Créer `.env` uniquement à la première installation ; conserver la configuration
+privée existante. Adresse locale : http://127.0.0.1:8081/.
 
-Adresse locale : http://127.0.0.1:8081/.
-L’environnement virtuel Linux n’est pas transféré : Windows recrée le sien.
-
-## Démarrage local sous Linux
+## Démarrage sous Linux
 
 ```bash
-python3 -m venv site/.venv
-site/.venv/bin/python -m pip install -r requirements.txt
-cp site/.env.example site/.env
-chmod 600 site/.env
-site/.venv/bin/python site/scripts/configure_oauth.py
-./lancer-site.sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+chmod 600 .env
+.venv/bin/python scripts/configure_oauth.py
+bash lancer-site.sh
 ```
 
-## GitHub et hébergement
+Le mode `HERITAGE_LOCAL_PREVIEW=1` est réservé à une utilisation locale.
+Les secrets, bases SQLite, photos privées et environnements Python restent
+exclus du dépôt par `.gitignore`.
 
-GitHub conserve et versionne le code. GitHub Pages ne sert que des sites
-statiques et ne fait pas tourner ce backend Python, indispensable aux comptes,
-permissions et API. Il faudra un hébergeur capable d’exécuter Python, avec HTTPS
-et stockage persistant, ou conserver le backend sur un PC correctement configuré.
-Aucun hébergement public n’est activé par cet export. Le mode local sans Discord
-doit être désactivé avant une mise en ligne validée.
+## Documentation
 
-La copie manuelle des données du bot nécessite toujours son environnement de
-lecture et ses paramètres privés sur la machine d’exécution. Ce transfert de
-code ne crée pas de synchronisation bidirectionnelle avec Discord.
+- [Accès individuels](docs/ACCES-INDIVIDUELS.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Décisions fonctionnelles](docs/DECISIONS-FONCTIONNELLES.md)
+- [Sécurité et fiabilité](docs/SECURITE-ET-FIABILITE.md)
+- [Préparation Supabase](docs/SUPABASE-PREPARATION.md)
 
-Documentation : `site/README.md` et `site/ACCES-INDIVIDUELS.md`.
-Référence GitHub Pages : https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages
+Les documents techniques conservent le contexte des décisions et intégrations.
+Les commandes de lancement à utiliser sont celles de ce README.
+
+## Vérifier les modifications
+
+Après une modification de `static/index.html`, régénérer l’accueil GitHub Pages :
+
+```powershell
+.\.venv\Scripts\python.exe scripts\sync_pages.py
+```
+
+Le test public utilise Node.js et Chrome, sans compte ni serveur Python :
+
+```powershell
+node tests/browser_pages.mjs
+```
+
+Il vérifie l’accueil sous `/Vigneron-B/`, quatre largeurs d’écran, l’absence
+d’appels aux API privées, et la récupération après des fichiers manquants.
+Les tests du serveur se lancent avec `python -m pytest tests` dans son environnement.
