@@ -213,12 +213,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .management-navigation > summary::-webkit-details-marker { display: none; }
 .management-navigation > summary > svg:first-child { width: 25px; height: 25px; color: #bca67f; flex-shrink: 0; }
 .management-navigation > summary > span { flex: 1; }
-.management-navigation > summary .management-chevron { width: 16px; height: 16px; color: #bca67f; transition: transform .18s; }
-.management-navigation[open] > summary .management-chevron { transform: rotate(180deg); }
+.management-navigation > summary .management-chevron { width: 16px; height: 16px; color: #bca67f; transform: rotate(-90deg); transition: transform .18s; }
+.management-navigation[open] > summary .management-chevron { transform: rotate(90deg); }
 .management-navigation > summary:hover,.management-navigation.has-active-page > summary { color: #ead6ae; background: #b49b6d0b; }
 .management-navigation > summary:focus-visible { outline: 2px solid var(--gold); outline-offset: -4px; }
-.management-links { margin: 0 14px 13px 34px; border-left: 1px solid #b49b6d40; }
-.sidebar nav .management-links a { display: flex; min-height: 43px; margin: 3px 0 3px 7px; padding: 11px 12px; gap: 10px; border: 1px solid transparent; border-radius: 5px; font: 500 17px/1.25 var(--serif); }
+.management-links[popover] { position: fixed; inset: auto; width: 235px; max-width: calc(100vw - 24px); margin: 0; padding: 8px; border: 1px solid #b49b6d55; border-radius: 8px; background: linear-gradient(130deg,#1c2b32,#0c151b); box-shadow: 0 12px 32px #0008,inset 0 1px #e5ce9d0c; color: #e1d4ba; }
+.sidebar nav .management-links a { display: flex; min-height: 43px; margin: 2px 0; padding: 11px 12px; gap: 10px; border: 1px solid transparent; border-radius: 5px; font: 500 18px/1.25 var(--serif); }
 .sidebar nav .management-links a::before { content: ''; width: 4px; height: 4px; flex-shrink: 0; border-radius: 50%; background: #9c8b69; }
 .sidebar nav .management-links a.active { border-color: #b49b6d4d; background: #b49b6d15; color: #eddbb7; }
 .sidebar nav .management-links a.active::before { background: #d4b578; }

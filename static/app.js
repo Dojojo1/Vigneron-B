@@ -160,6 +160,12 @@ function updatePageHeading(route,label){
 }
 function render({incremental=false}={}){updatePageHeading(activePage);const markup=({overview,sales:salesPage,machines:machinesPage,tombola:tombolaPage,history:historyPage,team:teamPage,stats:statsPage}[activePage])();if(incremental)updatePageContent(markup);else $('#content').innerHTML=markup;refreshMachineControls();}
 function navigate(){if(window.heritageNavigate){void window.heritageNavigate();return;}$('#entry-screen').hidden=false;$('main').hidden=true;$('#sidebar').hidden=true;$('body').classList.add('on-entry');}
+document.addEventListener('click',event=>{
+ const link=event.target.closest('a[href^="#"]');
+ if(!link||event.defaultPrevented||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+ // The GitHub entry uses a base URL for assets; routes stay on the current page.
+ event.preventDefault();location.hash=link.getAttribute('href');
+});
 function closeMenu(){$('#sidebar').classList.remove('open');$('#scrim').classList.remove('visible');$('#menu-toggle').setAttribute('aria-expanded','false');}
 window.addEventListener('hashchange',navigate);$('#menu-toggle').addEventListener('click',()=>{const open=$('#sidebar').classList.toggle('open');$('#scrim').classList.toggle('visible',open);$('#menu-toggle').setAttribute('aria-expanded',String(open));});$('#scrim').addEventListener('click',closeMenu);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu();});
 function options(values,selected){return values.map(v=>`<option ${v===selected?'selected':''}>${escapeHTML(v)}</option>`).join('');}

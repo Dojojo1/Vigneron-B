@@ -76,6 +76,13 @@ try{
  assert.equal(await js("document.querySelector('.access-code-entry').hidden"),true);
  await js("document.querySelector('#enter-demo').click()");await delay(200);
  assert.equal(await js("document.querySelector('main').hidden"),false);
+ if(!liveURL&&!mirrorURL){
+  await js("document.querySelector('.management-navigation > summary').scrollIntoView({block:'center'});document.querySelector('.management-navigation > summary').click()");
+  await wait("document.querySelector('.management-links').matches(':popover-open')");
+  assert.ok(await js("document.querySelector('.management-links').getBoundingClientRect().left>=document.querySelector('#sidebar').getBoundingClientRect().right"),'Management must open beside the desktop sidebar');
+  await js("document.querySelector('.management-links [data-page=council]').click()");
+  await wait("activePage==='council' && !document.querySelector('.management-navigation').open");
+ }
  for(const route of ['sales','machines','tombola','history','stats','journal','team','profile','council','external-access','overview']){
   await js(`location.hash=${JSON.stringify(route)}`);await delay(100);
   assert.equal(await js('activePage'),route);

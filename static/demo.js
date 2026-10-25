@@ -40,7 +40,7 @@ window.heritagePublicDemo=()=>{
  state=seed();
  state.members=[{displayName:'Visiteur démo',discordName:'Profil de démonstration'}];
  state.catalog=VEHICLE_CATALOG;
- $('#navigation').innerHTML=window.heritageSession.pages.filter(p=>!['council','external-access'].includes(p.id)).map(p=>`<a href="#${p.id}" data-page="${p.id}">${icon(pages[p.id]?.[3]||'team')}<span>${escapeHTML(p.label)}</span></a>`).join('')+`<details class="management-navigation"><summary>${icon('machines')}<span>Gestion</span><svg class="management-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></summary><div class="management-links"><a href="#council" data-page="council"><span>Accès</span></a><a href="#external-access" data-page="external-access"><span>Accès extérieurs</span></a></div></details>`;
+ $('#navigation').innerHTML=window.heritageSession.pages.filter(p=>!['council','external-access'].includes(p.id)).map(p=>`<a href="#${p.id}" data-page="${p.id}">${icon(pages[p.id]?.[3]||'team')}<span>${escapeHTML(p.label)}</span></a>`).join('')+`<details class="management-navigation"><summary>${icon('machines')}<span>Gestion</span><svg class="management-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></summary><div class="management-links" popover="manual" aria-label="Gestion"><a href="#council" data-page="council"><span>Accès</span></a><a href="#external-access" data-page="external-access"><span>Accès extérieurs</span></a></div></details>`;
  $('#profile-name').textContent='Visiteur';$('#profile-role').textContent='Démonstration';$('#profile-avatar').textContent='VD';
  $('#enter-demo').disabled=false;
  $('#enter-demo .entry-button-label').textContent='ENTRER DANS LE DOMAINE';
@@ -49,6 +49,23 @@ window.heritagePublicDemo=()=>{
  $('#access-code-login-form').addEventListener('submit',event=>event.preventDefault());
  $('footer > span:last-child').firstChild.textContent='Démonstration · données fictives ';
  $('#reset-demo').hidden=true;
+ const managementMenu=$('.management-navigation'),managementPopup=$('.management-links'),managementTrigger=managementMenu.querySelector('summary');
+ function placeManagement(){
+  if(!managementMenu.open)return;
+  const trigger=managementTrigger.getBoundingClientRect(),sidebar=$('#sidebar').getBoundingClientRect();
+  managementPopup.style.left=Math.max(12,Math.min(sidebar.right+9,innerWidth-managementPopup.offsetWidth-12))+'px';
+  managementPopup.style.top=Math.max(12,Math.min(trigger.top,innerHeight-managementPopup.offsetHeight-12))+'px';
+ }
+ managementMenu.addEventListener('toggle',()=>{
+  managementTrigger.setAttribute('aria-expanded',String(managementMenu.open));
+  if(managementMenu.open){if(!managementPopup.matches(':popover-open'))managementPopup.showPopover();placeManagement();}
+  else if(managementPopup.matches(':popover-open'))managementPopup.hidePopover();
+ });
+ managementTrigger.setAttribute('aria-expanded','false');
+ document.addEventListener('pointerdown',event=>{if(managementMenu.open&&!managementMenu.contains(event.target))managementMenu.open=false;});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&managementMenu.open){managementMenu.open=false;managementTrigger.focus();}});
+ managementPopup.addEventListener('click',event=>{if(event.target.closest('a'))managementMenu.open=false;});
+ window.addEventListener('resize',placeManagement);$('#navigation').addEventListener('scroll',placeManagement);
  function entry(show){
   $('#entry-screen').hidden=!show;$('main').hidden=show;$('#sidebar').hidden=show;
   $('body').classList.toggle('on-entry',show);
@@ -57,7 +74,7 @@ window.heritagePublicDemo=()=>{
  window.heritageNavigate=async()=>{
   const route=location.hash.slice(1)||'welcome';closeMenu();
   const management=$('.management-navigation'),managing=['council','external-access'].includes(route);
-  management.classList.toggle('has-active-page',managing);if(managing)management.open=true;
+  management.classList.toggle('has-active-page',managing);management.open=false;
   if(route==='welcome'){activePage='welcome';entry(true);return true;}
   activePage=routes.includes(route)?route:'overview';entry(false);
   if(activePage==='council'||activePage==='external-access')accessPanel(activePage);
