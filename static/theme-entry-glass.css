@@ -1,0 +1,200 @@
+/* Accueil 03 — Verre de nuit. Centrage indépendant du menu du domaine. */
+body.on-entry { margin: 0; overflow-x: clip; }
+.entry-screen {
+  width: 100%;
+  min-height: 100svh;
+  margin: 0;
+  padding: clamp(26px, 4vh, 48px) 24px 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(0deg, #040a0cb3, #040b1014 52%, #030a102b),
+    url('assets/midnight-hero.png') center / cover fixed;
+}
+.entry-screen::before {
+  background: radial-gradient(ellipse at 50% 44%, #02090d12 12%, #02080c33 85%);
+}
+.entry-clip-defs { position: absolute; width: 0; height: 0; pointer-events: none; }
+.entry-screen .entry-content {
+  width: min(100%, 740px);
+  margin: 0 auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.entry-screen .entry-brand { width: 100%; margin: 0; padding: 0; }
+.entry-screen .entry-brand .estate-crest,
+.entry-screen .entry-brand .estate-crest svg {
+  width: clamp(66px, 8.5vh, 94px);
+  height: clamp(66px, 8.5vh, 94px);
+}
+.entry-screen .entry-brand .estate-crest { display: block; margin: 0 auto 5px; color: #d9b782; }
+.entry-screen .entry-brand h1 {
+  font: 500 clamp(32px, 4.5vh, 48px)/1.1 var(--serif);
+  letter-spacing: .12em;
+  color: #edd0a2;
+  margin: 4px 0 0;
+}
+.entry-screen .entry-vineyard {
+  font: 500 14px/1.5 var(--serif);
+  letter-spacing: 4px;
+  color: #c9aa7d;
+  margin: 8px 0 0;
+}
+.entry-panel-shell { position: relative; width: min(100%, 680px); margin: 46px auto 0; }
+.entry-screen .entry-panel {
+  position: relative;
+  isolation: auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: clamp(60px, 7vh, 80px) 44px clamp(28px, 3.5vh, 42px);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: clip;
+  clip-path: url(#entry-glass-clip);
+  background: radial-gradient(ellipse at 100% 42%, #e19a3933, transparent 42%),
+    radial-gradient(ellipse at 5% 0%, #728a9d30, transparent 46%),
+    linear-gradient(115deg, #23303d6b, #08121b9c 52%, #332c2466);
+  backdrop-filter: blur(18px) saturate(1.12);
+  -webkit-backdrop-filter: blur(18px) saturate(1.12);
+}
+.entry-screen .entry-panel::after { display: none; }
+.entry-screen .entry-panel::before {
+  content: '';
+  display: block;
+  position: absolute;
+  inset: -24px;
+  width: auto;
+  height: auto;
+  z-index: 0;
+  border: 0;
+  border-radius: 0;
+  transform: none;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 100% 42%, #d9943e59, transparent 45%),
+    linear-gradient(115deg, #17283873, #07121b9c 55%, #392b2573),
+    url('assets/midnight-hero.png') center / cover fixed;
+  filter: blur(18px) saturate(1.12);
+}
+.entry-panel > :not(.entry-glass-details) { position: relative; z-index: 1; }
+.entry-glass-details {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: .95;
+  z-index: 1;
+  filter: drop-shadow(0 0 5px #dca5663b);
+}
+.entry-medallion {
+  z-index: 2;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  width: 82px;
+  height: 82px;
+  border: 1px solid #e4b677a1;
+  border-radius: 50%;
+  background: radial-gradient(at 35% 15%, #384047, #0a141d 65%);
+  box-shadow: 0 0 18px #e3a45c33, 0 7px 24px #0009, inset 0 0 0 4px #b7905d12;
+  color: #f3cf97;
+}
+.entry-medallion svg { width: 76px; height: 76px; filter: drop-shadow(0 1px 5px #dfad5e36); }
+.entry-screen .entry-panel .eyebrow {
+  font: 500 8px/1.7 var(--sans);
+  letter-spacing: 2.7px;
+  color: #e4c79d;
+  margin: 0;
+}
+.entry-divider { display: flex; align-items: center; justify-content: center; gap: 13px; margin: 16px auto 20px; color: #c8755b; }
+.entry-divider span { display: block; height: 1px; width: 64px; background: linear-gradient(90deg, transparent, #bd674e); }
+.entry-divider span:last-child { transform: rotate(180deg); }
+.entry-divider svg { width: 18px; height: 22px; }
+.entry-screen .entry-welcome {
+  font: 500 clamp(48px, 6.6vh, 70px)/.98 var(--serif);
+  letter-spacing: -.7px;
+  color: #f0ddbc;
+  margin: 0;
+  text-shadow: 0 3px 18px #0006;
+}
+.entry-screen .entry-intro {
+  font: 400 18px/1.5 var(--serif);
+  color: #e4d3b9;
+  max-width: 470px;
+  margin: 23px auto 28px;
+  text-wrap: balance;
+}
+.entry-screen .entry-panel #enter-demo {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: min(100%, 440px);
+  min-height: 57px;
+  margin: 0 auto;
+  padding: 17px 43px;
+  border: 1px solid #f0cea188;
+  border-radius: 50px;
+  background: linear-gradient(110deg, #a27b4c, #e6c590 48%, #c19a68);
+  color: #211b13;
+  box-shadow: 0 0 24px #e1ad6220, 0 4px 20px #0004, inset 0 1px #ffe6c599;
+  text-shadow: none;
+  transition: box-shadow .25s ease, filter .25s ease;
+}
+.entry-screen #enter-demo .entry-button-label { font: 500 12px var(--sans); letter-spacing: 1.3px; color: #211b13; }
+.entry-screen #enter-demo .entry-button-arrow { position: absolute; right: 25px; font: 24px var(--serif); color: #392817; }
+.entry-screen #enter-demo:hover { transform: none; filter: brightness(1.1); box-shadow: 0 0 30px #e1ad6244, 0 5px 20px #0005, inset 0 1px #ffe6c599; }
+.entry-screen .entry-demo-note { font: 11px/1.5 var(--sans); color: #c6b18c; margin: 17px 0 0; }
+.entry-screen .entry-signature {
+  width: min(100%, 410px);
+  max-width: none;
+  margin: 29px auto 0;
+  padding: 16px 0 0;
+  border: 0;
+}
+.entry-screen .entry-signature > span {
+  position: static;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0 auto 9px;
+  color: #c8a26c;
+}
+.entry-signature > span::before, .entry-signature > span::after { content: ''; width: 55px; height: 1px; background: #aa844752; }
+.entry-screen .entry-signature svg { width: 15px; height: 18px; }
+.entry-screen .entry-signature blockquote { font: italic 20px/1.4 var(--serif); color: #d3bb95; margin: 0; }
+.entry-screen .entry-footer { margin: 0; bottom: 14px; font-size: 6px; line-height: 1.5; }
+
+@media (max-width: 760px) {
+  .entry-screen { padding: 26px 18px 46px; background-position: 64% center; background-attachment: scroll; }
+  .entry-screen .entry-brand h1 { font-size: clamp(27px, 7vw, 38px); letter-spacing: 2.5px; }
+  .entry-screen .entry-vineyard { font-size: 11px; letter-spacing: 3px; margin-top: 7px; }
+  .entry-panel-shell { margin-top: 40px; }
+  .entry-screen .entry-panel { margin: 0; padding: 57px 25px 29px; }
+  .entry-medallion { width: 68px; height: 68px; }
+  .entry-medallion svg { width: 64px; height: 64px; }
+  .entry-screen .entry-panel .eyebrow { font-size: 6px; letter-spacing: 1.5px; }
+  .entry-divider { margin-top: 14px; margin-bottom: 18px; }
+  .entry-divider span { width: 43px; }
+  .entry-screen .entry-welcome { font-size: clamp(42px, 11vw, 58px); }
+  .entry-screen .entry-intro { font-size: 16px; margin: 21px auto 24px; }
+  .entry-screen .entry-panel #enter-demo { min-height: 52px; padding: 15px 33px; }
+  .entry-screen #enter-demo .entry-button-label { font-size: 9px; letter-spacing: .8px; }
+  .entry-screen #enter-demo .entry-button-arrow { right: 17px; font-size: 22px; }
+  .entry-screen .entry-demo-note { font-size: 9px; }
+  .entry-screen .entry-signature { margin-top: 20px; padding-top: 12px; }
+  .entry-screen .entry-signature blockquote { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .entry-screen .entry-panel #enter-demo { transition: none; }
+}

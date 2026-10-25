@@ -1,0 +1,191 @@
+/* L’Héritage · noir d’encre, pétrole et lumière de bronze.
+   Finition commune : aucune modification de la géométrie ni des images. */
+:root {
+  --bg: #060b0e;
+  --panel: #101c22;
+  --ivory: #eee1ca;
+  --gold: #c9ac7f;
+  --muted: #aca79b;
+  --line: #a997773b;
+  --nuance-surface:
+    radial-gradient(ellipse at 0% 0%, #a37c4930, transparent 55%),
+    radial-gradient(ellipse at 100% 15%, #38647832, transparent 65%),
+    linear-gradient(125deg, #142127, #0c151a 55%, #070c10);
+}
+
+body:not(.on-entry) {
+  background:
+    radial-gradient(ellipse at 95% 35%, #17354085, transparent 60%),
+    radial-gradient(ellipse at 10% 85%, #4736293b, transparent 55%),
+    linear-gradient(130deg, #060a0d, #0b151b 60%, #060a0e);
+  background-attachment: fixed;
+}
+
+/* Une seule nappe de lumière pour la page, plutôt qu’une animation par carte. */
+body:not(.on-entry)::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 80% 45%, #3b71882b, transparent 58%),
+    radial-gradient(ellipse at 25% 85%, #b78b5920, transparent 48%);
+  animation: heritage-light 20s ease-in-out infinite alternate;
+}
+@keyframes heritage-light {
+  from { opacity: .35; transform: translate3d(0, 0, 0); }
+  to { opacity: .95; transform: translate3d(0, -18px, 0); }
+}
+
+.sidebar {
+  background: radial-gradient(ellipse at 100% 0%, #28445155, transparent 65%),
+    linear-gradient(165deg, #0d171deb, #050a0ef5 65%, #101519f0);
+  border-right-color: #c2a47738;
+  box-shadow: 12px 0 45px #00000024;
+}
+.sidebar nav a.active,
+.sidebar nav a.active:hover,
+.sidebar nav a:focus-visible {
+  /* Les deux filets et le fond s'effacent ensemble, sans bord droit fermé.
+     Dégradés CSS simples : même rendu attendu dans Chromium et Firefox. */
+  border-color: transparent;
+  background:
+    linear-gradient(90deg, #c5a67380, #c5a67338 50%, #c5a67300 94%) left top / 100% 1px no-repeat,
+    linear-gradient(90deg, #c5a67380, #c5a67338 50%, #c5a67300 94%) left bottom / 100% 1px no-repeat,
+    linear-gradient(100deg, #ba956638, #32505d18 48%, #32505d00 92%);
+  box-shadow: inset 3px 0 #d1b783;
+}
+.sidebar nav a:hover:not(.active):not(:focus-visible) {
+  border-color: transparent;
+  background: linear-gradient(100deg, #6b929c20, #6b929c0c 48%, #6b929c00 92%);
+}
+.midnight-monogram { text-shadow: 0 2px 18px #d5af6c20; }
+
+.panel, .register-panel, .council-panel, .machine-card, .raffle,
+.metric-strip, .metric-feature, .sales-week-panel, .dossier,
+.stats-top article, .raffle-dialog .raffle-vehicle {
+  background: var(--nuance-surface);
+  border-color: #b49b6d4f;
+  box-shadow: inset 0 1px #efd2a30a, inset 0 -1px #0006, 0 12px 32px #00000024;
+}
+.cut-frame {
+  --frame: #b69c6a66;
+  background: linear-gradient(120deg, #c9a46e45, #4b6a7626 48%, transparent), var(--frame);
+}
+.cut-inner, .night-metrics > .cut-inner, .night-dossier > .cut-inner,
+.batch-card > .cut-inner, .sale-record > summary.cut-inner {
+  background: var(--nuance-surface);
+}
+.sale-record:nth-child(3n + 2) > summary.cut-inner {
+  background: radial-gradient(ellipse at 25% 0%, #4973872e, transparent 65%),
+    linear-gradient(115deg, #121e24, #080e13 90%);
+}
+.sale-record-details {
+  background: linear-gradient(130deg, #17252b, #0a1218 80%);
+}
+.sale-record > summary::after {
+  background: linear-gradient(110deg, #e1b77b18, #4d829b1f 60%, transparent);
+}
+.night-metric::after {
+  background: linear-gradient(115deg, #ccab7828, #51819726 65%, transparent);
+}
+.night-metric strong, .batch-total strong, .stats-top strong {
+  color: #f0ddba;
+  text-shadow: 0 2px 18px #d5b47c14;
+}
+.gauge-inner, .split-donut > div {
+  background: radial-gradient(ellipse at 30% 15%, #263b42, #0c151a 75%);
+}
+.batch-footer {
+  background: linear-gradient(100deg, #b89a5d08, #27414e15, #02080b40);
+}
+.account-popover, #toast {
+  background: linear-gradient(135deg, #1b2c34f7, #080f15fa);
+  border-color: #c1a37466;
+  box-shadow: inset 0 1px #eed5af0d, 0 20px 50px #0008;
+}
+.profile-toggle, .global-search label, .account-icon {
+  background: linear-gradient(125deg, #18272fdf, #070e14e8);
+}
+dialog, #form-dialog.raffle-dialog {
+  background: radial-gradient(ellipse at 0% 0%, #bc965a25, transparent 55%),
+    radial-gradient(ellipse at 100% 20%, #3b657b30, transparent 65%),
+    linear-gradient(125deg, #17242b, #080e14 85%);
+  border-color: #cfad777d;
+  box-shadow: inset 0 1px #f7ddb319, 0 35px 110px #000b;
+}
+dialog::backdrop { background: #02070cb8; backdrop-filter: blur(7px); }
+
+.button, .button.glass, .record-actions button, .finish-actions button,
+.sale-record-details .finish-actions button, .circle-button {
+  background: linear-gradient(125deg, #243239, #101a20 65%, #0b1217);
+  border-color: #baa07466;
+  box-shadow: inset 0 1px #f0d7af0b;
+}
+.button.primary, .raffle-dialog #entry-form > .submit {
+  background: linear-gradient(115deg, #70553a, #4d4434 48%, #202e32);
+  border-color: #d2ad7688;
+  color: #f2e0bf;
+}
+.field input, .field select, .toolbar input, .input, select,
+.raffle-dialog .field input, .vehicle-price-input {
+  background-color: #0a131a;
+  border-color: #8ea2a63b;
+  color: #eadfc9;
+  transition: border-color .25s ease, box-shadow .25s ease, background-color .25s ease;
+}
+/* Le montant du véhicule reste un seul champ visuel. */
+.raffle-dialog .vehicle-price-input input { background: transparent; }
+input::placeholder { color: #92948d; }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  border-color: #d5b37c;
+  outline: 2px solid #d5b37c70;
+  outline-offset: 2px;
+  box-shadow: 0 0 20px #7299a512;
+}
+.history-table tbody tr, .employee-ranking > div, .council-audit li {
+  transition: background-color .25s ease;
+}
+.access-matrix th, .access-matrix td { background: #0c151c; }
+.access-matrix th:first-child { background: #15232b; }
+.access-matrix thead th, .access-matrix thead th:first-child {
+  background: linear-gradient(115deg, #25343b, #15212a);
+}
+.access-matrix tbody tr:hover td, .access-matrix tbody tr:hover th { background: #24343d; }
+.entry-screen .entry-panel {
+  background: radial-gradient(ellipse at 100% 20%, #c69c5a30, transparent 55%),
+    linear-gradient(120deg, #29414f80, #08121bc9 55%, #302b237d);
+}
+.entry-screen .entry-panel::before { animation: heritage-glass 16s ease-in-out infinite alternate; }
+@keyframes heritage-glass { from { opacity: .58; } to { opacity: .95; } }
+.entry-medallion { box-shadow: 0 0 30px #b9965833, 0 7px 24px #0009, inset 0 0 0 4px #b7905d12; }
+
+@media (hover: hover) and (pointer: fine) {
+  .panel, .machine-card, .raffle, .sales-week-panel, .raffle-dialog .raffle-vehicle {
+    transition: border-color .35s ease, box-shadow .35s ease;
+  }
+  .panel:hover, .machine-card:hover, .raffle:hover, .sales-week-panel:hover,
+  .raffle-dialog .raffle-vehicle:hover {
+    border-color: #d1b17d80;
+    box-shadow: inset 0 1px #f2d6ac14, inset 0 -1px #0005, 0 12px 35px #0004, 0 0 24px #51809a0a;
+  }
+  .button:hover, .finish-actions button:hover, .record-actions button:hover {
+    border-color: #ddbb85b3;
+    box-shadow: inset 0 1px #f7ddb522, 0 0 22px #b5934f14;
+    filter: brightness(1.12);
+  }
+  .history-table tbody tr:hover, .employee-ranking > div:hover, .council-audit li:hover {
+    background-color: #769ba810;
+  }
+}
+@media (max-width: 760px) {
+  body:not(.on-entry)::after { animation: none; opacity: .6; }
+  .entry-screen .entry-panel::before { animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body:not(.on-entry)::after, .entry-screen .entry-panel::before { animation: none; transform: none; }
+  .panel, .machine-card, .raffle, .sales-week-panel, .raffle-dialog .raffle-vehicle,
+  .field input, .field select, .toolbar input, .input, select, .vehicle-price-input,
+  .history-table tbody tr, .employee-ranking > div, .council-audit li { transition: none; }
+}

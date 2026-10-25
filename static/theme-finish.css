@@ -1,0 +1,352 @@
+/* Finition Après minuit : relief discret et couleurs, sans zoom des images. */
+.hero::before {
+  filter: brightness(.96) saturate(1.12) contrast(1.03);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 52%, #000d 70%, #0005 87%, transparent 100%);
+}
+
+/* Le décor disparaît progressivement avant la première carte. */
+main { z-index: 1; }
+
+/* Vidéo de fumée au premier plan : le fond noir disparaît par fusion. */
+.estate-atmosphere {
+  display: block;
+  position: fixed;
+  z-index: 3;
+  left: 206px;
+  bottom: 0;
+  width: calc(100% - 206px);
+  height: min(23vh, 230px);
+  pointer-events: none;
+  user-select: none;
+  object-fit: cover;
+  object-position: center bottom;
+  mix-blend-mode: screen;
+  filter: brightness(2.3) contrast(1.12);
+  opacity: 0;
+  transition: opacity .8s ease;
+  mask-image: linear-gradient(to bottom, transparent, #000 30%);
+}
+.estate-atmosphere.is-visible { opacity: .85; }
+body.on-entry .estate-atmosphere { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .estate-atmosphere:not(.motion-requested) { display: none; transition: none; }
+}
+@media (min-width: 1700px) {
+  .estate-atmosphere { left: 218px; width: calc(100% - 218px); }
+}
+@media (max-width: 1250px) {
+  .estate-atmosphere { left: 175px; width: calc(100% - 175px); }
+}
+@media (max-width: 760px) {
+  .estate-atmosphere { left: 0; width: 100%; height: min(20vh, 170px); }
+}
+
+.night-dossier-photo {
+  position: relative;
+  filter: brightness(1.09) saturate(1.18) contrast(1.03);
+}
+
+.night-dossier-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #e49e4326, transparent 48%, #385d8d24);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+.sale-record > summary.cut-inner {
+  position: relative;
+  isolation: isolate;
+  background: radial-gradient(ellipse at 15% 0%, #7d472b19, transparent 65%),
+    linear-gradient(110deg, #141a1c, #0a1118);
+}
+
+.sale-record > summary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, #a96c2520, transparent 45%, #742b2520);
+  opacity: 0;
+  transition: opacity .28s ease;
+  pointer-events: none;
+}
+
+.sale-record, .batch-card {
+  transition: transform .28s cubic-bezier(.2, .7, .3, 1), background-color .28s ease;
+}
+
+.batch-card > .cut-inner {
+  background: radial-gradient(ellipse at 5% 0%, #82502c1a, transparent 50%),
+    radial-gradient(ellipse at 60% 35%, #2a465630, transparent 65%),
+    linear-gradient(115deg, #10171b, #0a1118 60%, #0c1015);
+}
+
+.sale-record:focus-within, .batch-card:focus-within {
+  --frame: #d8b774ba;
+}
+
+.sale-record:focus-within > summary::after {
+  opacity: 1;
+}
+
+.sale-record .sale-chevron,
+.batch-footer-actions span,
+.night-heading-actions > a > span,
+.button > span:last-child {
+  display: inline-block;
+  transition: transform .25s ease, color .25s ease;
+}
+
+.sidebar nav a, .sidebar nav a svg, .night-metric,
+.button, .batch-footer-actions > button, .finish-actions button {
+  transition: background-color .25s ease, border-color .25s ease, color .25s ease,
+    transform .25s ease, filter .25s ease;
+}
+
+.sale-record[open] .sale-record-details {
+  animation: sale-details-in .3s ease-out both;
+}
+
+@keyframes sale-details-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Les navigateurs compatibles animent aussi la hauteur du volet natif. */
+@supports (interpolate-size: allow-keywords) {
+  .sale-record { interpolate-size: allow-keywords; }
+  .sale-record::details-content {
+    block-size: 0;
+    overflow: clip;
+    transition: block-size .32s ease, content-visibility .32s allow-discrete;
+  }
+  .sale-record[open]::details-content { block-size: auto; }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sale-record:hover, .batch-card:hover {
+    --frame: #d8b774ba;
+    transform: translateY(-3px);
+  }
+  .sale-record:hover > summary::after { opacity: 1; }
+  .sale-record:not([open]):hover .sale-chevron { transform: translateX(3px); }
+  .batch-footer-actions > :hover span,
+  .night-heading-actions > a:hover > span,
+  .button:hover > span:last-child { transform: translateX(3px); }
+  .night-metric:hover::after { opacity: 1; }
+  .sidebar nav a:hover {
+    background-color: #8c573012;
+    border-color: #bb935447;
+    color: #f1d2a4;
+  }
+  .sidebar nav a:hover svg { transform: translateX(2px); }
+  .button:hover, .batch-footer-actions > button:hover,
+  .sale-record-details .finish-actions button:hover {
+    border-color: #d5aa7099;
+    background-color: #b27d3d18;
+    color: #f0d5ae;
+  }
+}
+
+@media (max-width: 760px) {
+  .sale-record .night-dossier-photo { position: absolute; opacity: .9; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sale-record, .sale-record::details-content, .batch-card,
+  .sale-record .sale-chevron, .batch-footer-actions span,
+  .night-heading-actions > a > span, .button > span:last-child,
+  .sidebar nav a, .sidebar nav a svg, .night-metric,
+  .button, .batch-footer-actions > button, .finish-actions button,
+  .sale-record > summary::after {
+    transition: none;
+  }
+  .sale-record[open] .sale-record-details { animation: none; }
+  .sale-record:hover, .batch-card:hover,
+  .sale-record:not([open]):hover .sale-chevron,
+  .batch-footer-actions > :hover span,
+  .night-heading-actions > a:hover > span,
+  .button:hover > span:last-child, .sidebar nav a:hover svg {
+    transform: none;
+  }
+}
+
+/* Le journal détaillé est regroupé avec les dossiers dans Sales. */
+.sales-activity { margin-top: 30px; padding-top: 16px; border-top: 1px solid #a88b5533; }
+.sales-activity .night-event-list time { max-width: 82px; line-height: 1.5; }
+.sales-activity .activity-author { display: block; margin-top: 5px; color: #8f8b7e; font: 11px var(--serif); }
+.sales-activity .section-label { color: #9e927a; font-size: 9px; }
+
+.smoke-activate { position: fixed; right: 16px; bottom: 16px; z-index: 15; border: 1px solid #bfa06c88; background: #101719ed; color: #e4c799; font: 12px var(--sans); padding: 10px 14px; cursor: pointer; border-radius: 3px; }
+.smoke-activate:hover { border-color: #dec28b; background: #24261f; }
+.smoke-activate:focus-visible { outline: 2px solid #e4c799; outline-offset: 3px; }
+
+/* Recherche et compte : taille lisible sans agrandir le panorama. */
+.topbar { height: 110px; }
+.account-controls { padding: 12px 0; gap: 9px; }
+.account-upper { gap: 12px; }
+.global-search { width: 210px; }
+.global-search label { min-height: 44px; padding: 0 12px; gap: 9px; }
+.global-search input { font-size: 12px; padding: 12px 0; }
+.global-search label > span { font-size: 21px; }
+.account-icon { width: 42px; height: 42px; }
+.account-icon svg { width: 23px; height: 23px; }
+.profile-toggle { min-width: 220px; padding: 8px 12px; gap: 11px; }
+.profile-toggle .avatar { width: 40px; height: 40px; font-size: 17px; }
+.profile-toggle strong { font-size: 18px; max-width: 170px; }
+.profile-toggle small { font-size: 11px; max-width: 170px; margin-top: 3px; }
+.profile-chevron { font-size: 15px; }
+.account-lower { gap: 11px; }
+.account-lower .estate-date, .account-lower #estate-clock { font-size: 10px; }
+.account-lower .account-icon { width: 28px; height: 28px; font-size: 19px; }
+.account-popover h3 { font-size: 23px; }
+.account-popover > a, .account-popover button { font-size: 12px; padding: 10px; }
+.account-popover .notification-item strong { font-size: 13px; }
+.account-popover .notification-item small { font-size: 11px; }
+
+@media (max-width: 760px) {
+  .topbar { height: 170px; }
+  .account-controls { width: min(320px, calc(100% - 44px)); max-width: calc(100% - 44px); padding: 9px 0; gap: 6px; }
+  .account-upper { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 8px; }
+  .account-upper .notification-wrap { grid-column: 1; grid-row: 1; }
+  .account-upper .account-wrap { grid-column: 2; grid-row: 1; min-width: 0; }
+  .global-search { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+  .global-search label { min-height: 38px; padding: 0 10px; }
+  .global-search input { font-size: 12px; padding: 9px 0; }
+  .account-icon { width: 40px; height: 40px; }
+  .profile-toggle { width: 100%; min-width: 0; padding: 7px 8px; gap: 8px; }
+  .profile-toggle .avatar { width: 34px; height: 34px; font-size: 15px; }
+  .profile-toggle strong { font-size: 16px; max-width: 150px; }
+  .profile-toggle small { font-size: 10px; max-width: 150px; }
+  .account-lower { gap: 8px; }
+  .account-lower .estate-date, .account-lower #estate-clock { font-size: 9px; }
+  .global-search .account-popover { left: auto; right: 0; min-width: 0; width: min(300px, calc(100vw - 28px)); }
+  #notifications-panel { left: 0; right: auto; width: min(270px, calc(100vw - 80px)); min-width: 0; }
+}
+
+/* Les nouveaux intitulés restent dans la largeur du menu. */
+.sidebar nav a span { min-width: 0; white-space: normal; line-height: 1.2; }
+.sidebar nav a svg { flex-shrink: 0; }
+
+/* Le survol suit l’inclinaison des séparations, sans incliner les chiffres. */
+.night-metric { isolation: isolate; }
+.night-metric::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(110deg, #c59b6317, #7795ad0b);
+  transform: skewX(-22deg);
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+@media (max-width: 760px) {
+  .night-metric::after { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .night-metric::after { transition: none; }
+}
+
+/* Monogramme de L’Héritage : une initiale centrée. */
+.midnight-monogram{letter-spacing:0;padding-right:0}
+
+/* Informations visibles et sélectionnables dans chaque dossier fermé. */
+.sale-record > summary.cut-inner { min-height: 106px; }
+.sale-record .night-dossier-name { padding-block: 14px; }
+.sale-row-contact {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 10px;
+}
+.sale-contact-text {
+  color: #e6d7bc;
+  font: 400 16px/1.5 var(--sans);
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+  overflow-wrap: anywhere;
+}
+.sale-record .sale-copy {
+  padding: 5px 11px;
+  border: 1px solid #b89b645c;
+  border-radius: 4px;
+  color: #d8bd8f;
+  background: #b89b6410;
+  font: 12px/1.4 var(--sans);
+  cursor: pointer;
+}
+.sale-record .sale-copy:hover { background: #b89b642a; color: #fff0d2; }
+.sale-record .sale-copy:focus-visible { outline: 2px solid #e2c38d; outline-offset: 3px; }
+@media (max-width: 760px) {
+  .sale-record > summary.cut-inner {
+    display: grid;
+    grid-template-columns: 68px minmax(0, 1fr) auto;
+    gap: 6px 8px;
+    padding: 0 28px 12px 0;
+  }
+  .sale-record .night-dossier-name {
+    grid-column: 2 / -1;
+    margin: 0;
+    padding: 13px 0 4px;
+  }
+  .sale-row-contact { margin-top: 8px; gap: 7px; }
+  .sale-contact-text { font-size: 15px; }
+  .sale-record .night-dossier-amount { grid-column: 2; margin: 0; min-width: 0; padding: 0; }
+  .sale-record > summary > .badge { grid-column: 3; margin: 0; padding: 0; }
+}
+
+/* Feuille courante et archives hebdomadaires, dans la même direction visuelle. */
+.sales-week-panel {
+  margin-top: 22px;
+  padding: 22px 26px;
+  border-block: 1px solid #a88b5545;
+  background: linear-gradient(110deg, #141a1cce, #0a1118a8);
+}
+.sales-week-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.sales-week-heading h2 { font: 500 26px var(--serif); color: #e6d7bc; margin: 6px 0; }
+.sales-week-heading p { color: #a99b83; margin: 0; }
+.sales-week-heading .field { width: min(300px, 48%); margin: 0; }
+.sales-week-heading select { font-size: 14px; }
+.sales-week-totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin: 22px 0; }
+.sales-week-totals dt { font-size: 12px; color: #b7a486; }
+.sales-week-totals dd { margin: 7px 0 0; font: 400 22px Georgia, serif; color: #e6d7bc; overflow-wrap: anywhere; }
+.sales-reset-note { color: #a99b83; font-size: 12px; line-height: 1.7; margin: 0; }
+@media(max-width: 900px) { .sales-week-totals { grid-template-columns: 1fr 1fr; } }
+@media(max-width: 760px) {
+  .sales-week-panel { padding: 18px; }
+  .sales-week-heading { align-items: stretch; flex-direction: column; gap: 16px; }
+  .sales-week-heading .field { width: 100%; }
+  .sales-week-totals { gap: 20px 10px; }
+  .sales-week-totals dd { font-size: 18px; }
+}
+
+#sales-reset-dialog { width: min(540px, calc(100vw - 32px)); padding: 28px; }
+.sales-reset-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+
+/* Le menu se termine sur le décor : aucun bloc ni défilement sous la statue. */
+.sidebar { overflow: hidden; }
+.sidebar > .midnight-brand { flex: 0 0 auto; }
+.sidebar > nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding-bottom: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #504a3c transparent;
+}
+.sidebar::before {
+  height: 72%;
+  bottom: 0;
+  background: url('assets/midnight-statue.png') center bottom / cover no-repeat;
+  /* Fond réellement transparent en haut : pas de bande noire sur le bleu nuit.
+     Conserver les deux écritures pour les moteurs Chromium et Firefox. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #0004 20%, #000 42%, #000 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #0004 20%, #000 42%, #000 100%);
+  mask-mode: alpha;
+  opacity: .95;
+}
