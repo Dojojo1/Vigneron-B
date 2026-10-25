@@ -27,6 +27,13 @@ les enregistrements ne sont pas encore activés dans cette démonstration.
 Aucun appel au bot Discord ni aux API privées n’est effectué. Les vrais comptes,
 la connexion Discord et les opérations privées nécessitent le serveur Python.
 
+Les panneaux « Accès extérieurs » et « Droits et grades Discord » utilisent
+les composants de gestion du serveur. Sur GitHub Pages, ils permettent de
+préparer et tester les réglages avec des grades d’exemple. Ces réglages restent
+dans le navigateur ; les codes marqués `APERCU-` ne sont pas des identifiants réels.
+La récupération des vrais rôles et la révocation des vraies sessions passent
+par le serveur Python. Le bot en activité n’est pas modifié.
+
 ## Démarrage sous Windows
 
 Installer Python 3.11 ou plus récent, puis dans PowerShell depuis ce dossier :

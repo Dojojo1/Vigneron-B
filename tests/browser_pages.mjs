@@ -76,10 +76,32 @@ try{
  assert.equal(await js("document.querySelector('.access-code-entry').hidden"),true);
  await js("document.querySelector('#enter-demo').click()");await delay(200);
  assert.equal(await js("document.querySelector('main').hidden"),false);
- for(const route of ['sales','machines','tombola','history','stats','journal','team','profile','overview']){
+ for(const route of ['sales','machines','tombola','history','stats','journal','team','profile','council','external-access','overview']){
   await js(`location.hash=${JSON.stringify(route)}`);await delay(100);
   assert.equal(await js('activePage'),route);
   assert.ok(await js("document.querySelector('#content').innerText.trim().length>0"),route);
+ }
+ if(!liveURL&&!mirrorURL){
+  await js("location.hash='council'");await delay(100);
+  assert.ok(await js("document.querySelectorAll('.role-chip').length>0"));
+  await js("document.querySelector('.access-toggle').click();document.querySelector('#access-form').requestSubmit()");
+  await wait("document.querySelector('#access-save-status').textContent==='Configuration enregistrée'");
+  assert.ok(await js("Object.values(JSON.parse(localStorage.getItem('heritage.preview.access.v1')).permissions).some(values=>Object.values(values).some(Boolean))"));
+  await js("document.querySelector('[data-role-id=example-6]').click();document.querySelector('#apply-access-roles').click()");
+  await wait("document.querySelector('#role-selection-count').textContent.includes('7 retenus')");
+  await js("location.hash='external-access'");await delay(100);
+  await js("const form=document.querySelector('#individual-create-form');form.elements.loginName.value='partenaire.test';form.elements.displayName.value='Partenaire test';form.querySelector('[name=pages]').checked=true;form.requestSubmit()");
+  await wait("!document.querySelector('#individual-code').hidden && document.querySelectorAll('[data-account-id]').length===1");
+  assert.ok(await js("document.querySelector('#individual-code-value').value.startsWith('APERCU-')"));
+  await js("window.confirm=()=>true;document.querySelector('[data-site-block]').click()");
+  await wait("document.querySelector('.individual-status').textContent==='Révoqué'");
+  await js("location.hash='council'");await delay(100);
+  assert.ok(await js("document.querySelector('#role-selection-count').textContent.includes('7 retenus')"));
+  for(const route of ['council','external-access']){
+   await js(`location.hash=${JSON.stringify(route)}`);await delay(100);
+   await command('Emulation.setDeviceMetricsOverride',{width:320,height:900,deviceScaleFactor:1,mobile:true});
+   assert.equal(await js('document.documentElement.scrollWidth<=innerWidth+1'),true,`Access panel overflow: ${route}`);
+  }
  }
  for(const width of [320,390,768,1440]){
   await command('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});
