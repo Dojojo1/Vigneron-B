@@ -8,7 +8,7 @@ window.heritagePublicDemo=()=>{
  $('#navigation').innerHTML=window.heritageSession.pages.map(p=>`<a href="#${p.id}" data-page="${p.id}">${icon(pages[p.id]?.[3]||'team')}<span>${escapeHTML(p.label)}</span></a>`).join('');
  $('#profile-name').textContent='Visiteur';$('#profile-role').textContent='Démonstration';$('#profile-avatar').textContent='VD';
  $('#enter-demo').disabled=false;
- $('#enter-demo .entry-button-label').textContent='EXPLORER LE DOMAINE';
+ $('#enter-demo .entry-button-label').textContent='ENTRER DANS LE DOMAINE';
  $('.entry-demo-note').textContent='Démonstration · données fictives · aucun lien avec le bot Discord.';
  $('.access-code-entry').hidden=true;
  $('#access-code-login-form').addEventListener('submit',event=>event.preventDefault());

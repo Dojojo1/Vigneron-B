@@ -54,7 +54,7 @@ with tempfile.TemporaryDirectory(prefix='heritage-pages-test-') as temporary:
         command('WebDriver:NewSession',{'capabilities':{}})
         command('WebDriver:SetWindowRect',{'width':1440,'height':1000})
         command('WebDriver:Navigate',{'url':base})
-        wait("return document.querySelector('#initial-loading').hidden && document.querySelector('#enter-demo .entry-button-label').textContent==='EXPLORER LE DOMAINE';")
+        wait("return document.querySelector('#initial-loading').hidden && document.querySelector('#enter-demo .entry-button-label').textContent==='ENTRER DANS LE DOMAINE';")
         wait("return document.querySelector('.entry-glass-details').complete && document.querySelector('.entry-glass-details').naturalWidth>0;")
         assert js("return !document.querySelector('#entry-screen').hidden && document.querySelector('main').hidden && document.querySelector('#site-error').hidden && window.heritageSession.demo===true;")
         assert js("return !document.querySelector('#enter-demo').disabled && document.querySelector('.access-code-entry').hidden;")

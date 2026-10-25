@@ -10,6 +10,8 @@ import {spawn} from 'node:child_process';
 import {setTimeout as delay} from 'node:timers/promises';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
+const liveURL=process.env.PAGES_URL;
+const mirrorURL=process.env.PAGES_MIRROR_URL;
 const binary=process.argv[2]||'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.mp4':'video/mp4','.webm':'video/webm'};
 let blocked=null;
@@ -21,6 +23,11 @@ const server=createServer(async(req,res)=>{
  const path=resolve(root,relative||'index.html');
  if(!path.startsWith(resolve(root)+sep)){res.writeHead(403).end();return;}
  if(blocked&&url.pathname.endsWith('/'+blocked)){res.writeHead(404).end();return;}
+ if(mirrorURL){
+  try{const response=await fetch(new URL(relative||'index.html',mirrorURL),{signal:AbortSignal.timeout(20000)});res.writeHead(response.status,{'Content-Type':response.headers.get('content-type')||'application/octet-stream','Cache-Control':'no-store'}).end(Buffer.from(await response.arrayBuffer()));}
+  catch{res.writeHead(502).end();}
+  return;
+ }
  try{const body=await readFile(path);res.writeHead(200,{'Content-Type':types[extname(path)]||'application/octet-stream','Cache-Control':'no-store'}).end(body);}
  catch{res.writeHead(404).end();}
 });
@@ -45,6 +52,7 @@ try{
   const data=JSON.parse(event.data);
   if(data.id){const task=pending.get(data.id);if(task){pending.delete(data.id);clearTimeout(task.timer);data.error?task.reject(new Error(JSON.stringify(data.error))):task.resolve(data.result);}return;}
   if(data.method==='Runtime.exceptionThrown')exceptions.push(data.params.exceptionDetails.text+': '+(data.params.exceptionDetails.exception?.description||''));
+  if(liveURL&&data.method==='Network.requestWillBeSent')requests.push(new URL(data.params.request.url).pathname);
   if(data.method==='Network.responseReceived'&&data.params.response.status>=400)failures.push(data.params.response.url);
  });
  const command=(method,params={})=>new Promise((resolve,reject)=>{
@@ -57,8 +65,8 @@ try{
  };
  const wait=async expression=>{for(let i=0;i<100;i++){if(await js(expression))return;await delay(100);}throw new Error('Timed out: '+expression+' '+JSON.stringify({state:await js('({ready:document.readyState,busy:document.body?.getAttribute("aria-busy"),text:document.body?.innerText.slice(0,500)})'),exceptions,failures,requests}));};
  await command('Page.enable');await command('Runtime.enable');await command('Network.enable');
- await command('Network.setBlockedURLs',{urls:['https://*','http://local.adguard.org/*']});
- const navigate=async hash=>{const result=await command('Page.navigate',{url:origin+'/Vigneron-B/'+hash});assert.ok(!result.errorText,JSON.stringify(result));await wait("document.readyState==='complete' && document.body?.getAttribute('aria-busy')==='false'");};
+ await command('Network.setBlockedURLs',{urls:liveURL?['https://fonts.googleapis.com/*','https://fonts.gstatic.com/*','http://local.adguard.org/*']:['https://*','http://local.adguard.org/*']});
+ const navigate=async hash=>{const result=await command('Page.navigate',{url:(liveURL||origin+'/Vigneron-B/')+hash});assert.ok(!result.errorText,JSON.stringify(result));await wait("document.readyState==='complete' && document.body?.getAttribute('aria-busy')==='false'");};
  await navigate('');
  assert.equal(await js("document.querySelector('#entry-screen').hidden"),false);
  assert.equal(await js("document.querySelector('main').hidden"),true);
@@ -83,7 +91,7 @@ try{
  assert.deepEqual(failures,[],'Missing published assets');
  assert.ok(!requests.some(path=>/\/(api|auth)\//.test(path)),'Pages must not call private APIs');
  const recovered=[];
- for(const file of ['app.js','secure.js','feedback.js','styles.css']){
+ for(const file of liveURL||mirrorURL?[]:['app.js','secure.js','feedback.js','styles.css']){
   blocked=file;
   await navigate('');
   await wait("window.heritageStartupFailed===true && !document.querySelector('#site-error').hidden");

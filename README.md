@@ -21,7 +21,7 @@ Site de gestion du domaine RP : interface web, serveur Python et bot Discord.
 Publier la branche depuis sa racine (`/`). Conserver `index.html` et le dossier
 `static/` ensemble : l’accueil charge ses ressources depuis `./static/`.
 
-GitHub Pages propose une démonstration accessible avec « Explorer le domaine ».
+GitHub Pages propose une démonstration accessible avec « Entrer dans le domaine ».
 La navigation et les formulaires sont consultables avec des données fictives ;
 les enregistrements ne sont pas encore activés dans cette démonstration.
 Aucun appel au bot Discord ni aux API privées n’est effectué. Les vrais comptes,
