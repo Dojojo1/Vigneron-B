@@ -1,5 +1,6 @@
 'use strict';
 (() => {
+ const publicPages=location.hostname.endsWith('.github.io')||document.querySelector('meta[name="heritage-hosting"]')?.content==='github-pages';
  let session=null,navigationVersion=0,navigationAbort=null,filterTimer=null,catalogCache=null,lastVisited=null,sheetsAbort=null,sheetsVersion=0;
  const pendingActions=new Map(),operationKeys=new Map(),requestCooldowns=new Map();
  const pageCache=new Map(),bootstrapTasks=new Set(),CACHE_LIMIT=48,CACHE_BYTES=16*1024*1024,LOADING_DELAY=180,SESSION_LEASE=30000,REFRESH_INTERVAL=60000;
@@ -481,6 +482,7 @@
  $('#logout').addEventListener('click',logout);
  $('#access-code-login-form').addEventListener('submit',async event=>{
   event.preventDefault();const form=event.currentTarget;if(form.dataset.busy)return;
+  if(publicPages)return;
   form.dataset.busy='true';const button=form.querySelector('[type=submit]'),notice=$('#access-code-login-status');button.disabled=true;
   notice.hidden=false;notice.textContent='Vérification de ton accès…';
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
@@ -529,7 +531,16 @@
   if(location.hash==='#welcome'){window.heritageFeedback?.clear();return;}
   if(await window.heritageNavigate()){restoreFormDraft();window.heritageFeedback?.clear();}
  };
- boot().catch(()=>{$('.entry-demo-note').textContent='Impossible de joindre le site. Utilise « Réessayer » pour vérifier la connexion.';visibleDomain(false);}).finally(()=>window.heritageFinishLoading());
+ function showPublicEntry(){
+  publishSession(null);visibleDomain(false);
+  $('#enter-demo').disabled=true;
+  $('#enter-demo .entry-button-label').textContent='ESPACE PRIVÉ';
+  $('.entry-demo-note').textContent='L’accueil est en ligne. La connexion au domaine n’est pas encore disponible.';
+  $('.access-code-entry').hidden=true;
+  window.heritageFinishLoading();
+ }
+ if(publicPages){window.heritageRetry=async()=>{showPublicEntry();return true;};showPublicEntry();}
+ else boot().catch(()=>{$('.entry-demo-note').textContent='Impossible de joindre le site. Utilise « Réessayer » pour vérifier la connexion.';visibleDomain(false);}).finally(()=>window.heritageFinishLoading());
  let checkingSession=false,refreshingPages=false;
  async function verifySession(){
   if(!session||document.hidden||checkingSession)return;

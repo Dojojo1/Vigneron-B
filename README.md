@@ -5,6 +5,16 @@ les images, les animations et les tests de la dernière version. Le fichier `bot
 et ses modules sont conservés à la racine : le site lit ses fonctions pures de
 progression sans démarrer le bot.
 
+## Accueil sur GitHub Pages
+
+Le fichier `index.html` à la racine est généré depuis la véritable interface du
+site. Après publication, il affiche l'accueil avec le design et les images, au
+lieu du README. Les ressources restent dans `site/static/`.
+Sur GitHub Pages, la connexion reste indiquée comme indisponible : aucune session
+fictive ni donnée privée n'est créée. Les fonctionnalités privées restent gérées
+par le serveur Python. Ce correctif d'affichage ne les transforme pas en fonctions
+exécutables sur GitHub Pages.
+
 ## Ce qui ne va pas sur GitHub
 
 Les fichiers `.env`, les jetons, les clés Google, les environnements Python, les

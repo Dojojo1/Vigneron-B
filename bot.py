@@ -1197,12 +1197,12 @@ async def sale_progress_reconcile():
         if signature != _sale_progress_last_signature:
             print(f"[PROGRESSION SALE] {len(machines)} machine(s) RÉCUPÉRÉE(S), "
                   f"{format_money(sum(machines.values()))} comptabilisés ; "
-                  f"{unknown} machine(s) historiques incertaines.")
+                  f"{unknown} machine(s) historiques incertaines.", flush=True)
             for sale in allocated:
                 if not sale_progress_is_fully_finished(messages[sale["message_id"]]):
                     print(f"[PROGRESSION SALE] fiche={sale['message_id']} "
                           f"{format_money(sale['treated'])}/{format_money(sale['amount'])} "
-                          f"({100 * sale['treated'] // sale['amount'] if sale['amount'] else 0} %)")
+                          f"({100 * sale['treated'] // sale['amount'] if sale['amount'] else 0} %)", flush=True)
             _sale_progress_last_signature = signature
         allow_auto_notifications = unknown == 0
         for sale in allocated:
@@ -1217,6 +1217,8 @@ async def sale_progress_reconcile():
             if changed:
                 try:
                     msg = await msg.edit(embed=emb)
+                    print(f"[PROGRESSION SALE] Fiche {msg.id} actualisée dans Discord : "
+                          f"{100 * sale['treated'] // sale['amount'] if sale['amount'] else 0} %.", flush=True)
                 except (discord.Forbidden, discord.HTTPException) as exc:
                     print(f"[PROGRESSION SALE] Fiche {msg.id} non actualisée: {exc}")
                     continue

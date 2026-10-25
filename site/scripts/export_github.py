@@ -40,6 +40,16 @@ les images, les animations et les tests de la dernière version. Le fichier `bot
 et ses modules sont conservés à la racine : le site lit ses fonctions pures de
 progression sans démarrer le bot.
 
+## Accueil sur GitHub Pages
+
+Le fichier `index.html` à la racine est généré depuis la véritable interface du
+site. Après publication, il affiche l'accueil avec le design et les images, au
+lieu du README. Les ressources restent dans `site/static/`.
+Sur GitHub Pages, la connexion reste indiquée comme indisponible : aucune session
+fictive ni donnée privée n'est créée. Les fonctionnalités privées restent gérées
+par le serveur Python. Ce correctif d'affichage ne les transforme pas en fonctions
+exécutables sur GitHub Pages.
+
 ## Ce qui ne va pas sur GitHub
 
 Les fichiers `.env`, les jetons, les clés Google, les environnements Python, les
@@ -126,7 +136,10 @@ def export(output):
     contents={str(path.relative_to(ROOT)).replace('\\','/'):path.read_bytes() for path in sources()}
     bot_requirements=ROOT/'requirements-bot.txt'
     if not bot_requirements.is_file():bot_requirements=ROOT/'requirements.txt'
-    contents.update({'.gitignore':GITIGNORE.encode(),'README.md':README.encode(),
+    # L'entrée publiée est générée depuis l'unique interface, avec les mêmes
+    # ressources. Les fonctions privées ne sont jamais simulées dans Pages.
+    entry=(SITE/'static/index.html').read_text().replace('<head>','<head>\n<base href="./site/static/">\n<meta name="heritage-hosting" content="github-pages">',1)
+    contents.update({'.gitignore':GITIGNORE.encode(),'README.md':README.encode(),'index.html':entry.encode(),
                      'requirements.txt':b'-r site/requirements.lock\n-r requirements-bot.txt\n',
                      'requirements-bot.txt':bot_requirements.read_bytes()+b'\n',
                      'site/data/.gitkeep':b''})
