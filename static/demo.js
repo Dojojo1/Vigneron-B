@@ -40,7 +40,7 @@ window.heritagePublicDemo=()=>{
  state=seed();
  state.members=[{displayName:'Visiteur démo',discordName:'Profil de démonstration'}];
  state.catalog=VEHICLE_CATALOG;
- $('#navigation').innerHTML=window.heritageSession.pages.map(p=>`<a href="#${p.id}" data-page="${p.id}">${icon(pages[p.id]?.[3]||'team')}<span>${escapeHTML(p.label)}</span></a>`).join('');
+ $('#navigation').innerHTML=window.heritageSession.pages.filter(p=>!['council','external-access'].includes(p.id)).map(p=>`<a href="#${p.id}" data-page="${p.id}">${icon(pages[p.id]?.[3]||'team')}<span>${escapeHTML(p.label)}</span></a>`).join('')+`<details class="management-navigation"><summary>${icon('machines')}<span>Gestion</span><svg class="management-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></summary><div class="management-links"><a href="#council" data-page="council"><span>Accès</span></a><a href="#external-access" data-page="external-access"><span>Accès extérieurs</span></a></div></details>`;
  $('#profile-name').textContent='Visiteur';$('#profile-role').textContent='Démonstration';$('#profile-avatar').textContent='VD';
  $('#enter-demo').disabled=false;
  $('#enter-demo .entry-button-label').textContent='ENTRER DANS LE DOMAINE';
@@ -56,6 +56,8 @@ window.heritagePublicDemo=()=>{
  }
  window.heritageNavigate=async()=>{
   const route=location.hash.slice(1)||'welcome';closeMenu();
+  const management=$('.management-navigation'),managing=['council','external-access'].includes(route);
+  management.classList.toggle('has-active-page',managing);if(managing)management.open=true;
   if(route==='welcome'){activePage='welcome';entry(true);return true;}
   activePage=routes.includes(route)?route:'overview';entry(false);
   if(activePage==='council'||activePage==='external-access')accessPanel(activePage);
