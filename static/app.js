@@ -5,7 +5,7 @@ const $=selector=>document.querySelector(selector);
 const escapeHTML=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=value=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(value)+' $';
 const date=value=>new Intl.DateTimeFormat('fr-BE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',timeZone:BOT_RULES.timeZone}).format(new Date(value));
-const KEY='da-vigneron-demo-v1';const DURATION=BOT_RULES.machineDurationMinutes*60*1000;let activePage='overview',formMode='',currentId=null,search='',machineSearch='',machineFilter='all',salesScope='current',tombolaWeek='',machineStatsWeek='current',toastTimer;
+const DURATION=BOT_RULES.machineDurationMinutes*60*1000;let activePage='overview',formMode='',currentId=null,search='',machineSearch='',machineFilter='all',salesScope='current',tombolaWeek='',machineStatsWeek='current',toastTimer;
 function seed(){return {version:1,sales:[],machines:[],events:[],raffles:[],tombolaRecords:[],catalog:{voitures:[],motos:[]},salesWeek:{archives:[],lastResetDate:null},allocations:{}};}
 function load(){return seed();}
 let state=load();
@@ -29,11 +29,9 @@ state.salesWeek??={archives:[],lastResetDate:null};
 for(const name of new Set(state.sales.map(s=>s.archive).filter(Boolean))){
  if(!state.salesWeek.archives.some(a=>a.name===name))state.salesWeek.archives.push({name,closedAt:null,mode:'legacy'});
 }
-function save(){throw Error('Les données de cette prévisualisation sont enregistrées par le serveur.');}
 function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),4200);}
 let localIdCounter=0;
 function localId(){return typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function'?crypto.randomUUID():`${Date.now().toString(36)}-${++localIdCounter}-${Math.random().toString(36).slice(2)}`;}
-function event(title,detail){state.events.unshift({id:localId(),title,detail,author:'Tom',created:Date.now()});state.events=state.events.slice(0,100);}
 function allocations(){return new Map(Object.entries(state.allocations||{}));}
 function saleProgress(s){const treated=allocations().get(s.id)||0;return{treated,percent:Math.min(100,Math.round(treated/s.amount*100)),known:s.progressKnown!==false};}
 const pages={overview:['Tableau de bord','L’HÉRITAGE<span class="domain-subtitle">— LE DOMAINE —</span>','Tradition · Passion · Excellence','home'],sales:['Gestion Blanchiments','Les dossiers<br>du domaine<span>.</span>','Chaque affaire a son histoire. Gardons le fil.','sales'],machines:['Gestion Machines','Le temps fait<br>son œuvre<span>.</span>','Un cycle de 4 h 45. Chaque récupération compte.','machines'],tombola:['Véhicule tombola','Le goût<br>du privilège<span>.</span>','Les véhicules du domaine. Des achats aux paiements.','tombola'],history:['Historique','La mémoire<br>des affaires<span>.</span>','Les mouvements du domaine, dans les moindres détails.','history'],stats:['Statistiques','Les chiffres<br>du domaine<span>.</span>','L’organisation aujourd’hui. La liberté demain.','sales'],journal:['Journal permanent','La mémoire<br>du domaine<span>.</span>','Les actions restent dans le registre.','history'],team:['Équipe','Les visages<br>de la famille<span>.</span>','La confiance se cultive. La loyauté se reconnaît.','team']};
@@ -46,7 +44,6 @@ function countdown(m){if(m.recovered)return'Récupérée';const n=Math.ceil(rema
 function grapeMark(){return '<svg class="cycle-grape" viewBox="0 0 32 38" aria-hidden="true"><g fill="currentColor" stroke="none"><ellipse cx="20" cy="4" rx="7" ry="3" transform="rotate(-30 20 4)"/><circle cx="9" cy="14" r="4"/><circle cx="19" cy="14" r="4"/><circle cx="5" cy="22" r="4"/><circle cx="14" cy="22" r="4"/><circle cx="23" cy="22" r="4"/><circle cx="10" cy="30" r="4"/><circle cx="19" cy="30" r="4"/><circle cx="14.5" cy="36" r="3"/></g></svg>';}
 function gauge(m){const p=m.recovered?100:cyclePercent(m);return `<div class="cycle-dial" data-gauge="${escapeHTML(m.id)}" style="--percent:${p}%;--cycle-angle:${p*3.6}deg"><div class="dial-outer" aria-hidden="true"></div><div class="dial-track" aria-hidden="true"></div><div class="dial-orbit" aria-hidden="true"><i></i></div><div class="dial-core">${grapeMark()}<small>TEMPS RESTANT</small><time data-countdown="${escapeHTML(m.id)}">${countdown(m)}</time><span>CYCLE DE 4 H 45</span></div></div>`;}
 
-function timeline(){return state.events.slice(0,3).map(e=>`<div class="event"><span class="event-avatar">${escapeHTML(e.author.slice(0,1))}</span><div><time>${date(e.created)}</time><h3>${escapeHTML(e.title)}</h3><p>${escapeHTML(e.detail)}</p></div></div>`).join('');}
 function metrics(){const a=allocations();const open=state.sales.filter(s=>s.status==='active');const pending=open.reduce((n,s)=>n+Math.max(0,s.amount-(a.get(s.id)||0)),0);const treated=state.sales.filter(s=>s.status!=='cancelled').reduce((n,s)=>n+(a.get(s.id)||0),0);const restitute=open.filter(s=>(a.get(s.id)||0)>=s.amount).reduce((n,s)=>n+splitAmounts(s.amount).group,0);return`<div class="metrics"><div class="metric-feature"><div class="metric-label">À blanchir</div><div class="metric-value">${money(pending)}</div><div class="metric-foot">↗ <b>${open.length} dossiers ouverts</b> au sein du domaine</div></div><div class="metric-strip"><div class="metric-small"><div class="metric-label">Montant blanchi · démo</div><div class="metric-value">${money(treated)}</div><svg class="sparkline" viewBox="0 0 200 30" preserveAspectRatio="none" aria-hidden="true"><path d="M0 25 Q15 20 30 22 T60 15 T90 19 T120 10 T150 12 T180 4 L200 7"/></svg></div><div class="metric-small"><div class="metric-label">À restituer</div><div class="metric-value">${money(restitute)}</div><svg class="sparkline rose" viewBox="0 0 200 30" preserveAspectRatio="none" aria-hidden="true"><path d="M0 22 Q15 17 30 20 T60 14 T90 7 T120 13 T150 9 T180 18 L200 14"/></svg></div></div></div>`;}
 function cyclePercent(m){return Math.min(100,Math.max(0,(1-remaining(m)/DURATION)*100));}
 function activeBatch(){return [...state.machines].filter(m=>!m.recovered&&!m.cancelled&&!m.historical&&!m.trackingDisabled).sort((a,b)=>b.start-a.start)[0]||null;}
@@ -96,7 +93,6 @@ function overview(){
  <section class="night-machines"><div class="night-section-heading"><h2>Cycle du lot de machines</h2><div class="night-heading-actions"><button data-action="add-machine">＋ Lancer un lot</button><a href="#machines">Tout voir <span>↗</span></a></div></div><div class="night-machine-grid">${active.map(midnightMachine).join('')||'<p class="empty">Aucun lot actif. Lancez les 5 machines ensemble.</p>'}</div></section>
 `;
 }
-function dashboardActivity(){const days=Array.from({length:7},(_,i)=>{const timestamp=Date.now()-(6-i)*86400000,p=brusselsParts(timestamp);return{key:`${p.year}-${p.month}-${p.day}`,label:new Intl.DateTimeFormat('fr',{weekday:'short',timeZone:BOT_RULES.timeZone}).format(new Date(timestamp)),value:0};});for(const m of state.machines.filter(m=>!m.cancelled)){const p=brusselsParts(m.start),d=days.find(d=>d.key===`${p.year}-${p.month}-${p.day}`);if(d)d.value++;}const max=Math.max(1,...days.map(d=>d.value));return `<section class="panel command-activity"><div class="panel-header"><div><h2>L’activité de la semaine</h2><p>Lancements · 7 derniers jours</p></div></div><div class="estate-chart" role="img" aria-label="${days.map(d=>`${d.label} : ${d.value} lancements`).join('; ')}">${days.map(d=>`<div class="chart-column"><span>${d.value}</span><div class="bar-track"><i style="height:${d.value/max*100}%"></i></div><small>${d.label}</small></div>`).join('')}</div></section>`;}
 
 function salesActivity(){return `<section class="night-activity sales-activity"><div class="night-section-heading"><h2>Journal des opérations <span></span></h2><span class="section-label">${state.events.length} MOUVEMENTS</span></div><ol class="night-event-list">${state.events.map(e=>`<li><span class="event-dot"></span><time>${date(e.created)}</time>${icon('history')}<div><h3>${escapeHTML(e.title)}</h3><p>${escapeHTML(e.detail)}</p><small class="activity-author">${escapeHTML(e.author||'Non renseigné')}</small></div></li>`).join('')||'<li>Aucune opération pour le moment.</li>'}</ol>${pagination('events')}</section>`;}
 function selectedSales(){return state.sales.filter(s=>salesScope==='all'||(salesScope==='open'?s.status==='active':salesScope==='current'?!s.archive:s.archive===salesScope));}
@@ -214,7 +210,6 @@ function updateRaffleForm(){
 }
 $('#form-fields').addEventListener('input',updateRaffleForm);
 $('#close-dialog').addEventListener('click',()=>$('#form-dialog').close());$('#form-dialog').addEventListener('click',e=>{if(e.target===$('#form-dialog')){const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close();}});
-function setRecovered(m,recovered){if(m.cancelled||m.recovered===recovered)return;m.recovered=recovered;if(recovered){m.recoveredBy='Tom Kerrigan';m.recoveredAt=Date.now();}else{delete m.recoveredBy;delete m.recoveredAt;}event(recovered?'Lot récupéré · 5 machines':'Lot non récupéré',`${money(m.amount)} — cycle #${m.id}`);}
 $('#entry-form').addEventListener('submit',async e=>{
  e.preventDefault();if(e.target.dataset.submitting==='true'||!e.target.reportValidity())return;
  const values=Object.fromEntries(new FormData(e.target));
@@ -256,30 +251,7 @@ function salesWeekPeriod(now,{previous=false}={}){
  const year=day.getUTCFullYear(),week=Math.ceil((((day-new Date(Date.UTC(year,0,1)))/86400000)+1)/7);
  return {year,week};
 }
-function salesISOWeek(now){return salesWeekPeriod(now).week;}
 
-function salesResetDue(now=Date.now()){
- const p=brusselsParts(now),day=new Date(Date.UTC(Number(p.year),Number(p.month)-1,Number(p.day))),today=`${p.year}-${p.month}-${p.day}`;
- return day.getUTCDay()===1&&Number(p.hour)===0&&state.salesWeek.lastResetDate!==today;
-}
-function resetSalesWeek({automatic=false,now=Date.now(),botEvent=null}={}){
- if(automatic&&!botEvent&&!salesResetDue(now))return null;
- const previous=JSON.stringify(state);
- try{
- const names=state.salesWeek.archives.map(a=>a.name),period=salesWeekPeriod(now,{previous:automatic});
- const base=`${period.year}-s${String(period.week).padStart(2,'0')}`;
- let sequence=1,name=base;
- while(names.includes(name)){sequence++;name=`${base}-${sequence}`;}
- const p=brusselsParts(now);
- for(const sale of state.sales)if(!sale.archive&&(!botEvent||sale.created<now))sale.archive=name;
- state.salesWeek.archives.push({name,...period,sequence,closedAt:now,mode:automatic?'automatic':'manual',...(botEvent?{botResetId:botEvent.id}:{})});
- state.salesWeek.lastResetDate=`${p.year}-${p.month}-${p.day}`;
- if(botEvent)recordBotSalesReset(botEvent,now);
- event('Reset semaine du sale',`En cours → ${salesArchiveLabel(state.salesWeek.archives.at(-1))} · nouvelle feuille vide · dossiers et progressions conservés`);
- if(!save()){state=JSON.parse(previous);toast('Reset non enregistré : sauvegarde indisponible. Aucun dossier déplacé.');return null;}
- return name;
- }catch(error){state=JSON.parse(previous);toast('Le reset a échoué. Aucun dossier déplacé. Réessaie après actualisation.');return null;}
-}
 $('#cancel-sales-reset').addEventListener('click',()=>$('#sales-reset-dialog').close());
 
 navigate();
@@ -290,10 +262,8 @@ setInterval(()=>{if(activePage==='machines'&&$('#machine-history-rows'))$('#mach
 $('#content').addEventListener('change',e=>{if(e.target.id==='sales-week'){salesScope=e.target.value;pageOffsets.sales=0;pageOffsets.events=0;void window.heritageNavigate({preserveFocus:true});}if(e.target.id==='tombola-week'){tombolaWeek=e.target.value;pageOffsets.tombola=0;void window.heritageNavigate({preserveFocus:true});}if(e.target.id==='machine-stats-week'){machineStatsWeek=e.target.value;void window.heritageNavigate({preserveFocus:true});}});
 $('#form-fields').addEventListener('change',e=>{if(e.target.name==='employee'){const giver=$('#form-fields').querySelector('[name="giver"]');if(giver)giver.value=BOT_RULES.employees[e.target.value];}});
 
-function workshopImage(id){return `<div class="workshop-image workshop-${Number(id)%3}" aria-hidden="true"><span class="workshop-number">${escapeHTML(id)}</span></div>`;}
 function splitAmounts(amount){return{company:amount*15/100,group:amount*80/100,loss:amount*5/100};}
 function financeTotals(sales=state.sales){const valid=sales.filter(s=>s.status!=='cancelled'),gross=valid.reduce((sum,s)=>sum+s.amount,0);return{gross,...splitAmounts(gross)};}
-function financeStrip(){const totals=financeTotals();return `<section class="finance-strip" aria-label="Répartition des montants reçus"><div class="finance-heading"><span class="eyebrow">LA PART DU DOMAINE</span><h2>Chaque affaire a sa part.</h2><a class="text-link" href="#stats">Les comptes du domaine ↗</a></div><div><small>ENTREPRISE <b>15 %</b></small><strong>${money(totals.company)}</strong><span>Gain estimé sur les sales reçus</span></div><div><small>POUR LES GROUPES <b>80 %</b></small><strong>${money(totals.group)}</strong><span>Part totale à restituer</span></div><div><small>PERTE <b>5 %</b></small><strong>${money(totals.loss)}</strong><span>Perte de traitement prévue</span></div></section>`;}
 function statsPage(){
  const totals=state.summary||{},treated=totals.treated||0,days=state.days||[],max=Math.max(1,...days.map(d=>d.amount)),reports=state.machineReports||[],report=reports.find(r=>r.key===machineStatsWeek)||reports[0],employeesTotal=report?.rows||state.employeesTotal||[];
  const reportLabel=r=>r.weekStart?'Semaine du '+r.weekStart.split('-').reverse().join('/'):'Cette semaine';
@@ -307,7 +277,6 @@ $('#estate-date').textContent=new Intl.DateTimeFormat('fr-BE',{weekday:'long',da
 
 $('#enter-demo').addEventListener('click',()=>{if(window.heritageSession)location.hash=window.heritageSession.pages.some(page=>page.id==='overview')?'overview':'profile';else location.assign('/auth/start');});
 
-function dashboardRanking(){const rows=state.employeesTotal||[];return `<section class="panel command-ranking"><div class="panel-header"><div><h2>Les artisans du domaine</h2><p>Lancements par employé · compteur du bot</p></div><a href="#stats" class="text-link">Les classements ↗</a></div><div class="employee-ranking">${rows.map((r,i)=>`<div><span class="rank-number">${i+1}</span><span class="avatar">${escapeHTML(r.name[0])}</span><span>${escapeHTML(r.name)}</span><strong>${r.count} lancements</strong></div>`).join('')}</div></section>`;}
 
 setInterval(()=>{document.querySelectorAll('[data-cycle-progress]').forEach(el=>{const m=state.machines.find(m=>m.id===el.dataset.cycleProgress);if(!m)return;el.style.width=`${cyclePercent(m)}%`;el.parentElement.setAttribute('aria-valuenow',String(Math.round(cyclePercent(m))));});},1000);
 

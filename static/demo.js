@@ -39,7 +39,7 @@ window.heritagePublicDemo=()=>{
  }
  state=seed();
  state.members=[{displayName:'Visiteur démo',discordName:'Profil de démonstration'}];
- state.catalog={voitures:['Sultan','Elegy','Comet'],motos:['Bati 801','Hakuchou']};
+ state.catalog=VEHICLE_CATALOG;
  $('#navigation').innerHTML=window.heritageSession.pages.map(p=>`<a href="#${p.id}" data-page="${p.id}">${icon(pages[p.id]?.[3]||'team')}<span>${escapeHTML(p.label)}</span></a>`).join('');
  $('#profile-name').textContent='Visiteur';$('#profile-role').textContent='Démonstration';$('#profile-avatar').textContent='VD';
  $('#enter-demo').disabled=false;
