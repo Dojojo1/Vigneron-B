@@ -1,0 +1,4 @@
+discord.py>=2.5,<3
+gspread>=6.1,<7
+google-auth>=2.35,<3
+tzdata>=2025.2
