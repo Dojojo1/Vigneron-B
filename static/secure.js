@@ -1,6 +1,7 @@
 'use strict';
 (() => {
  const publicPages=location.hostname.endsWith('.github.io')||document.querySelector('meta[name="heritage-hosting"]')?.content==='github-pages';
+ if(publicPages){window.heritagePublicDemo();return;}
  let session=null,navigationVersion=0,navigationAbort=null,filterTimer=null,catalogCache=null,lastVisited=null,sheetsAbort=null,sheetsVersion=0;
  const pendingActions=new Map(),operationKeys=new Map(),requestCooldowns=new Map();
  const pageCache=new Map(),bootstrapTasks=new Set(),CACHE_LIMIT=48,CACHE_BYTES=16*1024*1024,LOADING_DELAY=180,SESSION_LEASE=30000,REFRESH_INTERVAL=60000;

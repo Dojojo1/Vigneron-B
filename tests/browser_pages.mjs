@@ -62,16 +62,23 @@ try{
  await navigate('');
  assert.equal(await js("document.querySelector('#entry-screen').hidden"),false);
  assert.equal(await js("document.querySelector('main').hidden"),true);
- assert.equal(await js("document.querySelector('#enter-demo').disabled"),true);
+ assert.equal(await js("document.querySelector('#enter-demo').disabled"),false);
  assert.equal(await js("getComputedStyle(document.body).fontFamily.includes('Times New Roman')"),false);
  assert.equal(await js("document.querySelector('#site-error').hidden"),true,JSON.stringify({notice:await js("document.querySelector('#site-error').innerText"),exceptions,failures}));
  assert.equal(await js("document.querySelector('.access-code-entry').hidden"),true);
- await js("location.hash='overview'");await delay(200);
- assert.equal(await js("document.querySelector('main').hidden"),true);
+ await js("document.querySelector('#enter-demo').click()");await delay(200);
+ assert.equal(await js("document.querySelector('main').hidden"),false);
+ for(const route of ['sales','machines','tombola','history','stats','journal','team','profile','overview']){
+  await js(`location.hash=${JSON.stringify(route)}`);await delay(100);
+  assert.equal(await js('activePage'),route);
+  assert.ok(await js("document.querySelector('#content').innerText.trim().length>0"),route);
+ }
  for(const width of [320,390,768,1440]){
   await command('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});
   assert.equal(await js('document.documentElement.scrollWidth<=innerWidth+1'),true,`Horizontal overflow at ${width}px`);
  }
+ await js("location.hash='welcome'");await delay(100);
+ assert.equal(await js("document.querySelector('main').hidden"),true);
  assert.deepEqual(exceptions,[],'Browser exceptions');
  assert.deepEqual(failures,[],'Missing published assets');
  assert.ok(!requests.some(path=>/\/(api|auth)\//.test(path)),'Pages must not call private APIs');
@@ -92,7 +99,7 @@ try{
   assert.deepEqual(failures,[],`Missing files after recovery from ${file}`);
   recovered.push(file);
  }
- console.log(JSON.stringify({publicEntry:true,privateUIHidden:true,noPrivateAPI:true,widths:[320,390,768,1440],scriptErrors:0,missingAssets:0,recovered}));
+ console.log(JSON.stringify({publicEntry:true,demoNavigation:true,noPrivateAPI:true,widths:[320,390,768,1440],scriptErrors:0,missingAssets:0,recovered}));
 }finally{
  socket?.close();browser.kill();
  await new Promise(done=>{if(browser.exitCode!==null)done();else{browser.once('exit',done);setTimeout(done,3000);}});

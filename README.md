@@ -21,8 +21,11 @@ Site de gestion du domaine RP : interface web, serveur Python et bot Discord.
 Publier la branche depuis sa racine (`/`). Conserver `index.html` et le dossier
 `static/` ensemble : l’accueil charge ses ressources depuis `./static/`.
 
-GitHub Pages affiche l’interface publique. Les comptes, la connexion Discord et
-les fonctions privées nécessitent le serveur Python : GitHub Pages seul ne les exécute pas.
+GitHub Pages propose une démonstration accessible avec « Explorer le domaine ».
+La navigation et les formulaires sont consultables avec des données fictives ;
+les enregistrements ne sont pas encore activés dans cette démonstration.
+Aucun appel au bot Discord ni aux API privées n’est effectué. Les vrais comptes,
+la connexion Discord et les opérations privées nécessitent le serveur Python.
 
 ## Démarrage sous Windows
 
