@@ -23,7 +23,7 @@ Publier la branche depuis sa racine (`/`). Conserver `index.html` et le dossier
 
 GitHub Pages propose une démonstration accessible avec « Entrer dans le domaine ».
 La navigation et les formulaires sont consultables avec des données fictives ;
-les enregistrements ne sont pas encore activés dans cette démonstration.
+les véhicules, dossiers et lots de machines peuvent être enregistrés dans ce navigateur.
 Aucun appel au bot Discord ni aux API privées n’est effectué. Les vrais comptes,
 la connexion Discord et les opérations privées nécessitent le serveur Python.
 

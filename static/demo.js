@@ -59,7 +59,8 @@ window.heritagePublicDemo=()=>{
   if(route==='welcome'){activePage='welcome';entry(true);return true;}
   activePage=routes.includes(route)?route:'overview';entry(false);
   if(activePage==='council'||activePage==='external-access')accessPanel(activePage);
-  else if(activePage==='journal'||activePage==='profile'){
+  else if(activePage==='journal'){updatePageHeading(activePage);$('#content').innerHTML=historyPage();}
+  else if(activePage==='profile'){
    updatePageHeading(activePage);
    $('#content').innerHTML=activePage==='journal'?'<section class="panel"><h2>Journal du domaine</h2><p>Les futures opérations apparaîtront ici. Aucune donnée Discord n’est chargée dans cette démonstration.</p></section>':'<section class="panel"><h2>Profil de démonstration</h2><p>Tu explores le domaine en tant que visiteur. La connexion Discord sera raccordée ultérieurement.</p></section>';
   }else render();
@@ -69,7 +70,7 @@ window.heritagePublicDemo=()=>{
  window.heritageFilter=()=>void window.heritageNavigate();
  window.heritageCatalog=async()=>{const list=$('#vehicle-catalog');if(list)list.innerHTML=[...state.catalog.voitures,...state.catalog.motos].map(name=>`<option value="${escapeHTML(name)}"></option>`).join('');};
  window.heritageHistoryExport=async()=>state.events;
- window.heritageAction=async()=>{throw new Error('Aperçu du formulaire : l’enregistrement des opérations sera ajouté ensuite. Aucune donnée n’a été envoyée au bot.');};
+ window.heritageAction=window.heritageLocalBusiness();
  for(const id of ['logout','edit-profile','profile-settings'])$('#'+id).addEventListener('click',()=>{location.hash=id==='logout'?'welcome':'profile';});
  $('#profile-toggle').addEventListener('click',()=>{const menu=$('#profile-menu');menu.hidden=!menu.hidden;$('#profile-toggle').setAttribute('aria-expanded',String(!menu.hidden));});
  $('#notifications-toggle').addEventListener('click',()=>{const panel=$('#notifications-panel');panel.hidden=!panel.hidden;panel.innerHTML='<p>Aucune notification de démonstration.</p>';$('#notifications-toggle').setAttribute('aria-expanded',String(!panel.hidden));});

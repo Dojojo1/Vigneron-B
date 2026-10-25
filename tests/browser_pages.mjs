@@ -99,7 +99,20 @@ try{
   if(process.env.PICKER_SCREENSHOT){const shot=await command('Page.captureScreenshot',{format:'png'});await writeFile(process.env.PICKER_SCREENSHOT,Buffer.from(shot.data,'base64'));}
   await command('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});
   assert.equal(await js("document.querySelector('#form-dialog').open"),true);
-  await js("document.querySelector('#form-dialog').close()");
+  await js("var form=document.querySelector('#entry-form');form.elements.vehicle0.value='Brioso';form.elements.price0.value='125000';form.elements.vehicle1.value='Comet';form.elements.price1.value='250000';form.requestSubmit()");
+  await wait("!document.querySelector('#form-dialog').open && state.tombolaRecords.length===1");
+  assert.ok(await js("document.querySelector('.raffle').textContent.includes('Brioso')"));
+  await js("document.querySelector('[data-action=vehicle-pay]').click()");
+  await wait("state.tombolaRecords[0].vehicles[0].paid===true");
+  await js("document.querySelector('.raffle [data-action=raffle-record]').click()");
+  await wait("document.querySelector('#form-dialog').open");
+  await js("var form=document.querySelector('#entry-form');form.elements.price0.value='140000';form.requestSubmit()");
+  await wait("!document.querySelector('#form-dialog').open && state.tombolaRecords[0].vehicles[0].price===140000");
+  await command('Page.reload');
+  await wait("document.readyState==='complete' && document.body?.getAttribute('aria-busy')==='false' && state.tombolaRecords.length===1");
+  assert.equal(await js('state.tombolaRecords[0].vehicles[0].price'),140000);
+  assert.equal(await js('state.tombolaRecords[0].vehicles[0].paid'),true);
+  assert.ok(await js("document.querySelector('.raffle').textContent.includes('Brioso')"));
   await js("location.hash='council'");await delay(100);
   assert.ok(await js("document.querySelectorAll('.role-chip').length>0"));
   await js("document.querySelector('.access-toggle').click();document.querySelector('#access-form').requestSubmit()");
