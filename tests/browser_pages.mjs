@@ -137,9 +137,22 @@ try{
   await js("document.querySelector('.access-toggle').click();document.querySelector('#access-form').requestSubmit()");
   await wait("document.querySelector('#access-save-status').textContent==='Configuration enregistrée'");
   assert.ok(await js("Object.values(JSON.parse(localStorage.getItem('heritage.preview.access.v1')).permissions).some(values=>Object.values(values).some(Boolean))"));
+  await js("document.querySelector('[data-manage-role=example-1]').click();document.querySelector('[data-page-id=sales]').click()");
+  assert.equal(await js("document.querySelector('[data-page-id=sales]').checked"),true);
+  await js("document.querySelector('[data-manage-role=example-0]').click()");
+  assert.equal(await js("document.querySelector('[data-page-id=overview]').checked"),true);
+  assert.equal(await js("document.querySelector('[data-page-id=sales]').checked"),false);
+  await js("document.querySelector('[data-manage-role=example-1]').click()");
+  assert.equal(await js("document.querySelector('[data-page-id=sales]').checked"),true);
+  await js("document.querySelector('[data-role-allow=true]').click()");
+  assert.equal(await js("[...document.querySelectorAll('.access-toggle')].every(box=>box.checked)"),true);
+  await js("document.querySelector('[data-role-allow=false]').click()");
+  assert.equal(await js("[...document.querySelectorAll('.access-toggle')].every(box=>!box.checked)"),true);
+  await js("document.querySelector('[data-manage-role=example-0]').click()");
+  assert.equal(await js("document.querySelector('[data-page-id=overview]').checked"),true);
   await js("document.querySelector('[data-role-id=example-6]').click();document.querySelector('#apply-access-roles').click()");
   await wait("document.querySelector('#role-selection-count').textContent.includes('7 retenus')");
-  assert.ok(await js("document.querySelector('.access-matrix tbody tr').getBoundingClientRect().height<=50"),'Access rows must stay compact');
+  assert.ok(await js("document.querySelectorAll('.role-directory-item').length===7"),'Role directory must list the retained roles');
   if(process.env.ACCESS_SCREENSHOT){
    await command('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
    await js("document.querySelector('.access-matrix-panel').scrollIntoView({block:'center'})");
@@ -153,6 +166,8 @@ try{
   await wait("document.querySelector('.individual-status').textContent==='Révoqué'");
   await js("location.hash='council'");await delay(100);
   assert.ok(await js("document.querySelector('#role-selection-count').textContent.includes('7 retenus')"));
+  await js("document.querySelector('[data-manage-role=example-6]').click();document.querySelector('[data-retain-role]').click()");
+  await wait("document.querySelector('#role-selection-count').textContent.includes('6 retenus') && !document.querySelector('[data-manage-role=example-6]')");
   for(const route of ['council','external-access']){
    await js(`location.hash=${JSON.stringify(route)}`);await delay(100);
    await command('Emulation.setDeviceMetricsOverride',{width:320,height:900,deviceScaleFactor:1,mobile:true});
