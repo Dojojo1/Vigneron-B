@@ -1,5 +1,9 @@
 # L’Héritage
 
+Pour connecter le site au bot existant, suivre [la configuration du raccordement](docs/CONNEXION-BOT.md).
+Les IDs et secrets sont renseignés uniquement dans le `.env` privé ; l’entrée
+GitHub Pages ne reçoit que l’adresse publique du backend.
+
 Site de gestion du domaine RP : interface web et backend Python du site.
 
 ## Organisation

@@ -12,6 +12,8 @@ GitHub Pages utilise les essais locaux du navigateur. Le backend Python reste
 nécessaire pour les vrais comptes et données partagées. Son authentification
 Discord est une fonction du site ; ce dossier ne démarre aucun bot Discord.
 
-Les programmes du bot, le connecteur d’événements et l’import Discord/Google
-Sheets ont été retirés. Le site ne dépend plus de leur code Python.
+Le programme du bot reste séparé. Le transport optionnel `backend/bot_bridge.py`
+reçoit des événements signés et conserve les opérations à transmettre au bot.
+`connectors/website_client.py` est à charger dans le bot existant pour ces échanges.
+La configuration est décrite dans `CONNEXION-BOT.md`. Aucun bot n’est démarré ici.
 Le catalogue des véhicules et les règles de formulaire sont conservés dans le site.

@@ -26,7 +26,7 @@ class EntryAssets(HTMLParser):
 
 def test_entry_and_stylesheets_reference_existing_local_assets():
     entry = EntryAssets()
-    entry.feed((STATIC / 'index.html').read_text())
+    entry.feed((STATIC / 'index.html').read_text(encoding='utf-8'))
     missing = []
     for url in entry.urls:
         parsed = urlsplit(url)
@@ -36,7 +36,7 @@ def test_entry_and_stylesheets_reference_existing_local_assets():
         if not asset.is_file():
             missing.append(url)
         elif asset.suffix == '.css':
-            for value in re.findall(r'''url\(\s*['"]?([^\)'"\s]+)''', asset.read_text()):
+            for value in re.findall(r'''url\(\s*['"]?([^\)'"\s]+)''', asset.read_text(encoding='utf-8')):
                 target = urlsplit(value)
                 if target.scheme or target.netloc or not target.path:
                     continue
@@ -47,5 +47,5 @@ def test_entry_and_stylesheets_reference_existing_local_assets():
 
 def test_entry_has_unique_element_identifiers():
     entry = EntryAssets()
-    entry.feed((STATIC / 'index.html').read_text())
+    entry.feed((STATIC / 'index.html').read_text(encoding='utf-8'))
     assert not [value for value, count in Counter(entry.ids).items() if count > 1]

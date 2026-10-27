@@ -32,6 +32,7 @@ from .local_preview import LocalPreviewSecurity
 from .registry import discover_pages
 from . import domain
 from . import views
+from .bot_bridge import BotBridge, PATH as BOT_PATH
 from .auditing import AuditHTTPMiddleware, DurableAuditWriter, business_changes, user_snapshot, query_log, log_entry
 
 
@@ -40,6 +41,7 @@ def create_app(settings=None, provider=None):
     cfg.validate_local_preview()
     cfg.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     store = Store(cfg.data_dir / 'heritage-test.sqlite3')
+    bridge = BotBridge(cfg,store)
     traffic = TrafficLimits(cfg)
     api = provider or DiscordAPI(cfg)
     security = LocalPreviewSecurity(cfg, store, api) if cfg.local_preview else Security(cfg, store, api)
@@ -47,8 +49,14 @@ def create_app(settings=None, provider=None):
     pages = discover_pages(static)
     accounts=AccessAccounts(store,cfg,pages)
     code_login_slots=asyncio.Semaphore(2)
+    def initial_domain():
+        initial=domain.seed()
+        if not cfg.local_preview and not cfg.seed_demo_data:
+            initial.update(sales=[],machines=[],events=[],raffles=[],tombolaRecords=[],
+                           salesWeek={'archives':[],'lastResetDate':None})
+        return initial
     with store.connect(True) as db:
-        db.execute('INSERT OR IGNORE INTO domain_store VALUES(1,?)',(json.dumps(domain.seed()),))
+        db.execute('INSERT OR IGNORE INTO domain_store VALUES(1,?)',(json.dumps(initial_domain()),))
     audit_writer = DurableAuditWriter(store)
     @asynccontextmanager
     async def lifespan(app):
@@ -146,7 +154,7 @@ def create_app(settings=None, provider=None):
             if request.method in ('POST','PUT','PATCH'):
                 length=request.headers.get('content-length')
                 if length and (not length.isdigit() or int(length)>2*1024*1024): raise HTTPException(413,'Requête trop volumineuse.')
-            public=path in {'/','/api/status','/auth/start','/auth/callback','/auth/access-code','/auth/logout'} or path in public_files or path.startswith('/assets/')
+            public=path in {'/','/api/status','/auth/start','/auth/callback','/auth/access-code','/auth/logout',BOT_PATH+'/events',BOT_PATH+'/commands',BOT_PATH+'/ack'} or path in public_files or path.startswith('/assets/')
             if not public:
                 request.state.audit_stage='authentication'
                 user,session=await security.resolve(request)
@@ -199,6 +207,16 @@ def create_app(settings=None, provider=None):
     @app.get('/api/status')
     async def status():
         return {'preview':True,'configured':cfg.configured,'callback':cfg.callback,'guildId':cfg.guild_id,'localPreview':cfg.local_preview}
+
+    @app.api_route(BOT_PATH+'/{operation}',methods=['GET','POST'])
+    async def bot_exchange(operation:str,request:Request):
+        if (operation,request.method) not in {('commands','GET'),('events','POST'),('ack','POST')}:
+            raise HTTPException(405,'Opération du connecteur inconnue.')
+        body=await request.body()
+        nonce=bridge.verify(request.method,request.url.path,request.headers,body)
+        payload=await json_body(request) if request.method=='POST' else None
+        async with security.lock:
+            return await run_in_threadpool(bridge.handle,operation,nonce,payload)
 
     @app.get('/auth/start')
     def start():
@@ -358,9 +376,9 @@ def create_app(settings=None, provider=None):
 
     screen_fields={
         'sales':('sales','machines','events','salesWeek'),
-        'machines':('machines'),
-        'tombola':('tombolaRecords'),
-        'history':('events'),
+        'machines':('machines',),
+        'tombola':('tombolaRecords',),
+        'history':('events',),
         'overview':('sales','machines'),
         'stats':('sales','machines','machineStats'),
     }
@@ -488,6 +506,7 @@ def create_app(settings=None, provider=None):
                             record=next((item['id'] for item in state[collection] if item['id'] not in existing),None)
                         store.audit(db,user['id'],'business_action',{'page':page,'action':data.get('action'),'record':record,
                                                                    'changes':business_changes(before,state)})
+                        bridge.enqueue(db,page,data['action'],record,values,user['id'],user['display_name'] or user['username'],state)
                     else: request.state.audit_outcome='duplicate'
                     if request_key: db.execute('INSERT INTO operation_keys VALUES(?,?,?,?)',(user['id'],request_key,fingerprint,time.time()))
             except (ValueError,TypeError,KeyError,OverflowError): raise HTTPException(400,'Les informations du formulaire sont invalides ou la fiche n’est plus modifiable.') from None
@@ -649,6 +668,16 @@ def create_app(settings=None, provider=None):
         supreme(request)
         return query_log(store,request.query_params,pages,legacy=True)
 
+    @app.get('/api/admin/bot-connection')
+    def bot_connection(request:Request):
+        supreme(request)
+        with store.connect() as db:
+            seen=db.execute("SELECT value FROM metadata WHERE key='bot_last_seen'").fetchone()
+            pending=db.execute('SELECT count(*) FROM bot_commands WHERE acknowledged IS NULL').fetchone()[0]
+        return {'discordConfigured':cfg.configured,'connectorConfigured':bool(cfg.connector_secret),
+                'commandsEnabled':cfg.bot_commands_enabled,'pendingCommands':pending,
+                'lastEvent':json.loads(seen['value']) if seen else None}
+
     @app.post('/api/admin/reset-test-data')
     def reset_test_data(request:Request):
         user=supreme(request)
@@ -656,7 +685,7 @@ def create_app(settings=None, provider=None):
         with sqlite3.connect(store.path) as source, sqlite3.connect(backup) as destination: source.backup(destination)
         backup.chmod(0o600)
         with store.connect(True) as db:
-            before=json.loads(db.execute('SELECT body FROM domain_store WHERE id=1').fetchone()[0]);after=domain.seed()
+            before=json.loads(db.execute('SELECT body FROM domain_store WHERE id=1').fetchone()[0]);after=initial_domain()
             db.execute('UPDATE domain_store SET body=? WHERE id=1',(json.dumps(after),))
             store.audit(db,user['id'],'test_data_reset',{'backup':backup.name,'changes':business_changes(before,after)})
         return {'ok':True}

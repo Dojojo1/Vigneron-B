@@ -66,12 +66,14 @@ def business_changes(before,after):
 
 
 def route_info(path):
+    if path in ('/internal/bot/events','/internal/bot/commands','/internal/bot/ack'):
+        return path,None
     if path in ('/','/app','/auth/start','/auth/callback','/auth/access-code','/auth/logout','/api/status',
                 '/api/me','/api/me/profile','/api/me/avatar','/api/client-errors','/api/bootstrap'):
         return path, 'profile' if path.startswith('/api/me') else None
     match=re.fullmatch(r'/(?:api/(?:pages|actions|visits)|spaces)/([a-z][a-z0-9_-]{0,60})(?:/.*)?',path)
     if match: return '/'+path.strip('/').split('/')[0]+'/'+('/'.join(path.strip('/').split('/')[1:3])),match[1]
-    if re.fullmatch(r'/api/admin/(?:access|users|audit|reset-test-data|roles/[0-9]{1,24})',path):
+    if re.fullmatch(r'/api/admin/(?:access|users|audit|bot-connection|reset-test-data|roles/[0-9]{1,24})',path):
         return '/api/admin/roles' if '/roles/' in path else path,'council'
     if re.fullmatch(r'/api/admin/(?:access-accounts(?:/guest-[0-9a-f]{32}(?:/rotate-code)?)?|accounts/(?:[0-9]{1,24}|guest-[0-9a-f]{32}|local-preview)/site-access)',path):
         return '/api/admin/accounts' if '/accounts/' in path else '/api/admin/access-accounts','council'

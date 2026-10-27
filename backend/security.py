@@ -40,9 +40,10 @@ class Security:
                 except FileExistsError: pass
             finally:
                 os.unlink(temporary)
-            directory_fd=os.open(settings.data_dir,os.O_RDONLY)
-            try: os.fsync(directory_fd)
-            finally: os.close(directory_fd)
+            if os.name!='nt':
+                directory_fd=os.open(settings.data_dir,os.O_RDONLY)
+                try: os.fsync(directory_fd)
+                finally: os.close(directory_fd)
         self.cipher = Fernet(keyfile.read_bytes())
         self.lock = asyncio.Lock()
 

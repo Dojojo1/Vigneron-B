@@ -10,7 +10,7 @@ ROOT=Path(__file__).resolve().parents[1]
 SITE=ROOT
 def sources():
     paths=[]
-    for name in ('backend','static','scripts','tests','docs'):
+    for name in ('backend','static','scripts','tests','docs','connectors'):
         for path in (SITE/name).rglob('*'):
             relative=path.relative_to(SITE/name)
             if path.is_symlink():raise ValueError('Lien symbolique inattendu dans le code à exporter.')

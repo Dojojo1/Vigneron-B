@@ -1,5 +1,6 @@
 """Accès par code et révocation locale : bases isolées, aucun appel Discord réel."""
 import json
+import os
 import time
 import pytest
 from fastapi.testclient import TestClient
@@ -185,5 +186,6 @@ def test_schema_upgrade_backs_up_existing_data(env):
         before=db.execute('SELECT body FROM domain_store').fetchone()[0]
     Store(env['store'].path)
     backups=list(env['cfg'].data_dir.glob('backup-before-site-access-*.sqlite3'))
-    assert len(backups)==1 and backups[0].stat().st_mode&0o777==0o600
+    assert len(backups)==1
+    if os.name=='posix':assert backups[0].stat().st_mode&0o777==0o600
     with env['store'].connect() as db:assert db.execute('SELECT body FROM domain_store').fetchone()[0]==before

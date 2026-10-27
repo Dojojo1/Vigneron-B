@@ -13,6 +13,9 @@ class Settings:
     client_id: str = ''
     client_secret: str = ''
     bot_token: str = ''
+    connector_secret: str = ''
+    bot_commands_enabled: bool = False
+    seed_demo_data: bool = False
     guild_id: str = '1500958425281204305'
     supreme_id: str = '356404251905228802'
     employee_role_id: str = '1500960060203859989'
@@ -37,6 +40,10 @@ class Settings:
     def configured(self): return bool(self.client_id and self.client_secret and self.bot_token)
 
     def validate_local_preview(self):
+        if self.connector_secret and len(self.connector_secret)<32:
+            raise ValueError('HERITAGE_CONNECTOR_SECRET doit contenir au moins 32 caractères.')
+        if self.bot_commands_enabled and not self.connector_secret:
+            raise ValueError('Configure HERITAGE_CONNECTOR_SECRET avant d’activer les échanges métier.')
         if self.local_preview and self.base_url not in ('http://127.0.0.1:8081', 'http://localhost:8081'):
             raise ValueError('Le mode sans Discord est réservé à la prévisualisation locale sur le port 8081.')
         for name in ('visitor_per_minute', 'visitor_writes_per_minute', 'visitor_auth_per_ten_minutes',
@@ -50,6 +57,9 @@ class Settings:
         result = cls(base_url=os.getenv('HERITAGE_BASE_URL', cls.base_url).rstrip('/'),
                      client_id=os.getenv('DISCORD_CLIENT_ID', ''), client_secret=os.getenv('DISCORD_CLIENT_SECRET', ''),
                      bot_token=os.getenv('DISCORD_BOT_TOKEN', ''), guild_id=os.getenv('DISCORD_GUILD_ID', cls.guild_id),
+                     connector_secret=os.getenv('HERITAGE_CONNECTOR_SECRET',''),
+                     bot_commands_enabled=os.getenv('HERITAGE_BOT_COMMANDS_ENABLED','0')=='1',
+                     seed_demo_data=os.getenv('HERITAGE_SEED_DEMO_DATA','0')=='1',
                      supreme_id=os.getenv('HERITAGE_SUPREME_ID', cls.supreme_id),
                      employee_role_id=os.getenv('HERITAGE_EMPLOYEE_ROLE_ID', cls.employee_role_id),
                      session_seconds=max(1,min(90,int(os.getenv('HERITAGE_SESSION_DAYS','30'))))*86400,
