@@ -25,9 +25,6 @@ def seed():
             'events':[],'raffles':[],'tombolaRecords':[],'catalog':json.loads(json.dumps(CONFIG['catalog'])), 'salesWeek':{'archives':[],'lastResetDate':None}}
 
 def allocations(state):
-    if state.get('allocationPolicy')=='bot':
-        from .bot_sync import allocate_from_bot
-        return allocate_from_bot(state)
     pool = sum(m['amount'] for m in state['machines'] if m.get('recovered') and not m.get('cancelled'))
     result = {}
     for sale in sorted(state['sales'],key=lambda s:(s['created'],int(s['id']))):
@@ -137,7 +134,6 @@ def mutate(state,page,action,identifier,values,actor):
         elif action=='finish-sale':
             if not sale: raise ValueError('Fiche introuvable.')
             person=employee(values.get('receiver'))
-            if state.get('allocationPolicy')=='bot': sale['sourceTreated']=allocations(state).get(sale['id'],0)
             sale.update(receiver=person,receiverId=RULES['employees'][person],returnedDate=date_text(values.get('returnedDate')),status='finished')
         elif action=='confirm-sales-reset':
             period=datetime.now(TZ);iso=period.isocalendar();base=f'{iso.year}-s{iso.week:02}'
@@ -215,14 +211,11 @@ def mutate(state,page,action,identifier,values,actor):
                 for vehicle in record['vehicles']:
                     vehicle['paid']=action=='pay-all'
                     if action=='reset-payments': vehicle['bought']=False
-    if state.get('botSync'): state['botSync']['modified']=True
-    if state.get('allocationPolicy')=='bot' and page in ('sales','machines'): state['progressReconcile']=True
     event(state,actor,page,{'add-sale':'Sale ajouté','add-machine':'Lot lancé · 5 machines','recover':'Lot récupéré','finish-sale':'Restitution confirmée','confirm-sales-reset':'Semaine archivée'}.get(action,'Opération enregistrée'),f'{action} · {identifier or "nouvelle fiche"}')
 
 
 def project(state,page):
     result={'sales':[],'machines':[],'events':[],'raffles':[],'tombolaRecords':[],'catalog':state.get('catalog',CONFIG['catalog']),'salesWeek':{'archives':[],'lastResetDate':None},'allocations':{}}
-    if state.get('botSync'): result['botSync']={key:state['botSync'][key] for key in ('syncedAt','modified','mode')}
     if page=='sales': result.update(sales=state['sales'],salesWeek=state['salesWeek'],allocations=allocations(state),events=[e for e in state['events'] if e.get('page')=='sales'])
     elif page=='machines': result.update(machines=state['machines'],machineSheetHistory=state.get('machineSheetHistory',[]))
     elif page=='tombola': result.update(tombolaRecords=state['tombolaRecords'],catalog=state['catalog'])

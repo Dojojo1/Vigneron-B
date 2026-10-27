@@ -1,6 +1,6 @@
 # L’Héritage
 
-Site de gestion du domaine RP : interface web, serveur Python et bot Discord.
+Site de gestion du domaine RP : interface web et backend Python du site.
 
 ## Organisation
 
@@ -10,11 +10,9 @@ Site de gestion du domaine RP : interface web, serveur Python et bot Discord.
 | `static/` | Interface, styles, scripts, images et animations |
 | `backend/` | Serveur FastAPI, comptes, permissions et données métier |
 | `scripts/` | Lancement, configuration, export et vérifications |
-| `integration/` | Extension de connexion au bot Discord |
 | `tests/` | Tests Python et parcours navigateur |
 | `docs/` | Documentation technique et fonctionnelle |
 | `data/` | Données locales privées, exclues de GitHub |
-| `bot.py` et modules à la racine | Bot Discord et règles partagées avec le serveur |
 
 ## GitHub Pages
 
@@ -26,6 +24,8 @@ La navigation et les formulaires sont consultables avec des données fictives ;
 les véhicules, dossiers et lots de machines peuvent être enregistrés dans ce navigateur.
 Aucun appel au bot Discord ni aux API privées n’est effectué. Les vrais comptes,
 la connexion Discord et les opérations privées nécessitent le serveur Python.
+
+Ce dossier contient uniquement le site : le programme du bot et ses anciens connecteurs ont été retirés.
 
 Les panneaux « Accès extérieurs » et « Droits et grades Discord » utilisent
 les composants de gestion du serveur. Sur GitHub Pages, ils permettent de
@@ -70,7 +70,6 @@ exclus du dépôt par `.gitignore`.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Décisions fonctionnelles](docs/DECISIONS-FONCTIONNELLES.md)
 - [Sécurité et fiabilité](docs/SECURITE-ET-FIABILITE.md)
-- [Préparation Supabase](docs/SUPABASE-PREPARATION.md)
 
 Les documents techniques conservent le contexte des décisions et intégrations.
 Les commandes de lancement à utiliser sont celles de ce README.

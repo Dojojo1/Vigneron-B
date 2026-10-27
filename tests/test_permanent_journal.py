@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from backend import auditing, bot_sync, domain
+from backend import auditing, domain
 from backend.storage import Store
 from conftest import MEMBER, SUPREME, grant, headers, login
 
@@ -66,12 +66,8 @@ def test_permanent_entries_cannot_be_updated_deleted_or_lost_in_reset_and_import
         with pytest.raises(sqlite3.IntegrityError):
             with env['store'].connect(True) as db: db.execute(sql,(first['id'],))
     assert env['client'].post('/api/admin/reset-test-data',json={},headers=headers(env)).status_code==200
-    state=domain.seed();state['botSync']={'counts':{},'syncedAt':1}
-    monkeypatch.setattr(bot_sync,'convert',lambda _:state)
-    bot_sync.apply_snapshot(env['store'],{},SUPREME)
     assert records(env,'login')[0]==first
     assert records(env,'test_data_reset')[-1]['detail']['changes'] is not None
-    assert records(env,'bot_snapshot_imported')[-1]['detail']['changes']
 
 
 def test_pagination_can_retrieve_older_than_1000_without_loading_details(env):

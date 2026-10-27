@@ -52,7 +52,7 @@
   const controller=new AbortController();
   const cancel=()=>controller.abort();
   if(signal?.aborted)cancel();else signal?.addEventListener('abort',cancel,{once:true});
-  const timer=setTimeout(()=>controller.abort(),path==='/api/admin/bot-sync'?150000:20000);
+  const timer=setTimeout(()=>controller.abort(),20000);
   const writing=method!=='GET'&&!path.startsWith('/api/visits/')&&path!=='/api/client-errors';
   try{
    let response;
@@ -421,13 +421,6 @@
   try{await api('/api/admin/reset-test-data',{method:'POST',body:{}});machineStatsWeek='current';salesScope='current';tombolaWeek='';for(const key of Object.keys(pageOffsets))pageOffsets[key]=0;await window.heritageNavigate();toast('Données de test réinitialisées.');}catch(error){toast(error.message);}
  };
  async function logout(){if(session?.user.authProvider==='local'){try{await api('/auth/logout',{method:'POST',body:{}});lastVisited=null;location.hash='welcome';}catch(error){toast(error.message);}return;}try{await api('/auth/logout',{method:'POST',body:{}});session=null;window.heritageSession=null;state=seed();location.assign('/');}catch(error){toast(error.message);}}
- document.addEventListener('click',async event=>{
-  const button=event.target.closest('#sync-bot-data');if(!button||!session?.user.supreme)return;
-  if(!confirm('Actualiser la copie depuis le bot ? Les essais métier actuels seront remplacés après sauvegarde. Les comptes, photos et autorisations restent conservés.'))return;
-  button.disabled=true;button.textContent='Lecture des données du bot…';
-  try{await api('/api/admin/bot-sync',{method:'POST',body:{}});machineStatsWeek='current';await window.heritageNavigate();toast('La copie du bot est actualisée. Aucun changement envoyé à Discord ou Google Sheets.');}
-  catch(error){toast(error.message);button.disabled=false;button.textContent='Actualiser depuis le bot ↻';}
- });
  function hidePanels(){['profile-menu','notifications-panel','search-results'].forEach(id=>$('#'+id).hidden=true);$('#profile-toggle').setAttribute('aria-expanded','false');$('#notifications-toggle').setAttribute('aria-expanded','false');}
  $('#profile-toggle').addEventListener('click',()=>{const opening=$('#profile-menu').hidden;hidePanels();$('#profile-menu').hidden=!opening;$('#profile-toggle').setAttribute('aria-expanded',String(opening));});
  $('#edit-profile').addEventListener('click',()=>{hidePanels();location.hash='profile';});

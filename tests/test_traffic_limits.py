@@ -126,59 +126,8 @@ def test_google_and_discord_budgets_are_independent_but_shared_between_instances
     first.outgoing('discord')
 
 
-def test_sync_attempts_capped_even_when_export_fails(env, monkeypatch):
-    from backend import bot_sync
-    from conftest import SUPREME, headers
-    from fastapi import HTTPException
-    assert login(env, SUPREME).status_code == 303
-    env['cfg'].sync_per_hour = 1
-    calls = []
-    async def broken(*args):
-        calls.append(1)
-        raise HTTPException(503, 'Export en panne')
-    monkeypatch.setattr(bot_sync, 'synchronize', broken)
-    h = headers(env)
-    assert env['client'].post('/api/admin/bot-sync', json={}, headers=h).status_code == 503
-    blocked = env['client'].post('/api/admin/bot-sync', json={}, headers=h)
-    assert blocked.status_code == 503 and blocked.json()['reason'] == 'api_budget_exhausted'
-    assert len(calls) == 1
 
 
-def test_google_transport_counts_auth_and_blocks_before_sheets_network(tmp_path):
-    # Le transport Google vit dans le Python du bot, sans le démarrer.
-    root = Path(__file__).resolve().parents[2]
-    code = '''
-import sys
-from pathlib import Path
-from unittest.mock import patch
-from requests import Response
-from requests.adapters import HTTPAdapter
-from google.auth.credentials import Credentials
-from backend.google_budget import limited_google_session, GoogleBudgetExceeded
-from backend.budget_counter import WindowCounters
-class FakeCredentials(Credentials):
-    def refresh(self, request):
-        request('https://oauth2.googleapis.com/token', method='POST')
-        self.token='fake-token'
-calls=[]
-def transport(self, request, **kwargs):
-    calls.append(request.url)
-    response=Response(); response.status_code=200; response._content=b'{}'; response.request=request
-    return response
-with patch.object(HTTPAdapter,'send',transport):
-    session=limited_google_session(FakeCredentials(),Path(sys.argv[1]),1,1)
-    try:
-        session.get('https://sheets.googleapis.com/v4/spreadsheets/test',timeout=1)
-        raise AssertionError('Quota bypassed')
-    except GoogleBudgetExceeded:
-        pass
-assert calls==['https://oauth2.googleapis.com/token'], calls
-print('google-auth-and-sheets-budget-ok')
-'''
-    result = subprocess.run([str(root / 'venv/bin/python'), '-c', code, str(tmp_path/'google.sqlite3')],
-                            cwd=root/'site', capture_output=True, text=True, timeout=15)
-    assert result.returncode == 0, result.stderr
-    assert 'google-auth-and-sheets-budget-ok' in result.stdout
 
 
 def test_invalid_or_disabled_caps_rejected(env):

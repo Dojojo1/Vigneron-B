@@ -194,7 +194,7 @@ def main():
         cfg=Settings(root=root,local_preview=True,visitor_per_minute=100000,
                      visitor_writes_per_minute=100000,visitor_auth_per_ten_minutes=100000,
                      discord_per_minute=100000,discord_per_day=100000,
-                     google_per_minute=100000,google_per_day=100000,sync_per_hour=100000)
+                     google_per_minute=100000,google_per_day=100000)
         # create_app valide le mode local sur son origine habituelle. Le port
         # éphémère est ensuite injecté seulement dans cette configuration de test.
         app=create_app(cfg,NoDiscord())

@@ -41,41 +41,7 @@ def test_non_finite_duplicate_invalid_encoding_and_deep_json_are_rejected(env,bo
     assert response.status_code==400
 
 
-def test_non_ascii_security_headers_and_oauth_state_cannot_cause_500(env):
-    login(env,SUPREME)
-    h=headers(env)
-    response=env['client'].patch('/api/me/profile',json={'displayName':'Blocked'},
-                               headers={**h,'X-CSRF-Token':b'\xff'})
-    assert response.status_code==403
-    callback=env['client'].get('/auth/callback',params={'state':'é','code':'unused'},follow_redirects=False)
-    assert callback.status_code==400
-    cached=env['client'].get('/api/pages/overview?view=screen',headers={'X-Heritage-Cache':b'\xff'*64})
-    assert cached.status_code==200
-    stamp=str(time.time())
-    body=json.dumps({'guildId':env['cfg'].guild_id,'kind':'ready'}).encode()
-    event=env['client'].post('/internal/discord-events',content=body,
-        headers={'X-Heritage-Timestamp':stamp,'X-Heritage-Nonce':'valid-nonce-123456789','X-Heritage-Signature':b'\xff'})
-    assert event.status_code==403
 
 
-def test_signed_internal_event_uses_the_same_strict_json_validation(env):
-    body=b'{"kind":"ready","guildId":NaN}'
-    stamp=str(time.time());nonce='strict-json-nonce-123456789'
-    signature=hmac.new(env['cfg'].connector_secret.encode(),stamp.encode()+b'.'+nonce.encode()+b'.'+body,hashlib.sha256).hexdigest()
-    response=env['client'].post('/internal/discord-events',content=body,
-        headers={'X-Heritage-Timestamp':stamp,'X-Heritage-Nonce':nonce,'X-Heritage-Signature':signature})
-    assert response.status_code==400
-    with env['store'].connect() as db:
-        assert db.execute('SELECT count(*) FROM event_nonces WHERE nonce=?',(nonce,)).fetchone()[0]==0
 
 
-@pytest.mark.parametrize('member_id',[None,True,123,[],{},'not-a-member','9'*25])
-def test_signed_member_event_requires_a_valid_member_identifier(env,member_id):
-    body=json.dumps({'guildId':env['cfg'].guild_id,'kind':'member_remove','userId':member_id}).encode()
-    stamp=str(time.time());nonce='member-event-nonce-123456789'
-    signature=hmac.new(env['cfg'].connector_secret.encode(),stamp.encode()+b'.'+nonce.encode()+b'.'+body,hashlib.sha256).hexdigest()
-    response=env['client'].post('/internal/discord-events',content=body,
-        headers={'X-Heritage-Timestamp':stamp,'X-Heritage-Nonce':nonce,'X-Heritage-Signature':signature})
-    assert response.status_code==400
-    with env['store'].connect() as db:
-        assert db.execute('SELECT count(*) FROM event_nonces WHERE nonce=?',(nonce,)).fetchone()[0]==0

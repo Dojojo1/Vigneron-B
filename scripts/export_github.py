@@ -10,7 +10,7 @@ ROOT=Path(__file__).resolve().parents[1]
 SITE=ROOT
 def sources():
     paths=[]
-    for name in ('backend','static','scripts','integration','tests','docs'):
+    for name in ('backend','static','scripts','tests','docs'):
         for path in (SITE/name).rglob('*'):
             relative=path.relative_to(SITE/name)
             if path.is_symlink():raise ValueError('Lien symbolique inattendu dans le code à exporter.')
@@ -19,8 +19,7 @@ def sources():
             paths.append(path)
     paths.extend(path for path in SITE.glob('*.md') if path.is_file())
     paths.extend(SITE/name for name in ('.env.example','requirements.txt','requirements.lock','run.sh'))
-    # Dépendance existante du calcul métier ; aucun import/démarrage du bot.
-    paths.extend(ROOT/name for name in ('bot.py','bot_guilds.py','guild_setup.py','guild_sheets.py','local_workbooks.py','lancer-site.sh'))
+    paths.append(ROOT/'lancer-site.sh')
     return sorted(set(paths))
 
 
@@ -33,14 +32,11 @@ def export(output):
                 if value and len(value)>=12 and any(word in key.upper() for word in ('TOKEN','SECRET','PASSWORD','PRIVATE_KEY')):
                     private_values.append(value.encode())
     contents={str(path.relative_to(ROOT)).replace('\\','/'):path.read_bytes() for path in sources()}
-    bot_requirements=ROOT/'requirements-bot.txt'
-    if not bot_requirements.is_file():bot_requirements=ROOT/'requirements.txt'
     # L'entrée publiée est générée depuis l'unique interface, avec les mêmes
     # ressources. Les fonctions privées ne sont jamais simulées dans Pages.
     entry=(SITE/'static/index.html').read_text(encoding='utf-8').replace('<meta charset="utf-8">','<meta charset="utf-8">\n<base href="./static/">\n<meta name="heritage-hosting" content="github-pages">',1)
     contents.update({'.gitignore':(ROOT/'.gitignore').read_bytes(),'README.md':(ROOT/'README.md').read_bytes(),'index.html':entry.encode(),
-                     'requirements.txt':b'-r requirements.lock\n-r requirements-bot.txt\n',
-                     'requirements-bot.txt':bot_requirements.read_bytes()+b'\n',
+                     'requirements.txt':(ROOT/'requirements.txt').read_bytes(),
                      'data/.gitkeep':b''})
     for name,body in contents.items():
         if any(value in body for value in private_values):raise ValueError('Un secret privé apparaît dans un fichier source : export refusé.')

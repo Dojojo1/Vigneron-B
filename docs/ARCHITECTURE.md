@@ -1,17 +1,17 @@
-# Analyse et architecture retenue
+# Architecture du site
 
-Le site existant est un frontend HTML/CSS/JavaScript, avec navigation par fragments, données et profils dans localStorage. Sept pages métier ont été détectées. Le bot est une application Python discord.py ; ses données combinent Google Sheets et fichiers JSON. Aucune base applicative partagée ou authentification web n’existait. Son contrôle `has_role` accepte n’importe quel rôle autorisé du membre, contrairement à la nouvelle politique web demandée.
+Ce dossier contient uniquement le site L’Héritage.
 
-La prévisualisation conserve les fichiers du site dans une copie séparée, ajoute FastAPI et SQLite, et remplace uniquement dans cette copie les mutations locales par des commandes validées côté serveur. Chaque API métier est liée à une page autorisée. Le tableau de bord et les statistiques reçoivent des agrégats, pas les dossiers d’une autre rubrique. Les IDs et auteurs des événements sont déterminés côté serveur.
+- `static/` : interface, styles, catalogue et essais enregistrés dans le navigateur.
+- `index.html` : entrée GitHub Pages générée par `scripts/sync_pages.py`.
+- `backend/` : fonctions du site en Python : comptes, droits, sessions et opérations.
+- `scripts/` : lancement et outils de vérification du site.
+- `tests/` : tests des opérations, des comptes et des interfaces.
 
-Le registre des pages est découvert au démarrage dans le frontend copié. Le backend en fournit à chaque membre la seule liste autorisée. Une politique globale refuse les routes privées non classées aux comptes ordinaires, afin qu’un nouvel endpoint ne devienne pas public par omission. Les contrôles sont répétés dans les endpoints sensibles.
+GitHub Pages utilise les essais locaux du navigateur. Le backend Python reste
+nécessaire pour les vrais comptes et données partagées. Son authentification
+Discord est une fonction du site ; ce dossier ne démarre aucun bot Discord.
 
-La connexion réutilise l’application et le jeton du bot existant pour des appels REST de lecture. Les comptes OAuth2 sont créés après vérification d’appartenance et du rôle Employé `1500960060203859989` ; seul le compte suprême est exempté de ce rôle. Le retrait du rôle Employé révoque les sessions au prochain contrôle Discord. L’appartenance et les rôles du membre sont contrôlés par une lecture REST du bot existant, avec l’identifiant obtenu par OAuth2 ou conservé dans la session serveur ; aucun identifiant fourni par le navigateur n’est utilisé pour ce contrôle. Les rôles sont enregistrés avec leurs IDs, noms et positions ; les permissions persistent par ID. Le rôle prioritaire seul donne accès aux pages. L’Administrateur Suprême dépend exclusivement de l’identité OAuth2 vérifiée et d’une constante serveur privée.
-
-La base contient users, roles, role_permissions, sessions, oauth_states, audit, metadata, event_nonces et domain_store. Les données métier de domain_store sont fictives et traitées dans une transaction SQLite. Ce choix permet de tester les formulaires existants sans double écriture vers le bot. Une future intégration métier devra partager le moteur Python du bot au lieu de faire coexister deux comptabilités.
-
-La révocation est bornée par la durée du cache Discord (30 s par défaut). L’extension optionnelle du bot fournit une invalidation immédiate authentifiée, sans modifier les commandes ou workers existants ; elle demeure non installée en production. L’absence de Discord interdit les vérifications privées dès expiration du cache.
-
-Les prochaines étapes dépendant d’une validation extérieure sont l’essai OAuth2 avec le vrai compte, l’approbation visuelle, puis l’accord explicite avant tout raccordement et déploiement de production.
-
-Les données métier de la prévisualisation peuvent désormais être remplacées par un instantané privé du bot : fichiers JSON, deux Google Sheets et fiches de ventes Discord, exclusivement en lecture des sources. Le script d’export utilise le Python du bot et une autorisation Google en lecture seule. Une sauvegarde SQLite précède l’import ; les comptes, sessions, photos et permissions restent inchangés. L’actualisation manuelle est réservée au compte suprême et protégée contre les modifications concurrentes. Le classement utilise le compteur hebdomadaire exact du bot ; le nombre de machines physiques et les montants ne sont pas substitués à ce compteur. Les progressions affichées par Discord sont conservées initialement, puis les essais locaux utilisent les fonctions pures extraites du code du bot, sans initialiser son client Discord.
+Les programmes du bot, le connecteur d’événements et l’import Discord/Google
+Sheets ont été retirés. Le site ne dépend plus de leur code Python.
+Le catalogue des véhicules et les règles de formulaire sont conservés dans le site.

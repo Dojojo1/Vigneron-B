@@ -50,19 +50,6 @@ def test_removing_employee_role_revokes_every_session_and_blocks_profile(env):
     assert login(env).headers['location'] == '/app#overview'
 
 
-def test_employee_role_removal_respects_verification_ttl_and_signed_events(env):
-    env['cfg'].access_ttl = 30
-    login(env)
-    env['provider'].members[MEMBER] = ['100']
-    body, signature = signed(env, {'guildId': GUILD, 'kind': 'member_update', 'userId': MEMBER})
-    assert env['client'].post('/internal/discord-events', content=body, headers=signature).status_code == 200
-    assert env['client'].get('/api/me').status_code == 401
-    env['provider'].members[MEMBER] = [EMPLOYEE, '100']
-    login(env)
-    env['provider'].members[MEMBER] = ['100']
-    with env['store'].connect(True) as db:
-        db.execute('UPDATE users SET checked_at=? WHERE id=?', (time.time()-31, MEMBER))
-    assert env['client'].get('/api/me').status_code == 401
 
 
 def test_supreme_needs_membership_but_not_employee_role(env):

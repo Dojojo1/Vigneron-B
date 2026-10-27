@@ -41,7 +41,7 @@ class FakeDiscord:
 @pytest.fixture
 def env(tmp_path):
     (tmp_path/'static').symlink_to(Path(__file__).resolve().parents[1]/'static',target_is_directory=True)
-    cfg=Settings(root=tmp_path,client_id='123',client_secret='test-client-secret',bot_token='test-bot-token',access_ttl=0,connector_secret='test-connector-secret')
+    cfg=Settings(root=tmp_path,client_id='123',client_secret='test-client-secret',bot_token='test-bot-token',access_ttl=0)
     provider=FakeDiscord();app=create_app(cfg,provider)
     with TestClient(app,base_url=cfg.base_url) as client:
         yield {'app':app,'client':client,'provider':provider,'store':app.state.store,'security':app.state.security,'cfg':cfg}

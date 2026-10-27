@@ -30,8 +30,6 @@ def base(state):
     result={'sales':[],'machines':[],'events':[],'raffles':[],'tombolaRecords':[],
             'catalog':{'voitures':[],'motos':[]},'salesWeek':{'archives':[],'lastResetDate':None},
             'allocations':{},'pagination':{}}
-    if state.get('botSync'):
-        result['botSync']={key:state['botSync'][key] for key in ('syncedAt','modified','mode')}
     return result
 
 

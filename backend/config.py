@@ -17,7 +17,6 @@ class Settings:
     supreme_id: str = '356404251905228802'
     employee_role_id: str = '1500960060203859989'
     access_ttl: int = 30
-    connector_secret: str = ''
     session_seconds: int = 30 * 86400
     local_preview: bool = False
     visitor_per_minute: int = 180
@@ -27,7 +26,6 @@ class Settings:
     discord_per_day: int = 10000
     google_per_minute: int = 30
     google_per_day: int = 500
-    sync_per_hour: int = 3
 
     @property
     def data_dir(self): return self.root / 'data'
@@ -42,7 +40,7 @@ class Settings:
         if self.local_preview and self.base_url not in ('http://127.0.0.1:8081', 'http://localhost:8081'):
             raise ValueError('Le mode sans Discord est réservé à la prévisualisation locale sur le port 8081.')
         for name in ('visitor_per_minute', 'visitor_writes_per_minute', 'visitor_auth_per_ten_minutes',
-                     'discord_per_minute', 'discord_per_day', 'google_per_minute', 'google_per_day', 'sync_per_hour'):
+                     'discord_per_minute', 'discord_per_day', 'google_per_minute', 'google_per_day'):
             if type(getattr(self, name)) is not int or not 1 <= getattr(self, name) <= 1000000:
                 raise ValueError(f'Plafond invalide : {name} doit être compris entre 1 et 1000000.')
 
@@ -56,11 +54,10 @@ class Settings:
                      employee_role_id=os.getenv('HERITAGE_EMPLOYEE_ROLE_ID', cls.employee_role_id),
                      session_seconds=max(1,min(90,int(os.getenv('HERITAGE_SESSION_DAYS','30'))))*86400,
                      access_ttl=max(0, min(60, int(os.getenv('HERITAGE_ACCESS_TTL', '30')))),
-                     connector_secret=os.getenv('HERITAGE_CONNECTOR_SECRET', ''),
                      local_preview=os.getenv('HERITAGE_LOCAL_PREVIEW', '0') == '1')
         url = urlparse(result.base_url)
         for name in ('visitor_per_minute', 'visitor_writes_per_minute', 'visitor_auth_per_ten_minutes',
-                     'discord_per_minute', 'discord_per_day', 'google_per_minute', 'google_per_day', 'sync_per_hour'):
+                     'discord_per_minute', 'discord_per_day', 'google_per_minute', 'google_per_day'):
             setattr(result, name, int(os.getenv('HERITAGE_' + name.upper(), str(getattr(result, name)))))
         if not result.employee_role_id.isdigit():
             raise ValueError('HERITAGE_EMPLOYEE_ROLE_ID doit contenir l’identifiant du rôle Employé.')

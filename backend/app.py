@@ -31,7 +31,6 @@ from .traffic import TrafficLimits, VisitorLimitMiddleware, APIBudgetExceeded
 from .local_preview import LocalPreviewSecurity
 from .registry import discover_pages
 from . import domain
-from . import bot_sync
 from . import views
 from .auditing import AuditHTTPMiddleware, DurableAuditWriter, business_changes, user_snapshot, query_log, log_entry
 
@@ -62,7 +61,6 @@ def create_app(settings=None, provider=None):
     app.state.store, app.state.security, app.state.settings, app.state.pages = store, security, cfg, pages
     app.state.traffic = traffic
     app.state.audit_writer = audit_writer
-    sync_lock=asyncio.Lock()
     app.add_middleware(TrustedHostMiddleware,allowed_hosts=[urlparse(cfg.base_url).hostname,'127.0.0.1','localhost','testserver'])
 
     @app.exception_handler(APIBudgetExceeded)
@@ -148,7 +146,7 @@ def create_app(settings=None, provider=None):
             if request.method in ('POST','PUT','PATCH'):
                 length=request.headers.get('content-length')
                 if length and (not length.isdigit() or int(length)>2*1024*1024): raise HTTPException(413,'Requête trop volumineuse.')
-            public=path in {'/','/api/status','/auth/start','/auth/callback','/auth/access-code','/auth/logout','/internal/discord-events'} or path in public_files or path.startswith('/assets/')
+            public=path in {'/','/api/status','/auth/start','/auth/callback','/auth/access-code','/auth/logout'} or path in public_files or path.startswith('/assets/')
             if not public:
                 request.state.audit_stage='authentication'
                 user,session=await security.resolve(request)
@@ -359,12 +357,12 @@ def create_app(settings=None, provider=None):
         return log_entry(store,entry_id)
 
     screen_fields={
-        'sales':('sales','machines','events','salesWeek','allocationPolicy','progressReconcile','botSync'),
-        'machines':('machines','botSync'),
-        'tombola':('tombolaRecords','botSync'),
-        'history':('events','botSync'),
-        'overview':('sales','machines','allocationPolicy','progressReconcile','botSync'),
-        'stats':('sales','machines','machineStats','allocationPolicy','progressReconcile','botSync'),
+        'sales':('sales','machines','events','salesWeek'),
+        'machines':('machines'),
+        'tombola':('tombolaRecords'),
+        'history':('events'),
+        'overview':('sales','machines'),
+        'stats':('sales','machines','machineStats'),
     }
 
     def team_data(params,screen=True):
@@ -387,7 +385,7 @@ def create_app(settings=None, provider=None):
             return {'page':page,'access':access(request),'accounts':users(request)}
         if page=='team': return team_data(params)
         state=shared_state if shared_state is not None else store.read_domain(
-            screen_fields.get(page,('botSync',)),array_counts=('machineSheetHistory',) if page=='machines' else ())
+            screen_fields.get(page,()),array_counts=('machineSheetHistory',) if page=='machines' else ())
         return views.screen(state,page,params)
 
     @app.get('/api/bootstrap')
@@ -402,7 +400,7 @@ def create_app(settings=None, provider=None):
             selected=[page for page in pages if security.allowed(user,page)]
         request.state.audit_background=True
         domain_pages=[page for page in selected if page not in ('profile','council','journal','team')]
-        fields=tuple(dict.fromkeys(field for page in domain_pages for field in screen_fields.get(page,('botSync',))))
+        fields=tuple(dict.fromkeys(field for page in domain_pages for field in screen_fields.get(page,())))
         # Un seul décodage des collections utiles, jamais le catalogue, les images
         # ou les détails du journal. Chaque projection reste propre à sa page.
         shared=store.read_domain(fields,array_counts=('machineSheetHistory',) if 'machines' in selected else ()) if fields else None
@@ -646,22 +644,6 @@ def create_app(settings=None, provider=None):
         if not isinstance(data,dict) or set(data)!={'blocked'}:raise HTTPException(400,'Modification de l’accès invalide.')
         async with security.lock:return await run_in_threadpool(accounts.change_access,user['id'],user_id,data['blocked'])
 
-    @app.get('/api/admin/bot-sync')
-    def bot_sync_status(request:Request):
-        supreme(request)
-        with store.connect() as db:
-            state=json.loads(db.execute('SELECT body FROM domain_store WHERE id=1').fetchone()['body'])
-        return {'sync':state.get('botSync'),'running':sync_lock.locked()}
-
-    @app.post('/api/admin/bot-sync')
-    async def bot_sync_run(request:Request):
-        user=supreme(request)
-        if sync_lock.locked(): raise HTTPException(409,'Une synchronisation est déjà en cours.')
-        async with sync_lock:
-            await run_in_threadpool(traffic.synchronization)
-            result=await bot_sync.synchronize(cfg,store,api,user['id'])
-        return {'ok':True,'sync':result}
-
     @app.get('/api/admin/audit')
     def audit(request:Request):
         supreme(request)
@@ -678,42 +660,6 @@ def create_app(settings=None, provider=None):
             db.execute('UPDATE domain_store SET body=? WHERE id=1',(json.dumps(after),))
             store.audit(db,user['id'],'test_data_reset',{'backup':backup.name,'changes':business_changes(before,after)})
         return {'ok':True}
-
-    @app.post('/internal/discord-events')
-    async def discord_event(request:Request):
-        if not cfg.connector_secret: raise HTTPException(503,'Connecteur non configuré.')
-        stamp=request.headers.get('x-heritage-timestamp','');nonce=request.headers.get('x-heritage-nonce','')
-        signature=request.headers.get('x-heritage-signature','')
-        try: valid_time=abs(time.time()-float(stamp))<=60
-        except ValueError: valid_time=False
-        if not valid_time or not 16<=len(nonce)<=100: raise HTTPException(403,'Événement refusé.')
-        body=await request.body()
-        expected=hmac.new(cfg.connector_secret.encode(),stamp.encode()+b'.'+nonce.encode()+b'.'+body,hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(signature.encode('utf-8'),expected.encode('ascii')): raise HTTPException(403,'Événement refusé.')
-        data=await json_body(request)
-        if not isinstance(data,dict) or data.get('guildId')!=cfg.guild_id or data.get('kind') not in ('member_update','member_remove','roles_update','ready'): raise HTTPException(400,'Événement invalide.')
-        if data['kind'].startswith('member_') and (not isinstance(data.get('userId'),str) or not re.fullmatch(r'[0-9]{1,24}',data['userId'])):
-            raise HTTPException(400,'Identifiant du membre invalide.')
-        def commit_operation():
-            with store.connect(True) as db:
-                before=[user_snapshot(row) for row in db.execute('SELECT * FROM users WHERE id=?',(str(data.get('userId')),))] if data['kind'].startswith('member_') else [user_snapshot(row) for row in db.execute('SELECT * FROM users')]
-                db.execute('DELETE FROM event_nonces WHERE expires<?',(time.time(),))
-                if db.execute('SELECT 1 FROM event_nonces WHERE nonce=?',(nonce,)).fetchone(): raise HTTPException(409,'Événement déjà reçu.')
-                db.execute('INSERT INTO event_nonces VALUES(?,?)',(nonce,time.time()+120))
-                if data['kind']=='member_remove':
-                    db.execute('UPDATE users SET member=0,checked_at=0 WHERE id=?',(str(data.get('userId')),))
-                    db.execute('DELETE FROM sessions WHERE user_id=?',(str(data.get('userId')),))
-                elif data['kind']=='member_update': db.execute('UPDATE users SET checked_at=0 WHERE id=?',(str(data.get('userId')),))
-                else:
-                    db.execute("DELETE FROM metadata WHERE key='roles_checked'")
-                    db.execute('UPDATE users SET checked_at=0')
-                after=[user_snapshot(row) for row in db.execute('SELECT * FROM users WHERE id=?',(str(data.get('userId')),))] if data['kind'].startswith('member_') else [user_snapshot(row) for row in db.execute('SELECT * FROM users')]
-                store.audit(db,None,'discord_sync',{'kind':data['kind'],'before':before,'after':after})
-            return {'ok':True}
-        # Une vérification déjà partie ne doit pas rétablir un ancien état après
-        # l'accusé de réception d'une invalidation du connecteur Discord.
-        async with security.lock:
-            return await run_in_threadpool(commit_operation)
 
     @app.get('/app')
     def shell(request:Request): return FileResponse(static/'index.html')

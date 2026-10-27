@@ -28,11 +28,6 @@ class TrafficLimits:
         except LimitReached as error:
             raise APIBudgetExceeded(provider.capitalize(), error.retry_after) from None
 
-    def synchronization(self):
-        try:
-            self.counters.consume('server', [('bot-sync-hour', self.settings.sync_per_hour, 3600)])
-        except LimitReached as error:
-            raise APIBudgetExceeded('la synchronisation du bot', error.retry_after) from None
 
 
 class VisitorLimitMiddleware:

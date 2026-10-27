@@ -162,28 +162,10 @@ def test_profiles_and_avatar_are_personal_and_validated(env):
     assert c.get('/api/me').json()['user']['displayName']=='Membre du domaine'
 
 
-def signed(env,data,nonce=None):
-    body=json.dumps(data).encode();stamp=str(time.time());nonce=nonce or secrets.token_urlsafe(24)
-    signature=hmac.new(env['cfg'].connector_secret.encode(),stamp.encode()+b'.'+nonce.encode()+b'.'+body,hashlib.sha256).hexdigest()
-    return body,{'X-Heritage-Timestamp':stamp,'X-Heritage-Nonce':nonce,'X-Heritage-Signature':signature,'Content-Type':'application/json'}
 
 
-def test_signed_events_revoke_and_reject_replays(env):
-    login(env);c=env['client'];data={'guildId':GUILD,'kind':'member_remove','userId':MEMBER}
-    assert c.post('/internal/discord-events',json=data).status_code==403
-    body,h=signed(env,data)
-    assert c.post('/internal/discord-events',content=body,headers=h).status_code==200
-    assert c.post('/internal/discord-events',content=body,headers=h).status_code==409
-    assert c.get('/api/me').status_code==401
 
 
-def test_event_invalidates_fresh_permission_cache(env):
-    env['cfg'].access_ttl=60;env['provider'].members[MEMBER]=[EMPLOYEE,'200'];grant(env,'200','sales');login(env)
-    assert env['client'].get('/api/pages/sales').status_code==200
-    env['provider'].members[MEMBER]=[EMPLOYEE,'100']
-    body,h=signed(env,{'guildId':GUILD,'kind':'member_update','userId':MEMBER})
-    assert env['client'].post('/internal/discord-events',content=body,headers=h).status_code==200
-    assert env['client'].get('/api/pages/sales').status_code==403
 
 
 def test_forbidden_data_not_in_overview_projection(env):

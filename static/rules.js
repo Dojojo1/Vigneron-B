@@ -1,5 +1,5 @@
 'use strict';
-// Règles de formulaire reprises de bot.py ; aucune connexion au bot.
+// Règles de formulaire du site.
 const BOT_RULES=Object.freeze({machineCount:5,machineUnitAmount:200000,saleDefault:5000000,machineDefault:1000000,machineMaximum:1000000,machineDurationMinutes:285,activeDays:365,timeZone:'Europe/Brussels',employees:{'Tom Kerrigan':'229991','Donatello':'239739','Lily':'315715','Ekio':'222449'},groups:['Rubi Oscuro','Zhovta Krov']});
 function parseAmount(raw,{fallback,allowZero=false,maximum=Number.MAX_SAFE_INTEGER}={}){const text=String(raw??'').trim().replace(/[\s.,]/g,'');if(!text&&fallback!==undefined)return fallback;if(!/^\d+$/.test(text))throw Error('Le montant doit être un nombre entier positif.');const value=Number(text);if(!Number.isSafeInteger(value)||value<(allowZero?0:1)||value>maximum)throw Error(`Montant invalide${maximum===BOT_RULES.machineMaximum?' : maximum 1 000 000 $':''}.`);return value;}
 function brusselsParts(timestamp=Date.now()){return Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:BOT_RULES.timeZone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(timestamp)).map(p=>[p.type,p.value]));}

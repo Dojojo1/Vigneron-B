@@ -25,7 +25,6 @@ if source:
 else:
     token = getpass('Jeton du bot (vide = conserver) : ').strip()
     if token: values['DISCORD_BOT_TOKEN'] = token
-values['HERITAGE_CONNECTOR_SECRET'] = values.get('HERITAGE_CONNECTOR_SECRET') or secrets.token_urlsafe(48)
 if any('\n' in str(value) or '\r' in str(value) for value in values.values()): raise SystemExit('Configuration invalide.')
 tmp = file.with_suffix('.tmp')
 tmp.write_text('\n'.join(f'{key}={value or ""}' for key,value in values.items())+'\n',encoding='utf-8')
