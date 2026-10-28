@@ -47,8 +47,14 @@ class BotBridge:
         # Include the resulting site record so the bot can maintain its ID mapping.
         rid=str(record or '').split('|',1)[0]
         item=next((row for row in state[collection] if row['id']==rid),None)
+        identity_fields={'employee','employeeId','launcher','launcherId','actorId','launchedBy','createdBy','createdById'}
+        effective_values={k:v for k,v in values.items() if not k.startswith('_') and k not in identity_fields}
+        if page=='sales' and item:
+            effective_values.update(employee=item['employee'],employeeId=item.get('employeeId'),giver=item['giver'])
+        elif page=='machines' and item:
+            effective_values.update(launcher=item['launchedBy'],launcherId=item.get('actorId'))
         payload={'version':1,'guildId':self.settings.guild_id,'page':page,'action':action,
-                 'recordId':record,'values':{k:v for k,v in values.items() if not k.startswith('_')},
+                 'recordId':record,'values':effective_values,
                  'actor':{'id':actor_id,'name':actor_name},'record':item}
         db.execute('INSERT INTO bot_commands VALUES(?,?,?,NULL)',
                    (uuid.uuid4().hex,time.time(),json.dumps(payload,ensure_ascii=False)))
@@ -105,7 +111,7 @@ class BotBridge:
                 raise HTTPException(400,'Opération du bot invalide.')
             state=json.loads(db.execute('SELECT body FROM domain_store WHERE id=1').fetchone()['body'])
             before=json.loads(json.dumps(state))
-            try:domain.mutate(state,page,action,identifier,{**values,'_actor_id':actor['id']},actor['name'])
+            try:domain.mutate(state,page,action,identifier,{**values,'_actor_id':str(actor['id'])},actor['name'])
             except (ValueError,TypeError,KeyError,OverflowError):raise HTTPException(400,'Données métier invalides.') from None
             db.execute('UPDATE domain_store SET body=? WHERE id=1',(json.dumps(state,ensure_ascii=False),))
             collection={'sales':'sales','machines':'machines','tombola':'tombolaRecords'}[page]

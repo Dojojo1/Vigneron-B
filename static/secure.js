@@ -162,7 +162,7 @@
  function visibleDomain(show){
   const changed=$('body').classList.contains('on-entry')===show;
   $('#entry-screen').hidden=show;$('main').hidden=!show;$('#sidebar').hidden=!show;$('body').classList.toggle('on-entry',!show);closeMenu();
-  if(!show)concealPrivateUI();
+  if(!show){$('#session-resume-loading')?.remove();concealPrivateUI();}
   if(changed)window.dispatchEvent(new Event('heritage:domain-visibility'));
  }
  function concealPrivateUI({preserveDraft=false}={}){
@@ -196,6 +196,7 @@
   concealPrivateUI({preserveDraft:error.status!==401&&error.status!==403});
   displayedPage=null;sessionConfirmedAt=0;clearPageCache();
   state=seed();$('#content').innerHTML=`<section class="panel secure-message"><p class="eyebrow">LES AFFAIRES RESTENT EN FAMILLE</p><h2>${error.status===403?'Accès réservé':'La page n’a pas pu s’ouvrir'}</h2><p>${escapeHTML(error.message)}</p><div class="register-actions">${error.status===403?'':'<button class="button primary" type="button" id="retry-page">Réessayer →</button>'}<a class="button glass" href="#profile">Mon Registre →</a></div></section>`;
+  $('#content').hidden=false;$('#content').setAttribute('aria-busy','false');$('#session-resume-loading')?.remove();
   $('#retry-page')?.addEventListener('click',()=>window.heritageRetry());
  }
  function profilePage(){
@@ -320,10 +321,12 @@
   const signal=navigationAbort.signal;
   const focused=preserveFocus?document.activeElement:null,focusId=focused?.id,position=focused?.selectionStart;
   const route=location.hash.slice(1)||landingPage();
+  $('#session-resume-loading')?.remove();
   if(!session||route==='welcome'){visibleDomain(false);displayedPage=null;activePage=route;return;}
   if(!sessionConfirmedAt||performance.now()-sessionConfirmedAt>=SESSION_LEASE){
    rememberProfileDraft();
-   $('#content').replaceChildren();displayedPage=null;
+   $('#content').innerHTML=window.heritageLoadingMarkup('Vérification de tes accès…');
+   $('#content').hidden=false;$('#content').setAttribute('aria-busy','true');displayedPage=null;
    try{await checkSession();}catch(error){if(!error.cancelled&&version===navigationVersion){if(error.status===401)backgroundFailure(error);else failPage(error);}return false;}
    if(version!==navigationVersion)return false;
   }
@@ -343,7 +346,7 @@
   },LOADING_DELAY);
   function showData(data,incremental=false){
    const selected=document.activeElement,inputId=selected?.id,selection=selected?.selectionStart;
-   state=data;render({incremental});applyAccessUI();displayedPage=route;showing=true;
+   state=data;render({incremental});applyAccessUI();displayedPage=route;showing=true;content.hidden=false;
    if(inputId){const input=document.getElementById(inputId);if(input&&input!==selected){input.focus({preventScroll:true});if(typeof selection==='number'&&input.setSelectionRange)input.setSelectionRange(selection,selection);}}
   }
   try{
@@ -370,11 +373,12 @@
    if(version!==navigationVersion)return;
    if(epoch!==cacheEpoch)return await window.heritageNavigate({preserveFocus,sessionRefreshed});
    recordVisit(route);
-   if(route==='profile'){profilePage();displayedPage=route;return true;}
-   if(route==='council'){councilPage(data);displayedPage=route;return true;}
-   if(route==='journal'){window.heritageJournal({data,api,signal,when});displayedPage=route;return true;}
+   if(route==='profile'){profilePage();displayedPage=route;content.hidden=false;return true;}
+   if(route==='council'){councilPage(data);displayedPage=route;content.hidden=false;return true;}
+   if(route==='journal'){window.heritageJournal({data,api,signal,when});displayedPage=route;content.hidden=false;return true;}
    if(epoch===cacheEpoch&&!entry&&url!==pageURL(route,true))rememberPage(url,route,data,pageResponse?.version);
-   if(Object.hasOwn(pages,route)){if(shownJson!==JSON.stringify(data))showData(data,showing);}else content.innerHTML='<p class="empty">Cet espace est enregistré ; son interface sera disponible prochainement.</p>';
+   if(Object.hasOwn(pages,route)){if(shownJson!==JSON.stringify(data)||!content.hasChildNodes())showData(data,showing&&content.hasChildNodes());}else content.innerHTML='<p class="empty">Cet espace est enregistré ; son interface sera disponible prochainement.</p>';
+   content.hidden=false;
    if(focusId){const input=document.getElementById(focusId);input?.focus({preventScroll:true});if(typeof position==='number'&&input?.setSelectionRange)input.setSelectionRange(position,position);}
    if(entry)refreshQuery(route,url,entry);
    return true;
@@ -507,19 +511,38 @@
   }catch(error){backgroundFailure(error);}
   finally{refreshingPages=false;}
  },REFRESH_INTERVAL);
- document.addEventListener('visibilitychange',()=>{
-  if(!document.hidden&&session&&performance.now()-sessionConfirmedAt>=SESSION_LEASE){
-   rememberProfileDraft();
-   const content=$('#content'),scope=sessionScope(session),epoch=cacheEpoch,version=navigationVersion,route=activePage,focused=document.activeElement;
-   const suspended=document.createDocumentFragment();suspended.append(...content.childNodes);
-   displayedPage=null;sessionConfirmedAt=0;content.setAttribute('aria-busy','true');
-   void checkSession().then(()=>{
+ let resumeTask=null;
+ function resumePrivateView({force=false}={}){
+  if(document.hidden||!session||activePage==='welcome'||resumeTask)return resumeTask;
+  if(!force&&sessionConfirmedAt&&performance.now()-sessionConfirmedAt<SESSION_LEASE)return;
+  rememberProfileDraft();
+  const content=$('#content'),scope=sessionScope(session),epoch=cacheEpoch,version=navigationVersion,route=activePage,focused=document.activeElement;
+  const placeholder=document.createElement('div');placeholder.id='session-resume-loading';placeholder.className='session-resume-state';
+  placeholder.style.minHeight=Math.max(220,content.getBoundingClientRect().height)+'px';
+  placeholder.innerHTML=window.heritageLoadingMarkup('V\u00e9rification de tes acc\u00e8s\u2026');
+  content.before(placeholder);content.hidden=true;content.setAttribute('aria-busy','true');sessionConfirmedAt=0;
+  const task=(async()=>{
+   try{
+    await checkSession();
     if(version!==navigationVersion)return;
-    if(scope===sessionScope(session)&&epoch===cacheEpoch&&suspended.childNodes.length){
-     content.replaceChildren(suspended);displayedPage=route;content.setAttribute('aria-busy','false');
+    if(route!==(location.hash.slice(1)||landingPage())){await window.heritageNavigate({preserveFocus:true});return;}
+    if(!session){visibleDomain(false);return;}
+    if(scope===sessionScope(session)&&epoch===cacheEpoch&&displayedPage===route&&content.hasChildNodes()&&can(route)){
+     content.hidden=false;content.setAttribute('aria-busy','false');
      if(focused?.isConnected)focused.focus({preventScroll:true});
-    }else if(session&&route!=='welcome')return window.heritageNavigate();
-   }).catch(error=>{if(!error.cancelled&&version===navigationVersion){if(error.status===401)backgroundFailure(error);else failPage(error);}}).finally(()=>{if(version===navigationVersion)content.setAttribute('aria-busy','false');});
-  }
- });
+    }else await window.heritageNavigate({preserveFocus:true});
+   }catch(error){
+    if(version!==navigationVersion)return;
+    if(error.cancelled){if(session)await window.heritageNavigate({preserveFocus:true});else visibleDomain(false);}
+    else if(error.status===401)backgroundFailure(error);else failPage(error);
+   }finally{
+    placeholder.remove();if(resumeTask===task)resumeTask=null;
+    if(version===navigationVersion&&!content.hidden)content.setAttribute('aria-busy','false');
+   }
+  })();
+  resumeTask=task;return task;
+ }
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)void resumePrivateView();});
+ window.addEventListener('focus',()=>void resumePrivateView());
+ window.addEventListener('pageshow',event=>{if(event.persisted){sessionConfirmedAt=0;void resumePrivateView({force:true});}});
 })();

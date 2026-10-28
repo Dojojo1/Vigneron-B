@@ -67,6 +67,16 @@ def employee(value):
     if value not in RULES['employees']: raise ValueError('Employé inconnu.')
     return value
 
+
+def creating_actor(values, actor):
+    """The caller supplies this context from the session or signed bot actor."""
+    actor_id=values.get('_actor_id')
+    if (not isinstance(actor,str) or not 1<=len(actor.strip())<=100
+            or not isinstance(actor_id,str)
+            or not re.fullmatch(r'(?:[0-9]{1,24}|guest-[0-9a-f]{32}|local-preview)',actor_id)):
+        raise ValueError('Auteur de l’opération invalide.')
+    return actor.strip(),actor_id
+
 def current_batch(state):
     return next(iter(sorted([m for m in state['machines'] if not m.get('cancelled') and not m.get('recovered') and not m.get('historical') and not m.get('trackingDisabled')],key=lambda m:m['start'],reverse=True)),None)
 
@@ -122,15 +132,15 @@ def mutate(state,page,action,identifier,values,actor):
         if sale and (sale['status']=='cancelled' or now-sale['created']>=365*86400000): raise ValueError('Cette fiche est annulée ou expirée.')
         if action in ('add-sale','sale-detail'):
             if action=='sale-detail' and not sale: raise ValueError('Fiche introuvable.')
-            raw_person=values.get('employee');person=raw_person if sale and raw_person==sale['employee'] else employee(raw_person);group=values.get('group')
+            person,person_id=(sale['employee'],sale.get('employeeId')) if sale else creating_actor(values,actor)
+            group=values.get('group')
             if group not in RULES['groups'] and not (sale and group==sale['group']): raise ValueError('Groupe inconnu.')
-            raw_giver=values.get('giver')
-            giver=str(RULES['employees'][person] if raw_giver is None or raw_giver=='' else raw_giver).strip()
+            raw_giver=values.get('giver',sale.get('giver') if sale else None)
+            giver=str(raw_giver if raw_giver is not None else '').strip()
             if not re.fullmatch(r'[0-9]{1,20}',giver) or int(giver)<=0: raise ValueError('ID du donneur invalide.')
-            if sale and person!=sale['employee'] and giver==sale['giver']: giver=RULES['employees'][person]
-            data={'employee':person,'group':group,'giver':giver,'amount':amount(values.get('amount'),None if sale else 5000000),'receivedDate':date_text(values.get('receivedDate'),bool(sale))}
+            data={'group':group,'giver':giver,'amount':amount(values.get('amount'),None if sale else 5000000),'receivedDate':date_text(values.get('receivedDate'),bool(sale))}
             if sale: sale.update(data)
-            else: state['sales'].append({**data,'id':str(max([41]+[int(s['id']) for s in state['sales']])+1).zfill(3),'created':now,'baseTreated':0,'status':'active','manualStatus':'waiting','archive':None})
+            else: state['sales'].append({**data,'employee':person,'employeeId':person_id,'id':str(max([41]+[int(s['id']) for s in state['sales']])+1).zfill(3),'created':now,'baseTreated':0,'status':'active','manualStatus':'waiting','archive':None})
         elif action=='finish-sale':
             if not sale: raise ValueError('Fiche introuvable.')
             person=employee(values.get('receiver'))
@@ -152,11 +162,11 @@ def mutate(state,page,action,identifier,values,actor):
     elif page=='machines':
         if action=='add-machine':
             total=amount(values.get('amount'),1000000,1000000)
-            person=employee(values.get('launcher'))
+            person,person_id=creating_actor(values,actor)
             previous=current_batch(state)
             if previous:
                 raise HTTPException(409,'Le lot précédent n’a pas été récupéré. Récupère-le avant de lancer un nouveau lot.')
-            machine={'id':str(max([23]+[int(m['id']) for m in state['machines']])+1).zfill(3),'amount':total,'launchedBy':person,'actorId':values.get('_actor_id'),'start':now,'recovered':False,'machineCount':5,'nominalUnitAmount':200000}
+            machine={'id':str(max([23]+[int(m['id']) for m in state['machines']])+1).zfill(3),'amount':total,'launchedBy':person,'actorId':person_id,'start':now,'recovered':False,'machineCount':5,'nominalUnitAmount':200000}
             state['machines'].append(machine);update_machine_counter(state,machine,actor,True)
         else:
             machine=get_record(state['machines'],identifier)

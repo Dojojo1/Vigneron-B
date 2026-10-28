@@ -172,6 +172,12 @@ function options(values,selected){return values.map(v=>`<option ${v===selected?'
 const employees=Object.keys(BOT_RULES.employees);
 function field(label,name,value='',attrs=''){return `<label class="field">${label}<input name="${name}" value="${escapeHTML(value)}" ${attrs}></label>`;}
 function employeeField(name,selected){return `<label class="field">${name==='receiver'?'Qui récupère le sale ?':'Employé'}<select name="${name}">${(selected&&!employees.includes(selected)?[selected,...employees]:employees).map(employee=>`<option value="${escapeHTML(employee)}" ${employee===selected?'selected':''}>${escapeHTML(employee)}${BOT_RULES.employees[employee]?' · '+BOT_RULES.employees[employee]:''}</option>`).join('')}</select></label>`;}
+function operationActor(sale=null){
+ const user=window.heritageSession?.user,name=sale?.employee||user?.displayName||'Votre profil';
+ const initials=name.trim().split(/\s+/).slice(0,2).map(part=>part[0]||'').join('').toLocaleUpperCase('fr');
+ const avatar=(!sale||sale.employeeId===user?.id)&&user?.avatar;
+ return `<div class="operation-actor" role="group" aria-label="Auteur de l’opération"><span class="operation-actor-avatar" aria-hidden="true">${avatar?`<img src="${escapeHTML(avatar)}" alt="">`:escapeHTML(initials)}</span><div><small>${sale?'Dossier créé par':'Opération effectuée par'}</small><strong>${escapeHTML(name)}</strong><span>${sale?'L’auteur du dossier reste conservé.':'Votre profil · attribution automatique'}</span></div></div>`;
+}
 function openForm(mode,id=null){
  if($('#entry-form').dataset.submitting==='true'){toast('L’opération précédente est encore en cours d’enregistrement.');return;}
  formMode=mode;currentId=id;
@@ -181,7 +187,7 @@ function openForm(mode,id=null){
  let fields='',title='';
  if(mode==='add-sale'||mode==='sale-detail'){
   title=sale?`Dossier #${sale.id}`:'Une nouvelle affaire.';
-  fields=`<label class="field">Groupe<select name="group">${options(sale?.group&&!BOT_RULES.groups.includes(sale.group)?[sale.group,...BOT_RULES.groups]:BOT_RULES.groups,sale?.group)}</select></label>${employeeField('employee',sale?.employee)}${field('ID du joueur qui donne','giver',sale?.giver||BOT_RULES.employees[employees[0]],'inputmode="numeric" maxlength="20" required')}${field('Date reçue · vide = aujourd’hui','receivedDate',sale?.receivedDate||'',`placeholder="JJ/MM ou JJ/MM/AAAA" maxlength="10" ${sale?'required':''}`)}${field('Somme à blanchir ($)','amount',sale?.amount||'',`inputmode="numeric" maxlength="20" placeholder="${sale?'Montant obligatoire':'Vide = 5 000 000 $'}" ${sale?'required':''}`)}`;
+  fields=`${operationActor(sale)}<label class="field">Groupe<select name="group">${options(sale?.group&&!BOT_RULES.groups.includes(sale.group)?[sale.group,...BOT_RULES.groups]:BOT_RULES.groups,sale?.group)}</select></label>${field('ID du joueur qui donne','giver',sale?.giver||'','inputmode="numeric" maxlength="20" required')}${field('Date reçue · vide = aujourd’hui','receivedDate',sale?.receivedDate||'',`placeholder="JJ/MM ou JJ/MM/AAAA" maxlength="10" ${sale?'required':''}`)}${field('Somme à blanchir ($)','amount',sale?.amount||'',`inputmode="numeric" maxlength="20" placeholder="${sale?'Montant obligatoire':'Vide = 5 000 000 $'}" ${sale?'required':''}`)}`;
  }else if(mode==='finish-sale'){
   title='Terminer le sale.';fields=`<p class="demo-notice">${escapeHTML(sale.group)} · ${money(sale.amount)}. La restitution est une confirmation manuelle, distincte de la progression automatique.</p>${employeeField('receiver',employees[0])}${field('Date rendu · vide = aujourd’hui','returnedDate','','placeholder="JJ/MM ou JJ/MM/AAAA" maxlength="10"')}`;
  }else if(mode==='edit-machine-time'){
@@ -191,7 +197,7 @@ function openForm(mode,id=null){
   fields=`<div class="raffle-week-row"><div><p class="eyebrow">LA SÉLECTION DU DOMAINE</p><p>Les belles mécaniques font les belles soirées.</p></div>${field('Semaine de la tombola','weekDate',record?.week?record.week.split('-').reverse().join('/'):'','placeholder="JJ/MM ou JJ/MM/AAAA" maxlength="10"')}<small>Une date suffit. Laisse vide pour cette semaine.</small></div>`;
   const vehicles=record?.vehicles||[{},{}];fields+=`<div class="raffle-vehicle-grid" id="raffle-vehicle-grid">${vehicles.map((v,i)=>vehicleFields(v,i)).join('')}</div><button class="raffle-add-vehicle" type="button" data-action="extra-vehicle"><span aria-hidden="true">＋</span> Ajouter un véhicule <span class="raffle-add-limit">50 au maximum</span></button><div class="raffle-form-summary" aria-live="polite"><div><span>SÉLECTION</span><strong id="raffle-vehicle-count"></strong></div><div><span>MONTANT RENSEIGNÉ</span><strong id="raffle-known-total"></strong></div><p id="raffle-price-note"></p></div>`;
  }else{
-  title='Lancer les 5 machines.';fields=`${employeeField('launcher',employees[0])}${field('Montant TOTAL du lot ($)','amount','','inputmode="numeric" maxlength="20" placeholder="Vide = 1 000 000 $"')}<p class="demo-notice">5 machines × 200 000 $ = 1 000 000 $ habituellement. Vide = 1 000 000 $ au total, jamais par machine. Un seul compteur de 4 h 45. Corrige le montant total si nécessaire, dans la limite de 1 000 000 $.</p>`;
+  title='Lancer les 5 machines.';fields=`${operationActor()}${field('Montant TOTAL du lot ($)','amount','','inputmode="numeric" maxlength="20" placeholder="Vide = 1 000 000 $"')}<p class="demo-notice">5 machines × 200 000 $ = 1 000 000 $ habituellement. Vide = 1 000 000 $ au total, jamais par machine. Un seul compteur de 4 h 45. Corrige le montant total si nécessaire, dans la limite de 1 000 000 $.</p>`;
  }
  $('#dialog-title').textContent=title;$('#form-fields').innerHTML=fields;
  $('#form-dialog').classList.toggle('raffle-dialog',mode==='raffle-record');

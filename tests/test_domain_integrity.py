@@ -29,7 +29,7 @@ def test_numeric_amounts_keep_their_value_and_reject_fractional_values():
 def test_numeric_sale_amount_is_not_multiplied_by_ten(env):
     login(env,SUPREME)
     result=env['client'].post('/api/actions/sales',json={
-        'action':'add-sale','values':{'group':'Rubi Oscuro','employee':'Tom Kerrigan','amount':1000000.0}
+        'action':'add-sale','values':{'group':'Rubi Oscuro','giver':'229991','amount':1000000.0}
     },headers=headers(env))
     assert result.status_code==200
     assert env['store'].read_domain()['sales'][-1]['amount']==1000000

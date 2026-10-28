@@ -482,7 +482,7 @@ def create_app(settings=None, provider=None):
         if request_key is not None and not re.fullmatch(r'[A-Za-z0-9_-]{16,100}',request_key):
             raise HTTPException(400,'Identifiant d’envoi invalide.')
         fingerprint=hashlib.sha256(json.dumps(data,sort_keys=True,separators=(',',':'),ensure_ascii=True).encode()).hexdigest()
-        values={**values,'_actor_id':user['id']}
+        values={**{key:value for key,value in values.items() if not key.startswith('_actor')},'_actor_id':user['id']}
         def commit_operation():
             try:
                 with store.connect(True) as db:

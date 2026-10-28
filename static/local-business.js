@@ -24,12 +24,15 @@ window.heritageLocalBusiness=()=>{
    return {label:new Intl.DateTimeFormat('fr-BE',{weekday:'short',timeZone:'UTC'}).format(day),amount:state.sales.filter(s=>s.status!=='cancelled'&&dayKey(s.created)===key).reduce((n,s)=>n+s.amount,0)};
   });
   const counts=new Map(),currentWeek=weekKey();
-  for(const m of state.machines){const p=brusselsParts(m.start);if(m.cancelled||weekKey(`${p.day}/${p.month}/${p.year}`)!==currentWeek)continue;counts.set(m.launchedBy,(counts.get(m.launchedBy)||0)+1);}
-  state.employeesTotal=[...counts].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'fr'));
+  for(const m of state.machines){const p=brusselsParts(m.start);if(m.cancelled||weekKey(`${p.day}/${p.month}/${p.year}`)!==currentWeek)continue;const key=m.actorId||'legacy:'+m.launchedBy,entry=counts.get(key)||{id:key,name:m.launchedBy,count:0};entry.count++;counts.set(key,entry);}
+  state.employeesTotal=[...counts.values()].sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'fr'));
  };
  summary();
  return async(action,id,values={})=>{
   if(loadFailed)throw Error('Les essais existants sont illisibles ou inaccessibles. Aucune nouvelle sauvegarde ne les remplacera. Vérifie le stockage de ce site dans ton navigateur.');
+  const profile=window.heritageSession?.user;
+  if(!profile?.id||!profile.displayName)throw Error('Ton profil n’a pas pu être confirmé. Reconnecte-toi avant d’enregistrer.');
+  const actor={id:profile.id,name:profile.displayName};
   const next=structuredClone(state),now=Date.now();
   if(action==='raffle-record'){
    const previous=id?record(next.tombolaRecords,id):null,vehicles=[];
@@ -48,11 +51,11 @@ window.heritageLocalBusiness=()=>{
     const v=r.vehicles[Number(index)],flag=action==='vehicle-buy'?'bought':'paid';v[flag]=!v[flag];
    }else for(const v of r.vehicles){v.paid=action==='pay-all';if(action==='reset-payments')v.bought=false;}
   }else if(action==='add-sale'||action==='sale-detail'){
-   const old=id?record(next.sales,id):null,group=String(values.group||'').trim(),giver=String(values.giver||'').trim();
+   const old=id?record(next.sales,id):null,group=String(values.group||'').trim(),giver=String(values.giver??old?.giver??'').trim();
    if(!group||group.length>60||!/^\d{1,20}$/.test(giver))throw Error('Vérifie le groupe et l’identifiant du joueur.');
    if(old?.status==='cancelled')throw Error('Ce dossier est annulé.');
-   const data={group,giver,employee:person(values.employee),amount:parseAmount(values.amount,{fallback:old?undefined:BOT_RULES.saleDefault}),receivedDate:saleDate(values.receivedDate)};
-   if(old)Object.assign(old,data);else next.sales.push({...data,id:nextId(next.sales,41),created:now,baseTreated:0,status:'active',manualStatus:'waiting',archive:null});
+   const data={group,giver,employee:old?.employee||actor.name,amount:parseAmount(values.amount,{fallback:old?undefined:BOT_RULES.saleDefault}),receivedDate:saleDate(values.receivedDate)};
+   if(old)Object.assign(old,data);else next.sales.push({...data,employeeId:actor.id,id:nextId(next.sales,41),created:now,baseTreated:0,status:'active',manualStatus:'waiting',archive:null});
   }else if(['finish-sale','cancel-sale','sale-progress','sale-waiting'].includes(action)){
    const s=record(next.sales,id);if(s.status==='cancelled')throw Error('Ce dossier est annulé.');
    if(action==='finish-sale')Object.assign(s,{status:'finished',receiver:person(values.receiver),returnedDate:saleDate(values.returnedDate)});
@@ -65,15 +68,15 @@ window.heritageLocalBusiness=()=>{
    next.salesWeek.archives.push({name,year,week,sequence,closedAt:now,mode:'manual'});next.salesWeek.lastResetDate=`${p.year}-${p.month}-${p.day}`;
   }else if(action==='add-machine'){
    if(next.machines.some(m=>!m.recovered&&!m.cancelled))throw Error('Récupère le lot en cours avant d’en lancer un autre.');
-   next.machines.push({id:nextId(next.machines,23),launchedBy:person(values.launcher),amount:parseAmount(values.amount,{fallback:BOT_RULES.machineDefault,maximum:BOT_RULES.machineMaximum}),start:now,recovered:false,machineCount:BOT_RULES.machineCount,nominalUnitAmount:BOT_RULES.machineUnitAmount});
+   next.machines.push({id:nextId(next.machines,23),launchedBy:actor.name,actorId:actor.id,amount:parseAmount(values.amount,{fallback:BOT_RULES.machineDefault,maximum:BOT_RULES.machineMaximum}),start:now,recovered:false,machineCount:BOT_RULES.machineCount,nominalUnitAmount:BOT_RULES.machineUnitAmount});
   }else if(['recover','unrecover','cancel-machine','edit-machine-time'].includes(action)){
    const m=record(next.machines,id);if(m.cancelled)throw Error('Ce lot est annulé.');
-   if(action==='recover'){if(now<m.start+BOT_RULES.machineDurationMinutes*60000)throw Error('Le cycle de 4 h 45 n’est pas terminé.');Object.assign(m,{recovered:true,recoveredBy:'Visiteur',recoveredAt:now});}
+   if(action==='recover'){if(now<m.start+BOT_RULES.machineDurationMinutes*60000)throw Error('Le cycle de 4 h 45 n’est pas terminé.');Object.assign(m,{recovered:true,recoveredBy:actor.name,recoveredAt:now});}
    else if(action==='unrecover'){if(next.machines.some(other=>other.id!==id&&!other.recovered&&!other.cancelled))throw Error('Un autre lot est déjà actif.');m.recovered=false;delete m.recoveredAt;delete m.recoveredBy;}
    else if(action==='cancel-machine')m.cancelled=true;else m.start=correctedLaunch(m.start,String(values.launchTime||''));
   }else throw Error('Cette action n’est pas encore disponible pour les essais locaux.');
   const titles={'raffle-record':'Fiche tombola enregistrée','vehicle-buy':'Achat du véhicule modifié','vehicle-pay':'Paiement du véhicule modifié','pay-all':'Véhicules payés','reset-payments':'Paiements remis en attente','add-sale':'Dossier ajouté','sale-detail':'Dossier modifié','finish-sale':'Dossier restitué','cancel-sale':'Dossier annulé','add-machine':'Lot lancé','recover':'Lot récupéré','unrecover':'Récupération annulée','cancel-machine':'Lot annulé','edit-machine-time':'Heure du lot modifiée','confirm-sales-reset':'Semaine archivée'};
-  next.events.unshift({id:localId(),title:titles[action]||'Dossier actualisé',detail:'Essai local · '+action,author:'Visiteur',created:now});
+  next.events.unshift({id:localId(),title:titles[action]||'Dossier actualisé',detail:'Essai local · '+action,author:actor.name,created:now});
   const saved={version:1};for(const name of fields)saved[name]=next[name];
   try{localStorage.setItem(key,JSON.stringify(saved));}catch{throw Error('Sauvegarde impossible dans ce navigateur. Libère de l’espace ou autorise le stockage ; la modification n’a pas été enregistrée.');}
   state=next;summary();

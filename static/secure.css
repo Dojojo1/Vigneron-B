@@ -215,3 +215,12 @@ dialog > .site-error { position: absolute; top: 12px; left: 12px; right: 12px; w
 .machine-sheet-archive { margin-top: 22px; }
 .machine-sheet-archive summary { cursor: pointer; color: var(--gold); font: 23px var(--serif); }
 @media(max-width:760px) { .register-panel,.council-panel { padding: 20px; } .register-heading { gap: 16px; } .register-avatar { width: 70px; height: 70px; } .register-details { grid-template-columns: 1fr; gap: 18px; } .register-panel h2,.council-panel h2 { font-size: 27px; } }
+.session-resume-state { position: relative; }
+.session-resume-state > .loading-state { position: sticky; top: 24px; }
+.operation-actor { display: flex; align-items: center; gap: 13px; padding: 14px; margin: 0 0 22px; border: 1px solid #c5a4713d; border-radius: 6px; background: #0b171c80; }
+.operation-actor-avatar { display: grid; place-items: center; width: 43px; height: 43px; flex-shrink: 0; overflow: hidden; border: 1px solid #c5a47150; border-radius: 50%; background: #c5a47112; color: #d8c193; font: 18px var(--serif); }
+.operation-actor-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.operation-actor > div { min-width: 0; }
+.operation-actor small { display: block; color: #aaa18d; font: 10px/1.4 var(--sans); }
+.operation-actor strong { display: block; margin: 4px 0; color: #e5d5b6; font: 500 17px/1.3 var(--serif); overflow-wrap: anywhere; }
+.operation-actor > div > span { display: block; color: #b4a787; font: 10px/1.5 var(--sans); }

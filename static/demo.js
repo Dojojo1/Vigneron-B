@@ -2,7 +2,7 @@
 window.heritagePublicDemo=()=>{
  const routes=[...Object.keys(pages),'profile','council','external-access'];
  const labels={profile:'Mon profil',council:'Droits et grades Discord','external-access':'Accès extérieurs'};
- window.heritageSession={demo:true,user:{displayName:'Visiteur',supreme:false},pages:routes.map(id=>({id,label:pages[id]?.[0]||labels[id]}))};
+ window.heritageSession={demo:true,user:{id:'preview-visitor',displayName:'Visiteur',supreme:false},pages:routes.map(id=>({id,label:pages[id]?.[0]||labels[id]}))};
  const privatePages=Object.keys(pages).map(id=>({id,label:pages[id][0],kind:'private'}));
  const exampleRoles=['👑 · Patron','👑 · Co Patron','⚜ · DRH','👔 · Ressource Humaine','🤝 · Responsable Commercial','🎉 · Responsable événementiel','🍇 · Ouvrier Viticole','🌱 · Saisonnier','💼 · Partenaire'].map((name,i)=>({id:'example-'+i,name,position:100-i,active:true}));
  let settings={selectedRoles:exampleRoles.slice(0,6).map(r=>r.id),permissions:{},users:[]};

@@ -47,7 +47,7 @@ def test_creation_and_global_archive_reject_a_target_record(env,page,name,identi
 ])
 def test_invalid_form_types_never_silently_use_defaults_or_stringify_objects(env,page,name,field,value):
     login(env,SUPREME)
-    values={'group':'Rubi Oscuro','employee':'Tom Kerrigan'} if page=='sales' else {'vehicle0':'Windsor','vehicle1':'Bati'}
+    values={'group':'Rubi Oscuro','giver':'229991'} if page=='sales' else {'vehicle0':'Windsor','vehicle1':'Bati'}
     values[field]=value
     before=env['store'].read_domain()
     assert action(env,page,name,values=values).status_code==400

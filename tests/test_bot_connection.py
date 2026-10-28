@@ -88,6 +88,37 @@ def test_bot_business_event_applies_once_without_echo_to_bot_queue(env):
         assert db.execute('SELECT count(*) FROM bot_commands').fetchone()[0]==0
 
 
+@pytest.mark.parametrize('page,action,values',[
+    ('sales','add-sale',{'group':'Rubi Oscuro','giver':'777001'}),
+    ('machines','add-machine',{}),
+])
+@pytest.mark.parametrize('numeric_id',[False,True])
+def test_signed_action_creator_comes_from_signed_actor_instead_of_form_fields(env,page,action,values,numeric_id):
+    from conftest import MEMBER
+    configure(env)
+    state=env['store'].read_domain();state['machines']=[];state['machineStats']={'users':{}}
+    with env['store'].connect(True) as db:
+        db.execute('UPDATE domain_store SET body=? WHERE id=1',(json.dumps(state),))
+    actor={'id':int(MEMBER) if numeric_id else MEMBER,'name':'Employé du bot'}
+    event={'guildId':env['cfg'].guild_id,'eventId':secrets.token_hex(16),'kind':'action',
+           'page':page,'action':action,'actor':actor,'values':{
+               **values,'employee':'Tom Kerrigan','employeeId':SUPREME,
+               'launcher':'Ekio','actorId':SUPREME,'_actor_id':SUPREME,'_actor_name':'Le Fondateur'}}
+    response=signed(env,'POST','/internal/bot/events',event)
+    assert response.status_code==200,response.text
+    state=env['store'].read_domain()
+    record=next(row for row in state[page] if row['id']==response.json()['recordId'])
+    name_field,id_field=('employee','employeeId') if page=='sales' else ('launchedBy','actorId')
+    assert (record[name_field],record[id_field])==('Employé du bot',MEMBER)
+    if page=='sales':assert record['giver']=='777001'
+    else:assert state['machineStats']['users']=={MEMBER:{'name':'Employé du bot','count':1}}
+    assert state['events'][0]['author']=='Employé du bot'
+    with env['store'].connect() as db:
+        audit=json.loads(db.execute("SELECT detail FROM audit WHERE kind='bot_business_action'").fetchone()['detail'])
+        assert audit['sourceActor']==actor
+        assert db.execute('SELECT count(*) FROM bot_commands').fetchone()[0]==0
+
+
 def test_public_configuration_cannot_publish_credentials_or_an_arbitrary_url():
     values={'HERITAGE_BASE_URL':'https://domaine.example','HERITAGE_PUBLIC_BACKEND_URL':'https://domaine.example',
             'DISCORD_BOT_TOKEN':'private-token','DISCORD_CLIENT_SECRET':'private-secret'}
