@@ -1,4 +1,5 @@
 import asyncio
+import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import subprocess
@@ -30,7 +31,7 @@ def test_windows_expire_persist_and_do_not_partially_consume(tmp_path):
     assert raised.value.retry_after == 86400 - 241
     now[0] = 86401
     restarted.consume('shared', rules)
-    assert path.stat().st_mode & 0o777 == 0o600
+    if os.name=='posix':assert path.stat().st_mode & 0o777 == 0o600
 
 
 def test_concurrent_reservations_never_exceed_cap(tmp_path):

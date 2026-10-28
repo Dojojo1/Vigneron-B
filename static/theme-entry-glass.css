@@ -198,3 +198,6 @@ body.on-entry { margin: 0; overflow-x: clip; }
 @media (prefers-reduced-motion: reduce) {
   .entry-screen .entry-panel #enter-demo { transition: none; }
 }
+.connected-access-code { display: block; margin-top: 12px; color: var(--gold); font: 11px/1.5 var(--sans); text-align: center; text-decoration: none; }
+.connected-access-code:hover { text-decoration: underline; }
+.connected-access-code:focus-visible { outline: 2px solid var(--gold); outline-offset: 5px; }

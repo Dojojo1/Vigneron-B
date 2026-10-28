@@ -40,15 +40,18 @@ class FakeDiscord:
         self.role_calls+=1
         return copy.deepcopy(self.role_list)
 
-@pytest.fixture
-def env(tmp_path):
-    source=Path(__file__).resolve().parents[1]/'static'
-    try:(tmp_path/'static').symlink_to(source,target_is_directory=True)
+def mount_static(source,destination):
+    try:destination.symlink_to(source,target_is_directory=True)
     except OSError:
         def link_or_copy(src,dst):
             try:return os.link(src,dst)
             except OSError:return shutil.copy2(src,dst)
-        shutil.copytree(source,tmp_path/'static',copy_function=link_or_copy)
+        shutil.copytree(source,destination,copy_function=link_or_copy)
+
+
+@pytest.fixture
+def env(tmp_path):
+    mount_static(Path(__file__).resolve().parents[1]/'static',tmp_path/'static')
     cfg=Settings(root=tmp_path,client_id='123',client_secret='test-client-secret',bot_token='test-bot-token',access_ttl=0,seed_demo_data=True)
     provider=FakeDiscord();app=create_app(cfg,provider)
     with TestClient(app,base_url=cfg.base_url) as client:

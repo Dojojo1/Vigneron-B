@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from backend.app import create_app
 from backend.config import Settings
 from backend.local_preview import LOCAL_USER
-from conftest import FakeDiscord, SUPREME, login
+from conftest import FakeDiscord, SUPREME, login, mount_static
 
 
 class NoDiscord:
@@ -16,7 +16,7 @@ class NoDiscord:
 
 @pytest.fixture
 def local_app(tmp_path):
-    (tmp_path / 'static').symlink_to(Path(__file__).resolve().parents[1] / 'static', target_is_directory=True)
+    mount_static(Path(__file__).resolve().parents[1]/'static',tmp_path/'static')
     cfg = Settings(root=tmp_path, local_preview=True)
     return create_app(cfg, NoDiscord())
 

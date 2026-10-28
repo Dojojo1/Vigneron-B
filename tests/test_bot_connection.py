@@ -10,7 +10,7 @@ from backend.config import Settings
 from backend.storage import Store
 from backend import domain
 from connectors.website_client import WebsiteClient
-from scripts.configure_connection import public_configuration
+from scripts.configure_connection import public_configuration, configure as configure_public
 from conftest import login, SUPREME, headers
 
 SECRET='test-connector-secret-with-more-than-32-characters'
@@ -95,6 +95,41 @@ def test_public_configuration_cannot_publish_credentials_or_an_arbitrary_url():
     for invalid in ['http://domaine.example','https://token@domaine.example','https://domaine.example/path',
                     'https://domaine.example/?token=secret','https://dojojo1.github.io']:
         with pytest.raises(ValueError):public_configuration({**values,'HERITAGE_PUBLIC_BACKEND_URL':invalid})
+
+
+def test_public_url_setup_preserves_private_values_and_keeps_preview_explicit(tmp_path):
+    from dotenv import dotenv_values
+    (tmp_path/'static').mkdir()
+    envfile=tmp_path/'.env'
+    envfile.write_text('DISCORD_BOT_TOKEN=private-token\nDISCORD_CLIENT_SECRET=private-secret\nHERITAGE_BASE_URL=http://127.0.0.1:8081\n',encoding='utf-8')
+    config=configure_public(tmp_path,url='https://backend.example')
+    values=dotenv_values(envfile)
+    assert values['DISCORD_BOT_TOKEN']=='private-token' and values['DISCORD_CLIENT_SECRET']=='private-secret'
+    assert values['HERITAGE_BASE_URL']==values['HERITAGE_PUBLIC_BACKEND_URL']=='https://backend.example'
+    assert config=={'backendUrl':'https://backend.example'}
+    assert 'private' not in (tmp_path/'static/site-config.json').read_text(encoding='utf-8')
+    before=envfile.read_bytes()
+    with pytest.raises(ValueError):configure_public(tmp_path,url='http://public.example')
+    assert envfile.read_bytes()==before
+    assert configure_public(tmp_path,preview=True)=={'mode':'preview','backendUrl':''}
+
+
+def test_backend_accepts_configured_host_and_starts_oauth_on_its_own_origin(env):
+    from dataclasses import replace
+    from fastapi.testclient import TestClient
+    from backend.app import create_app
+    from urllib.parse import urlsplit,parse_qs
+    cfg=replace(env['cfg'],base_url='https://backend.example')
+    with TestClient(create_app(cfg,env['provider']),base_url=cfg.base_url) as client:
+        assert client.get('/api/status').json()['callback']=='https://backend.example/auth/callback'
+        assert client.get('/api/status',headers={'Host':'wrong.example'}).status_code==400
+        account=client.get('/api/me')
+        assert account.status_code==401 and account.json()['configured'] is True
+        assert 'SE CONNECTER AVEC DISCORD' in client.get('/').text
+        start=client.get('/auth/start',follow_redirects=False)
+        assert start.status_code==303
+        assert parse_qs(urlsplit(start.headers['location']).query)['redirect_uri']==['https://backend.example/auth/callback']
+        assert 'secure' in start.headers['set-cookie'].lower()
 
 
 def test_existing_bot_client_validates_transport_configuration():

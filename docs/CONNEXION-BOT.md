@@ -81,13 +81,29 @@ Remplacer l’exemple par ta vraie adresse, puis lancer :
 .venv/bin/python scripts/configure_connection.py
 ```
 
+Pour changer d’adresse de tunnel sans modifier les secrets, on peut aussi lancer
+`scripts/configure_connection.py --url https://ADRESSE-DU-TUNNEL` avec le Python
+du site. Cette commande met à jour les deux adresses dans le `.env` privé et
+génère le JSON public. Utiliser ensuite la même origine dans le retour OAuth2.
+Après un changement du `.env`, arrêter puis relancer uniquement le Python du site.
+Le processus Cloudflare doit rester ouvert pour conserver la même adresse.
+
+Si l’adresse publique renvoie `400 Invalid host header`, le backend en cours
+d’exécution n’accepte pas ce nom de tunnel : vérifier `HERITAGE_BASE_URL` dans
+le `.env` du PC Linux, puis redémarrer le Python. Ne pas supprimer le contrôle
+des hôtes et ne pas remplacer la liste des hôtes autorisés par `*`.
+
 Publier `static/site-config.json` avec les fichiers du site sur GitHub. Ce fichier
-contient uniquement l’adresse publique du backend. L’entrée GitHub ouvre alors
-le même site sur le backend : connexion et sessions restent sur la même origine,
+contient uniquement l’adresse publique du backend. L’accueil GitHub affiche
+« Se connecter avec Discord » ; le clic ouvre `/auth/start` sur le backend.
+Il n’y a pas de redirection automatique à l’ouverture de l’accueil.
+La connexion et les sessions restent sur la même origine,
 sans jeton dans JavaScript ni cookies tiers entre GitHub et le PC Linux.
 Ajouter aussi `https://ton-site.example/auth/callback` aux retours OAuth2 Discord.
-Laisser `HERITAGE_PUBLIC_BACKEND_URL` vide et régénérer le JSON conserve les essais
-locaux GitHub Pages, indépendants des vrais comptes et données.
+Laisser `HERITAGE_PUBLIC_BACKEND_URL` vide et régénérer le JSON désactive le bouton
+de connexion, sans accorder d’accès aux pages privées. Pour lancer volontairement
+les anciens essais locaux, utiliser `scripts/configure_connection.py --preview`.
+Ce mode est explicite et indépendant des vrais comptes et données.
 
 ## 3. Échanges entre le programme du bot et le site
 

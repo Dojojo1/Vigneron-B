@@ -15,6 +15,7 @@ const mirrorURL=process.env.PAGES_MIRROR_URL;
 const binary=process.argv[2]||'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.mp4':'video/mp4','.webm':'video/webm'};
 let blocked=null;
+let siteConfiguration={mode:'preview',backendUrl:''};
 const requests=[];
 const server=createServer(async(req,res)=>{
  const url=new URL(req.url,'http://localhost');
@@ -23,6 +24,9 @@ const server=createServer(async(req,res)=>{
  const path=resolve(root,relative||'index.html');
  if(!path.startsWith(resolve(root)+sep)){res.writeHead(403).end();return;}
  if(blocked&&url.pathname.endsWith('/'+blocked)){res.writeHead(404).end();return;}
+ if(!mirrorURL&&relative==='static/site-config.json'){
+  res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify(siteConfiguration));return;
+ }
  if(mirrorURL){
   try{const response=await fetch(new URL(relative||'index.html',mirrorURL),{signal:AbortSignal.timeout(20000)});res.writeHead(response.status,{'Content-Type':response.headers.get('content-type')||'application/octet-stream','Cache-Control':'no-store'}).end(Buffer.from(await response.arrayBuffer()));}
   catch{res.writeHead(502).end();}
@@ -46,12 +50,13 @@ try{
  socket=new WebSocket(tabs.find(tab=>tab.type==='page').webSocketDebuggerUrl);
  await new Promise((done,reject)=>{socket.addEventListener('open',done,{once:true});socket.addEventListener('error',reject,{once:true});});
  let id=0;
- const pending=new Map(),exceptions=[],failures=[];
+ const pending=new Map(),exceptions=[],failures=[],networkURLs=[];
  socket.addEventListener('message',event=>{
   if(process.env.DEBUG_CDP)console.log(String(event.data).slice(0,200));
   const data=JSON.parse(event.data);
   if(data.id){const task=pending.get(data.id);if(task){pending.delete(data.id);clearTimeout(task.timer);data.error?task.reject(new Error(JSON.stringify(data.error))):task.resolve(data.result);}return;}
   if(data.method==='Runtime.exceptionThrown')exceptions.push(data.params.exceptionDetails.text+': '+(data.params.exceptionDetails.exception?.description||''));
+  if(data.method==='Network.requestWillBeSent')networkURLs.push(data.params.request.url);
   if(liveURL&&data.method==='Network.requestWillBeSent')requests.push(new URL(data.params.request.url).pathname);
   if(data.method==='Network.responseReceived'&&data.params.response.status>=400)failures.push(data.params.response.url);
  });
@@ -200,7 +205,37 @@ try{
   assert.deepEqual(failures,[],`Missing files after recovery from ${file}`);
   recovered.push(file);
  }
- console.log(JSON.stringify({publicEntry:true,demoNavigation:true,noPrivateAPI:true,widths:[320,390,768,1440],scriptErrors:0,missingAssets:0,recovered}));
+ if(!liveURL&&!mirrorURL){
+  siteConfiguration={backendUrl:'https://login-test.example'};
+  await navigate('');
+  await wait("document.querySelector('#enter-demo').disabled===false");
+  assert.equal(await js("document.querySelector('#enter-demo .entry-button-label').textContent"),'SE CONNECTER AVEC DISCORD');
+  assert.equal(await js('window.heritageSession'),null);
+  await js("location.hash='overview'");await delay(100);
+  assert.equal(await js("document.querySelector('main').hidden"),true,'Hash navigation must not open private pages before login');
+  assert.equal(await js("document.querySelector('#connected-access-code').href"),'https://login-test.example/#welcome');
+  for(const width of [320,390,768,1440]){
+   await command('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});
+   assert.equal(await js('document.documentElement.scrollWidth<=innerWidth+1'),true,`Login page overflow at ${width}px`);
+  }
+  if(process.env.LOGIN_SCREENSHOT){const shot=await command('Page.captureScreenshot',{format:'png'});await writeFile(process.env.LOGIN_SCREENSHOT,Buffer.from(shot.data,'base64'));}
+  assert.equal(networkURLs.some(url=>url.startsWith('https://login-test.example')),false,'No automatic server navigation');
+  await js("document.querySelector('#enter-demo').click()");
+  for(let i=0;i<50&&!networkURLs.includes('https://login-test.example/auth/start');i++)await delay(50);
+  assert.ok(networkURLs.includes('https://login-test.example/auth/start'),'Login button must request the backend OAuth endpoint');
+  siteConfiguration={backendUrl:''};exceptions.length=0;failures.length=0;
+  await navigate('');
+  await wait("document.querySelector('.entry-demo-note').textContent.includes('attente de configuration')");
+  assert.equal(await js("document.querySelector('#enter-demo').disabled"),true);
+  assert.equal(await js('window.heritageSession'),null);
+  assert.equal(await js("document.querySelector('main').hidden"),true,'Missing configuration must not grant demo access');
+  siteConfiguration={backendUrl:'http://invalid.example'};
+  await navigate('');
+  await wait("document.querySelector('#site-error').hidden===false");
+  assert.equal(await js("document.querySelector('#enter-demo').disabled"),true);
+  assert.deepEqual(exceptions,[],'No JavaScript error in connected login');
+ }
+ console.log(JSON.stringify({publicEntry:true,demoNavigation:true,discordLoginOnClick:true,privatePagesHidden:true,missingConfigBlocked:true,widths:[320,390,768,1440],scriptErrors:0,recovered}));
 }finally{
  socket?.close();browser.kill();
  await new Promise(done=>{if(browser.exitCode!==null)done();else{browser.once('exit',done);setTimeout(done,3000);}});

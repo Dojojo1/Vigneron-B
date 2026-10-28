@@ -281,7 +281,7 @@ function statsPage(){
 }
 $('#estate-date').textContent=new Intl.DateTimeFormat('fr-BE',{weekday:'long',day:'numeric',month:'long',timeZone:BOT_RULES.timeZone}).format(new Date());
 
-$('#enter-demo').addEventListener('click',()=>{if(window.heritageSession)location.hash=window.heritageSession.pages.some(page=>page.id==='overview')?'overview':'profile';else location.assign('/auth/start');});
+$('#enter-demo').addEventListener('click',()=>{if(window.heritageLogin){window.heritageLogin();return;}if(window.heritageSession)location.hash=window.heritageSession.pages.some(page=>page.id==='overview')?'overview':'profile';else location.assign('/auth/start');});
 
 
 setInterval(()=>{document.querySelectorAll('[data-cycle-progress]').forEach(el=>{const m=state.machines.find(m=>m.id===el.dataset.cycleProgress);if(!m)return;el.style.width=`${cyclePercent(m)}%`;el.parentElement.setAttribute('aria-valuenow',String(Math.round(cyclePercent(m))));});},1000);

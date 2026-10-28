@@ -1,6 +1,6 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from multiprocessing import get_context
+from multiprocessing import get_context, get_all_start_methods
 import sqlite3
 import time
 from types import SimpleNamespace
@@ -134,6 +134,7 @@ def test_exact_provider_counts_do_not_reserve_ahead(tmp_path):
     assert used(path, 'discord-day') == 2
 
 
+@pytest.mark.skipif('fork' not in get_all_start_methods(),reason='This inherited-ticket scenario requires the POSIX fork start method.')
 def test_inherited_process_cannot_reuse_parent_tickets(tmp_path):
     path = tmp_path / 'limits.sqlite3'
     counters = WindowCounters(path, clock=lambda: 1)

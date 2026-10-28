@@ -1,4 +1,5 @@
 import hashlib
+import os
 from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -48,6 +49,10 @@ def test_restore_detects_missing_referenced_photo(env):
 
 def test_restore_refuses_symlinked_private_files(env):
     directory=env['cfg'].data_dir/'avatars';directory.mkdir(mode=0o700)
-    (directory/'link.png').symlink_to(env['cfg'].data_dir/'tokens.key')
+    try:(directory/'link.png').symlink_to(env['cfg'].data_dir/'tokens.key')
+    except OSError as error:
+        if os.name=='nt' and getattr(error,'winerror',None)==1314:
+            pytest.skip('Creating a real symlink requires a Windows privilege unavailable in this test environment.')
+        raise
     with pytest.raises(ValueError,match='non régulier'):
         verify_restore(env['cfg'].data_dir,STATIC)

@@ -7,6 +7,8 @@ import argparse
 from contextlib import closing
 import hashlib
 import json
+import os
+import shutil
 from pathlib import Path
 import sqlite3
 import sys
@@ -91,7 +93,13 @@ def verify_restore(data_dir, static_dir):
                 if avatar and (Path(avatar).name!=avatar or not (destination/'avatars'/avatar).is_file()):
                     raise ValueError('Une photo référencée est absente.')
         baseline=inventory(snapshot/'heritage-test.sqlite3')
-        (restored/'static').symlink_to(Path(static_dir).resolve(),target_is_directory=True)
+        source_static=Path(static_dir).resolve()
+        try:(restored/'static').symlink_to(source_static,target_is_directory=True)
+        except OSError:
+            def link_or_copy(src,dst):
+                try:return os.link(src,dst)
+                except OSError:return shutil.copy2(src,dst)
+            shutil.copytree(source_static,restored/'static',copy_function=link_or_copy)
         cfg=Settings(root=restored,local_preview=True)
         app=create_app(cfg)
         checks={}

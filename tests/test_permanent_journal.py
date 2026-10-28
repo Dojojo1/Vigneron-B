@@ -1,4 +1,5 @@
 import json
+import os
 import sqlite3
 from datetime import datetime
 
@@ -194,6 +195,7 @@ def test_legacy_database_backed_up_and_old_audit_preserved(tmp_path):
     store=Store(path)
     with store.connect() as db: assert db.execute('SELECT detail FROM audit WHERE id=1').fetchone()[0]=='{"old":true}'
     backups=list(tmp_path.glob('backup-before-permanent-audit-*.sqlite3'))
-    assert len(backups)==1 and backups[0].stat().st_mode & 0o777==0o600
+    assert len(backups)==1
+    if os.name=='posix':assert backups[0].stat().st_mode & 0o777==0o600
     Store(path)
     assert len(list(tmp_path.glob('backup-before-permanent-audit-*.sqlite3')))==1

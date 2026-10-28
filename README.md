@@ -23,11 +23,15 @@ Site de gestion du domaine RP : interface web et backend Python du site.
 Publier la branche depuis sa racine (`/`). Conserver `index.html` et le dossier
 `static/` ensemble : l’accueil charge ses ressources depuis `./static/`.
 
-GitHub Pages propose une démonstration accessible avec « Entrer dans le domaine ».
-La navigation et les formulaires sont consultables avec des données fictives ;
-les véhicules, dossiers et lots de machines peuvent être enregistrés dans ce navigateur.
-Aucun appel au bot Discord ni aux API privées n’est effectué. Les vrais comptes,
-la connexion Discord et les opérations privées nécessitent le serveur Python.
+GitHub Pages affiche l’accueil avec « Se connecter avec Discord ». Le clic ouvre
+la connexion OAuth2 sur le backend configuré dans `static/site-config.json`.
+Les pages privées restent cachées avant authentification ; aucune session locale
+n’est créée automatiquement en cas de configuration absente ou de panne réseau.
+Les secrets restent exclusivement dans le `.env` privé du backend Python.
+
+Les essais locaux restent disponibles uniquement avec le mode explicite
+`python scripts/configure_connection.py --preview`. Ils ne donnent aucun accès
+aux vrais comptes ou données Discord.
 
 Ce dossier contient uniquement le site : le programme du bot et ses anciens connecteurs ont été retirés.
 

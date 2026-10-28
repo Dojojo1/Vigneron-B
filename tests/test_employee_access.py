@@ -1,7 +1,6 @@
 import time
 
 from conftest import login, grant, MEMBER, SUPREME, EMPLOYEE, GUILD
-from test_security import signed
 
 
 def test_employee_role_is_required_even_for_an_authorized_admin_role(env):

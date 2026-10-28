@@ -50,7 +50,7 @@ def test_concurrent_startup_never_publishes_a_partially_written_encryption_key(t
         first = future.result(timeout=5)
     assert isinstance(second,Security), f'Clé partielle observée : {type(second).__name__}'
     assert second.decrypt(first.encrypt('fake-private-value')) == 'fake-private-value'
-    assert (cfg.data_dir/'tokens.key').stat().st_mode & 0o777 == 0o600
+    if os.name=='posix':assert (cfg.data_dir/'tokens.key').stat().st_mode & 0o777 == 0o600
     assert not list(cfg.data_dir.glob('.tokens-*'))
 
 

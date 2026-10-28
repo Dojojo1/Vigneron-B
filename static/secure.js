@@ -3,8 +3,7 @@
  const publicPages=location.hostname.endsWith('.github.io')||document.querySelector('meta[name="heritage-hosting"]')?.content==='github-pages';
  if(publicPages){
   void window.heritageOpenConnectedSite().then(connected=>{
-   if(connected===false)window.heritagePublicDemo();
-   else if(connected===null)window.heritageRetry=()=>location.reload();
+   if(connected==='preview')window.heritagePublicDemo();
   });
   return;
  }
@@ -140,7 +139,7 @@
   const storage=errorStorage();pendingErrors(storage).push({kind,page,key:'client-error-'+crypto.randomUUID(),occurredAt:Date.now()});persistErrors(storage);void flushErrors();
  };
  function refreshAccount(){
-  if(!session)return;
+  if(!session){$('#enter-demo .entry-button-label').textContent='SE CONNECTER AVEC DISCORD';return;}
   const u=session.user;
   $('#profile-name').textContent=u.displayName;
   $('#profile-menu p').textContent=u.authProvider==='access_code'?'Profil personnel · accès individuel':u.authProvider==='local'?'Profil de test local':'Profil personnel · identité Discord vérifiée';
