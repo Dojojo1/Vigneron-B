@@ -16,6 +16,15 @@ STATE_COOKIE = 'heritage_preview_oauth'
 
 def hashed(value): return hashlib.sha256(value.encode()).hexdigest()
 
+
+def member_display_name(member, fallback):
+    identity=member.get('user') or {}
+    for name in (member.get('nick'),identity.get('global_name'),identity.get('username'),fallback):
+        if isinstance(name,str) and name.strip():
+            return name.strip()
+    return fallback
+
+
 class EmployeeRoleRequired(HTTPException):
     reason = 'employee_required'
     def __init__(self, status_code=403):
@@ -128,7 +137,8 @@ class Security:
 
     def _save_member(self, user, member):
         with self.store.connect(True) as db:
-            db.execute('UPDATE users SET role_ids=?,checked_at=?,member=1 WHERE id=?',(json.dumps(member.get('roles',[])),time.time(),user['id']))
+            db.execute('UPDATE users SET username=?,role_ids=?,checked_at=?,member=1 WHERE id=?',
+                       (member_display_name(member,user['username']),json.dumps(member.get('roles',[])),time.time(),user['id']))
             after=user_snapshot(db.execute('SELECT * FROM users WHERE id=?',(user['id'],)).fetchone())
             before=user_snapshot(user)
             if before!=after: self.store.audit(db,user['id'],'member_roles_updated',{'before':before,'after':after})
@@ -177,7 +187,7 @@ class Security:
     def create_login(self, identity, member, credentials):
         user_id = str(identity['id'])
         self.require_employee(user_id,member.get('roles',[]))
-        username = identity.get('global_name') or identity['username']
+        username = member_display_name(member,identity.get('global_name') or identity['username'])
         avatar = f"https://cdn.discordapp.com/avatars/{user_id}/{identity['avatar']}.png" if identity.get('avatar') else f"https://cdn.discordapp.com/embed/avatars/{(int(user_id)>>22)%6}.png"
         token, csrf = secrets.token_urlsafe(40), secrets.token_urlsafe(32)
         now = time.time()

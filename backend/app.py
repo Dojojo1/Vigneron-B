@@ -26,7 +26,7 @@ from .security import Security, EmployeeRoleRequired, COOKIE, STATE_COOKIE, hash
 from .access_accounts import AccessAccounts, SiteAccessRevoked, is_guest, assert_site_access, active_credential
 from .budget_counter import LimitReached
 from .discord_api import DiscordAPI, DiscordOAuthError, DiscordVerificationError
-from .limits import BodyLimitMiddleware
+from .limits import BodyLimitMiddleware, AVATAR_MAX_BYTES, request_body_limit
 from .traffic import TrafficLimits, VisitorLimitMiddleware, APIBudgetExceeded
 from .local_preview import LocalPreviewSecurity
 from .registry import discover_pages
@@ -153,7 +153,7 @@ def create_app(settings=None, provider=None):
                 security.check_request(request)
             if request.method in ('POST','PUT','PATCH'):
                 length=request.headers.get('content-length')
-                if length and (not length.isdigit() or int(length)>2*1024*1024): raise HTTPException(413,'Requête trop volumineuse.')
+                if length and (not length.isdigit() or int(length)>request_body_limit(path)): raise HTTPException(413,'Requête trop volumineuse.')
             public=path in {'/','/api/status','/auth/start','/auth/callback','/auth/access-code','/auth/logout',BOT_PATH+'/events',BOT_PATH+'/commands',BOT_PATH+'/ack'} or path in public_files or path.startswith('/assets/')
             if not public:
                 request.state.audit_stage='authentication'
@@ -552,9 +552,9 @@ def create_app(settings=None, provider=None):
 
     @app.post('/api/me/avatar')
     async def upload_avatar(request:Request,file:UploadFile=File(...)):
-        user=auth(request);data=await file.read(1048577)
+        user=auth(request);data=await file.read(AVATAR_MAX_BYTES+1)
         def commit_operation():
-            if not data or len(data)>1048576: raise HTTPException(400,'Photo : maximum 1 Mo.')
+            if not data or len(data)>AVATAR_MAX_BYTES: raise HTTPException(400,'Photo : maximum 10 Mo.')
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter('error',Image.DecompressionBombWarning)

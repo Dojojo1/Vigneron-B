@@ -288,3 +288,29 @@ def test_reset_cannot_erase_data_linked_to_discord(env):
     assert response.status_code==409,response.text
     assert state(env)==before
     assert sync(env,canonical(env,revision=2)).status_code==200
+
+
+def test_discord_cancellation_releases_cycle_while_site_recovery_is_pending(env):
+    enabled(env)
+    machine=canonical(env)
+    record_id=sync(env,machine).json()['recordId']
+    recovery=command(env,'recover',record_id)
+    assert recovery.status_code==200 and recovery.json()['pending'] is True
+    # The cancellation originates in Discord, independently of the pending site request.
+    cancelled={**machine,'revision':2,'cancelled':True,'recovered':True,
+               'cancelledBy':{'id':MEMBER,'name':'Compte test'}}
+    assert sync(env,cancelled).status_code==200
+    page=env['client'].get('/api/pages/machines?view=screen').json()
+    assert page['machines']==[], 'A cancelled lot must leave the active cycle.'
+    assert next(row for row in page['machineHistory'] if row['id']==record_id)['cancelled'] is True
+    assert page['machineSummary']['amount']==0 and domain.machine_ranking(state(env))==[]
+    assert command(env).status_code==200, 'An old recovery request must not reserve a new launch.'
+
+
+def test_cancelled_machine_stays_in_history_and_cannot_be_recovered_again(env):
+    enabled(env)
+    record_id=sync(env,canonical(env,cancelled=True,recovered=True)).json()['recordId']
+    assert command(env,'recover',record_id).status_code==409
+    history=env['client'].get('/api/pages/machines?view=screen&status=cancelled').json()
+    assert history['machines']==[]
+    assert [row['id'] for row in history['machineHistory']]==[record_id]

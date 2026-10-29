@@ -168,6 +168,49 @@ def test_profiles_and_avatar_are_personal_and_validated(env):
 
 
 
+def test_avatar_accepts_ten_megabytes_and_rejects_larger_file(env):
+    login(env)
+    client=env['client'];h=headers(env)
+    image=io.BytesIO();Image.new('RGB',(8,8),(40,50,60)).save(image,format='PNG')
+    # A valid padded PNG tests the upload limit without an enormous decoded image.
+    maximum=10*1024*1024
+    photo=image.getvalue().ljust(maximum,b'\0')
+    response=client.post('/api/me/avatar',files={'file':('photo.png',photo,'image/png')},headers=h)
+    assert response.status_code==200,response.text
+    saved=client.get('/api/me/avatar').content
+    assert len(saved)<1024
+    response=client.post('/api/me/avatar',files={'file':('photo.png',photo+b'x','image/png')},headers=h)
+    assert response.status_code==400,response.text
+    assert '10 Mo' in response.json()['detail']
+    assert client.get('/api/me/avatar').content==saved
+
+
+def test_server_nickname_is_used_on_login_and_refresh_without_erasing_custom_name(env):
+    provider=env['provider'];original=provider.member
+    profile={'nick':'Tom Kerrigan','user':{'id':MEMBER,'global_name':'Nom du compte','username':'compte'}}
+    async def member(user_id):
+        return {**await original(user_id),**profile}
+    provider.member=member
+    login(env)
+    client=env['client']
+    user=client.get('/api/me').json()['user']
+    assert user['displayName']==user['discordName']=='Tom Kerrigan'
+    profile['nick']='Tom du domaine'
+    assert client.get('/api/me').json()['user']['displayName']=='Tom du domaine'
+    response=client.patch('/api/me/profile',json={'displayName':'Mon pseudo du site'},headers=headers(env))
+    assert response.status_code==200
+    profile['nick']='Tom nouveau surnom'
+    user=client.get('/api/me').json()['user']
+    assert user['displayName']=='Mon pseudo du site'
+    assert user['discordName']=='Tom nouveau surnom'
+    restored=client.patch('/api/me/profile',json={'resetName':True},headers=headers(env))
+    assert restored.json()['user']['displayName']=='Tom nouveau surnom'
+    profile['nick']=None
+    assert client.get('/api/me').json()['user']['displayName']=='Nom du compte'
+    profile['user']['global_name']=None
+    assert client.get('/api/me').json()['user']['displayName']=='compte'
+
+
 def test_forbidden_data_not_in_overview_projection(env):
     grant(env,'100','overview');login(env)
     response=env['client'].get('/api/pages/overview')
