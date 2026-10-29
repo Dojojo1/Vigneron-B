@@ -1,0 +1,9 @@
+{
+  "guildId": "910000000000000001",
+  "commandId": "55555555555555555555555555555555",
+  "status": "failed",
+  "error": {
+    "code": "permission_denied",
+    "message": "L’auteur ne possède pas les rôles autorisés pour les machines."
+  }
+}

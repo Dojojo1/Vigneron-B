@@ -65,6 +65,7 @@ def screen(state, page, params):
         now=datetime.now(domain.TZ).timestamp()*1000
         duration=domain.RULES['machineDurationMinutes']*60000
         def machine_status(m):
+            if m.get('botStatus')=='unconfirmed':return 'unconfirmed'
             if m.get('cancelled'): return 'cancelled'
             if m.get('recovered'): return 'recovered'
             if m.get('historical') or m.get('trackingDisabled'): return 'unconfirmed'
@@ -73,7 +74,7 @@ def screen(state, page, params):
               and (status=='all' or status==machine_status(m))]
         rows.sort(key=lambda m:m['start'],reverse=True)
         history=take(rows,'machines')
-        recovered=[m for m in state['machines'] if m.get('recovered') and not m.get('cancelled')]
+        recovered=[m for m in state['machines'] if m.get('recovered') and not m.get('cancelled') and (not state.get('machineBridgeConfirmedOnly') or m.get('botStatus')=='confirmed')]
         result.update(machines=[batch] if batch else [],machineHistory=history,
                       machineSummary={'recovered':len(recovered),'amount':sum(m['amount'] for m in recovered)},
                       sheetCount=state.get('_count_machineSheetHistory',len(state.get('machineSheetHistory',[]))))

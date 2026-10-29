@@ -56,8 +56,9 @@ function refreshMachineControls(){
   button.title=blocked?'Disponible à la fin du compteur de 4 h 45.':'';
  });
  document.querySelectorAll('[data-action="add-machine"]').forEach(button=>{
-  button.disabled=Boolean(active)||button.getAttribute('aria-busy')==='true';
-  button.title=active?'Récupère le lot précédent avant d’en lancer un nouveau.':'';
+  const pending=state.machineCommands?.some(job=>job.action==='add-machine'&&['pending','uncertain'].includes(job.status));
+  button.disabled=Boolean(active||pending||state.botConnection&&!state.botConnection.enabled)||button.getAttribute('aria-busy')==='true';
+  button.title=pending?'Une demande de lancement attend déjà le bot.':active?'Récupère le lot précédent avant d’en lancer un nouveau.':'';
  });
  document.querySelectorAll('[data-cycle-state]').forEach(label=>{
   const machine=records.find(m=>m.id===label.dataset.cycleState);
@@ -107,18 +108,27 @@ function salesWeekSummary(){
 function salesPage(){return`<div class="toolbar"><button class="button primary" data-action="add-sale">＋ Ajouter du sale</button><button class="button glass" data-action="archive-sales">Reset semaine</button><input id="sale-search" type="search" placeholder="Rechercher un groupe, un employé…" aria-label="Rechercher les sales" value="${escapeHTML(search)}"></div>${salesWeekSummary()}<section class="night-dossiers sales-dossiers"><div class="night-section-heading"><h2>Dossiers du domaine <span></span></h2><span class="section-label">Clique sur un dossier pour le gérer</span></div><div class="night-dossier-list sales-list" id="sale-results">${saleResults()}</div>${pagination('sales')}<a class="night-stat-link" href="#stats">Répartition : entreprise 15 % · groupes 80 % · perte 5 % <span>↗</span></a></section>${salesActivity()}`;}
 
 function saleResults(){const filtered=selectedSales().filter(s=>(s.group+' '+s.employee+' '+s.id+' '+s.giver).toLocaleLowerCase('fr').includes(search.toLocaleLowerCase('fr'))).sort((a,b)=>b.created-a.created||Number(b.id)-Number(a.id));return filtered.map(midnightDossier).join('')||(search?'<p class="empty">Aucun dossier ne correspond à cette recherche.</p>':'<p class="empty">Aucun dossier dans cette vue. Les anciens dossiers restent accessibles dans les archives et « Tous les dossiers ouverts ».</p>');}
-function machineStatus(m){return m.cancelled?'cancelled':m.recovered?'recovered':m.historical||m.trackingDisabled?'unconfirmed':remaining(m)===0?'ready':'running';}
+function machineStatus(m){return m.botStatus==='unconfirmed'?'unconfirmed':m.cancelled?'cancelled':m.recovered?'recovered':m.historical||m.trackingDisabled?'unconfirmed':remaining(m)===0?'ready':'running';}
 function machineHistoryRows(){
  const filtered=[...(state.machineHistory||state.machines)].sort((a,b)=>b.start-a.start).filter(m=>{
   const text=[m.id,m.launchedBy||'',m.recoveredBy||''].join(' ').toLocaleLowerCase('fr');
   return text.includes(machineSearch.toLocaleLowerCase('fr'))&&(machineFilter==='all'||machineStatus(m)===machineFilter);
  });
- return filtered.map(m=>{const status=machineStatus(m);return `<tr><td>#${escapeHTML(m.id)}</td><td><span class="operator-name">${escapeHTML(m.launchedBy||'Non renseigné')}</span></td><td>${money(m.amount)}</td><td>${date(m.start)}</td><td>${date(m.start+DURATION)}</td><td><span class="badge ${status==='ready'?'wait':''}">${status==='cancelled'?'Annulée':status==='recovered'?'Récupérée':status==='unconfirmed'?'Historique · non confirmé':status==='ready'?'À récupérer':'En cours'}</span></td><td>${m.recovered&&!m.cancelled?escapeHTML(m.recoveredBy||'Non renseigné'):'—'}<small class="recovery-date">${m.recovered&&m.recoveredAt?date(m.recoveredAt):''}</small></td><td>${!m.cancelled?`<div class="record-actions"><button data-action="edit-machine-time" data-id="${escapeHTML(m.id)}">Modifier l’heure</button><button data-action="${m.recovered?'unrecover':'recover'}" data-id="${escapeHTML(m.id)}" ${m.recovered?'':`data-cycle-recover="${escapeHTML(m.id)}"`}>${m.recovered?'Non récupérée':'Récupérée'}</button><button data-action="cancel-machine" data-id="${escapeHTML(m.id)}">Annuler</button></div>`:'—'}</td></tr>`;}).join('')||'<tr><td colspan="8" class="empty">Aucun lot ne correspond à ces filtres.</td></tr>';
+ return filtered.map(m=>{const status=machineStatus(m);return `<tr><td>#${escapeHTML(m.id)}</td><td><span class="operator-name">${escapeHTML(m.launchedBy||'Non renseigné')}</span></td><td>${money(m.amount)}</td><td>${date(m.start)}</td><td>${date(m.start+DURATION)}</td><td><span class="badge ${status==='ready'?'wait':''}">${status==='cancelled'?'Annulée':status==='recovered'?'Récupérée':status==='unconfirmed'?'Historique · non confirmé':status==='ready'?'À récupérer':'En cours'}</span>${m.storage?.warning?`<p class="form-note" role="note">${escapeHTML(m.storage.warning)}</p>`:''}</td><td>${m.recovered&&!m.cancelled?escapeHTML(m.recoveredBy||'Non renseigné'):'—'}<small class="recovery-date">${m.recovered&&m.recoveredAt?date(m.recoveredAt):''}</small></td><td>${!m.cancelled&&m.botStatus!=='unconfirmed'?`<div class="record-actions"><button data-action="edit-machine-time" data-id="${escapeHTML(m.id)}">Modifier l’heure</button><button data-action="${m.recovered?'unrecover':'recover'}" data-id="${escapeHTML(m.id)}" ${m.recovered?'':`data-cycle-recover="${escapeHTML(m.id)}"`}>${m.recovered?'Non récupérée':'Récupérée'}</button><button data-action="cancel-machine" data-id="${escapeHTML(m.id)}">Annuler</button></div>`:'—'}</td></tr>`;}).join('')||'<tr><td colspan="8" class="empty">Aucun lot ne correspond à ces filtres.</td></tr>';
+}
+function machineConnectionPanel(){
+ const connection=state.botConnection;
+ if(!connection)return '';
+ const status=!connection.enabled?'Liaison indisponible · opérations désactivées':connection.online?'Bot connecté · confirmations Discord actives':'Liaison indisponible · attente de reconnexion du bot';
+ const labels={pending:'En attente du bot',applied:'Confirmée par le bot',failed:'Échec',uncertain:'Échec partiel · vérification nécessaire'};
+ const actions={'add-machine':'Lancement du lot',recover:'Récupération',unrecover:'Retour en non récupérée','edit-machine-time':'Correction de l’heure','cancel-machine':'Annulation'};
+ const jobs=state.machineCommands||[];
+ return `<section class="panel" aria-live="polite"><div class="panel-header"><h2>Liaison Discord</h2><span class="badge ${connection.online?'done':'wait'}">${escapeHTML(status)}</span></div><p>Les compteurs affichent les machines confirmées. Une demande en attente ne lance aucun compteur.</p>${jobs.length?`<ul class="machine-command-list">${jobs.map(job=>`<li><strong>${escapeHTML(labels[job.status]||job.status)}</strong> · ${escapeHTML(job.actor?.name||'Compte Discord')} · ${escapeHTML(actions[job.action]||'Opération Machines')}${job.error?`<p>${escapeHTML(job.error.message)}</p>`:''}</li>`).join('')}</ul>`:''}<button type="button" class="button glass" data-action="refresh-machines">Actualiser les confirmations</button></section>`;
 }
 function machinesPage(){
  const current=activeBatch(),active=current?[current]:[];
  const recovered=state.machines.filter(m=>m.recovered&&!m.cancelled);
- return `<p class="demo-notice">Les 5 machines partent ensemble et se récupèrent ensemble : un lancement correspond à un lot global. Charge habituelle : 200 000 $ par machine, soit 1 000 000 $ au total. Le montant global peut être corrigé au lancement.</p>
+ return `${machineConnectionPanel()}<p class="demo-notice">Les 5 machines partent ensemble et se récupèrent ensemble : un lancement correspond à un lot global. Charge habituelle : 200 000 $ par machine, soit 1 000 000 $ au total. Le montant global peut être corrigé au lancement.</p>
  <div class="machine-summary"><div><strong>${current?BOT_RULES.machineCount:0} / ${BOT_RULES.machineCount}</strong><span>machines · ${current?'1 lot actif':'aucun lot actif'}</span></div><div><strong>${state.machineSummary?.recovered??recovered.length}</strong><span>lots récupérés</span></div><div><strong>${money(state.machineSummary?.amount??recovered.reduce((sum,m)=>sum+m.amount,0))}</strong><span>montant total des lots récupérés</span></div></div>
  <div class="panel-header"><div><h2>Le lot en cours</h2><p>5 machines · un seul compteur de 4 h 45 · récupération groupée</p></div><button class="button glass" data-action="add-machine">＋ Lancer un lot</button></div>
  <div class="machine-list batch-list">${active.map(midnightMachine).join('')||'<p class="empty">Aucun lot actif. Les lancements précédents restent dans le registre.</p>'}</div>
@@ -182,6 +192,7 @@ function openForm(mode,id=null){
  if($('#entry-form').dataset.submitting==='true'){toast('L’opération précédente est encore en cours d’enregistrement.');return;}
  formMode=mode;currentId=id;
  const sale=state.sales.find(s=>s.id===id),machine=[...state.machines,...(state.machineHistory||[])].find(m=>m.id===id);
+ if(mode==='add-machine'&&state.botConnection&&!state.botConnection.enabled){toast('Liaison Discord indisponible.');return;}
  if(mode==='add-machine'&&activeBatch()){toast('Récupère le lot précédent avant de lancer un nouveau lot.');return;}
  if(['sale-detail','finish-sale'].includes(mode)&&(!sale||saleExpired(sale))){toast('Cette fiche est absente ou ses actions ont expiré après 365 jours.');return;}
  let fields='',title='';
@@ -191,7 +202,7 @@ function openForm(mode,id=null){
  }else if(mode==='finish-sale'){
   title='Terminer le sale.';fields=`<p class="demo-notice">${escapeHTML(sale.group)} · ${money(sale.amount)}. La restitution est une confirmation manuelle, distincte de la progression automatique.</p>${employeeField('receiver',employees[0])}${field('Date rendu · vide = aujourd’hui','returnedDate','','placeholder="JJ/MM ou JJ/MM/AAAA" maxlength="10"')}`;
  }else if(mode==='edit-machine-time'){
-  if(!machine||machine.cancelled)return;const p=brusselsParts(machine.start);title=`Heure du cycle #${machine.id}`;fields=field('Heure de lancement · même jour à Bruxelles','launchTime',`${p.hour}:${p.minute}`,'placeholder="HH:MM" required maxlength="5"');
+  if(!machine||machine.cancelled)return;const p=brusselsParts(machine.start);title=`Heure du cycle #${machine.id}`;fields=field('Heure de lancement · date ajustée par le bot','launchTime',`${p.hour}:${p.minute}`,'placeholder="HH:MM" required maxlength="5"');
  }else if(mode==='raffle-record'){
   const record=state.tombolaRecords.find(r=>r.id===id);title=record?'Modifier la fiche Tombola':'Préparer la tombola.';
   fields=`<div class="raffle-week-row"><div><p class="eyebrow">LA SÉLECTION DU DOMAINE</p><p>Les belles mécaniques font les belles soirées.</p></div>${field('Semaine de la tombola','weekDate',record?.week?record.week.split('-').reverse().join('/'):'','placeholder="JJ/MM ou JJ/MM/AAAA" maxlength="10"')}<small>Une date suffit. Laisse vide pour cette semaine.</small></div>`;
@@ -237,6 +248,7 @@ document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-action]');if(!b||b.disabled)return;
  const action=b.dataset.action,id=b.dataset.id;
  try{
+  if(action==='refresh-machines'){void window.heritageNavigate({fresh:true,preserveFocus:true});return;}
   if(['add-sale','add-machine','sale-detail','finish-sale','edit-machine-time','raffle-record'].includes(action)){if(action==='raffle-record'){b.disabled=true;try{await window.heritageCatalog();}finally{b.disabled=false;}if(!b.isConnected||activePage!=='tombola')return;}openForm(action,id);return;}
   if(action==='extra-vehicle'){const container=$('#raffle-vehicle-grid');const count=container.querySelectorAll('.vehicle-fields').length;if(count<50){container.insertAdjacentHTML('beforeend',vehicleFields({},count));updateRaffleForm();const added=container.lastElementChild;added.querySelector(`[name="vehicle${count}"]`).focus({preventScroll:true});added.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}return;}
   if(action==='copy-sale-contact'){e.preventDefault();const sale=state.sales.find(s=>s.id===id);if(sale)await copySaleContact(sale);return;}

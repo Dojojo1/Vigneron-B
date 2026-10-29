@@ -1,0 +1,33 @@
+{
+  "kind": "machine_sync",
+  "guildId": "910000000000000001",
+  "eventId": "machine-sync-2ebc5e3166eb323a1e7b3afe645819eb2b0cbfee86a84d83cdb296c890a35b36",
+  "machine": {
+    "machineId": "machine-1f97088ee0d680ba9bded8a1",
+    "guildId": "910000000000000001",
+    "actor": {
+      "id": "920000000000000001",
+      "name": "Employé Exemple A"
+    },
+    "amount": 1000000,
+    "launchedAt": "2026-10-29T09:00:00+01:00",
+    "finishAt": "2026-10-29T13:45:00+01:00",
+    "recovered": false,
+    "cancelled": false,
+    "storage": {
+      "sheetId": "EXAMPLE_SPREADSHEET_ID_000000000000",
+      "worksheet": "Blanchiments",
+      "row": 9
+    },
+    "messages": {
+      "channelId": "930000000000000001",
+      "launchMessageId": "940000000000000002",
+      "finishMessageId": null,
+      "messageIds": [
+        "940000000000000002"
+      ]
+    },
+    "siteRecordId": "bot-faf962f88906ec651eb507ba",
+    "revision": 0
+  }
+}

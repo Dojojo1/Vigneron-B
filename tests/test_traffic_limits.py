@@ -135,3 +135,35 @@ def test_invalid_or_disabled_caps_rejected(env):
     env['cfg'].discord_per_day = 0
     with pytest.raises(ValueError):
         env['cfg'].validate_local_preview()
+
+
+def test_signed_connector_budget_is_separate_from_visitor_writes(env):
+    import secrets
+    from test_bot_connection import signed,configure
+    configure(env)
+    env['cfg'].visitor_writes_per_minute=1
+    for _ in range(2):
+        payload={'guildId':env['cfg'].guild_id,'eventId':secrets.token_hex(16),'kind':'heartbeat'}
+        assert signed(env,'POST','/internal/bot/events',payload).status_code==200
+    # Same client address still has its one business-write ticket available.
+    assert env['client'].post('/api/actions/machines').status_code==401
+    assert env['client'].post('/api/actions/machines').status_code==429
+    assert env['client'].get('/api/status').status_code==200
+    # Neither unsigned nor incorrectly signed requests bypass HMAC validation.
+    assert env['client'].post('/internal/bot/events',json={}).status_code==403
+
+
+def test_connector_budget_is_bounded_and_only_exact_routes_are_isolated(env):
+    import secrets
+    from test_bot_connection import signed,configure
+    configure(env)
+    env['cfg'].visitor_per_minute=2
+    env['cfg'].visitor_writes_per_minute=1
+    for _ in range(2):
+        payload={'guildId':env['cfg'].guild_id,'eventId':secrets.token_hex(16),'kind':'heartbeat'}
+        assert signed(env,'POST','/internal/bot/events',payload).status_code==200
+    payload={'guildId':env['cfg'].guild_id,'eventId':secrets.token_hex(16),'kind':'heartbeat'}
+    assert signed(env,'POST','/internal/bot/events',payload).status_code==429
+    # Similar paths keep the visitor/write rules, rather than gaining an exemption.
+    assert env['client'].post('/internal/bot/events/extra').status_code==401
+    assert env['client'].post('/internal/bot/events/extra').status_code==429

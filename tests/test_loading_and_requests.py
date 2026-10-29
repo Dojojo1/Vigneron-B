@@ -42,6 +42,8 @@ def test_sales_page_search_and_totals_are_not_limited_to_visible_rows(env):
 
 def test_machine_history_is_paged_but_current_batch_and_summary_remain_correct(env):
     login(env,SUPREME)
+    env['cfg'].local_preview=True  # This test covers the explicit local-domain preview.
+    env['security'].check_request=lambda request:None  # OAuth identity remains the simulated Discord member.
     state=state_of(env);example=state['machines'][0]
     state['machines']=[{**example,'id':str(i),'start':example['start']+i,'recovered':i!=0} for i in range(140)]
     state['machineSheetHistory']=[{'sheet':'s42','row':i,'amount':1000,'launchedBy':'Employé','date':'','time':''} for i in range(682)]

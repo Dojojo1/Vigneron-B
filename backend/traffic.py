@@ -40,17 +40,23 @@ class VisitorLimitMiddleware:
         cfg = self.limits.settings
         # Ne jamais utiliser X-Forwarded-For, User-Agent ou un cookie fourni par le visiteur.
         address = str((scope.get('client') or ('unknown', 0))[0])
-        rules = [('visitor-minute', cfg.visitor_per_minute, 60)]
-        # La navigation conserve son quota global, sans consommer les tickets
-        # réservés aux opérations métier lorsqu'elle journalise un changement de page.
-        if scope['method'] not in ('GET', 'HEAD', 'OPTIONS') and not scope['path'].startswith('/api/visits/'):
-            rules.append(('visitor-writes-minute', cfg.visitor_writes_per_minute, 60))
-        if scope['path'] in ('/auth/start', '/auth/callback', '/auth/access-code'):
-            rules.append(('visitor-auth-ten-minutes', cfg.visitor_auth_per_ten_minutes, 600))
+        connector = scope['path'] in ('/internal/bot/events','/internal/bot/commands','/internal/bot/ack')
+        bucket = 'connector:' + address if connector else address
+        if connector:
+            # Signed exchanges have their own bounded budget. HMAC verification
+            # still runs in the endpoint, including invalid or expired requests.
+            rules = [('connector-minute', cfg.visitor_per_minute, 60)]
+        else:
+            rules = [('visitor-minute', cfg.visitor_per_minute, 60)]
+            # Navigation keeps its global quota without using business-write tickets.
+            if scope['method'] not in ('GET', 'HEAD', 'OPTIONS') and not scope['path'].startswith('/api/visits/'):
+                rules.append(('visitor-writes-minute', cfg.visitor_writes_per_minute, 60))
+            if scope['path'] in ('/auth/start', '/auth/callback', '/auth/access-code'):
+                rules.append(('visitor-auth-ten-minutes', cfg.visitor_auth_per_ten_minutes, 600))
         try:
             # Les réservations SQLite peuvent attendre le disque ou un autre processus.
             # Elles ne doivent jamais bloquer la boucle qui sert les autres requêtes.
-            await run_in_threadpool(self.limits.counters.consume_reserved, address, rules)
+            await run_in_threadpool(self.limits.counters.consume_reserved, bucket, rules)
         except LimitReached as error:
             response = JSONResponse(
                 {'detail': f'Trop de requêtes. Patiente {error.retry_after} secondes avant de réessayer.',

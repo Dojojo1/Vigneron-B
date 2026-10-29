@@ -1,0 +1,9 @@
+{
+  "guildId": "910000000000000001",
+  "commandId": "55555555555555555555555555555555",
+  "status": "uncertain",
+  "error": {
+    "code": "storage_uncertain",
+    "message": "L’écriture du suivi a un résultat inconnu : vérification nécessaire avant reprise."
+  }
+}

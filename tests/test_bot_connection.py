@@ -58,18 +58,19 @@ def test_bot_event_is_idempotent_and_invalidates_removed_member_sessions(env):
     assert signed(env,'POST','/internal/bot/events',{**payload,'kind':'member_update'}).status_code==409
 
 
-def test_site_operations_queue_persist_and_acknowledge_without_duplicate(env):
+def test_site_machine_requests_queue_persist_and_terminal_failure_is_visible(env):
     login(env,SUPREME);configure(env);env['cfg'].bot_commands_enabled=True
-    data={'action':'raffle-record','values':{'vehicle0':'Brioso','type0':'voiture','price0':'1000',
-                                            'vehicle1':'Bati 801','type1':'moto','price1':''}}
+    data={'action':'add-machine','values':{'amount':'500000'}}
     h={**headers(env),'Idempotency-Key':secrets.token_hex(16)}
-    assert env['client'].post('/api/actions/tombola',json=data,headers=h).status_code==200
-    assert env['client'].post('/api/actions/tombola',json=data,headers=h).json()['duplicate'] is True
+    assert env['client'].post('/api/actions/machines',json=data,headers=h).status_code==200
+    assert env['client'].post('/api/actions/machines',json=data,headers=h).json()['duplicate'] is True
     queued=signed(env,'GET','/internal/bot/commands').json()['commands']
-    assert len(queued)==1 and queued[0]['body']['record']['vehicles'][0]['name']=='Brioso'
-    assert '_actor_id' not in queued[0]['body']['values']
+    assert len(queued)==1 and queued[0]['body']['record'] is None
+    assert queued[0]['body']['values']=={'amount':500000}
+    assert queued[0]['body']['actor']['id']==SUPREME
     assert signed(env,'GET','/internal/bot/commands').json()['commands'][0]['id']==queued[0]['id']
-    ack={'guildId':env['cfg'].guild_id,'commandId':queued[0]['id']}
+    ack={'guildId':env['cfg'].guild_id,'commandId':queued[0]['id'],'status':'failed',
+         'error':{'code':'test_failure','message':'Échec simulé avant tout lancement.'}}
     assert signed(env,'POST','/internal/bot/ack',ack).status_code==200
     assert signed(env,'GET','/internal/bot/commands').json()['commands']==[]
 
@@ -105,6 +106,10 @@ def test_signed_action_creator_comes_from_signed_actor_instead_of_form_fields(en
                **values,'employee':'Tom Kerrigan','employeeId':SUPREME,
                'launcher':'Ekio','actorId':SUPREME,'_actor_id':SUPREME,'_actor_name':'Le Fondateur'}}
     response=signed(env,'POST','/internal/bot/events',event)
+    if page=='machines':
+        assert response.status_code==400,response.text
+        assert env['store'].read_domain()==state
+        return
     assert response.status_code==200,response.text
     state=env['store'].read_domain()
     record=next(row for row in state[page] if row['id']==response.json()['recordId'])
@@ -194,7 +199,10 @@ def test_new_connected_database_starts_without_demo_business_records(env,tmp_pat
     from fastapi.testclient import TestClient
     from backend.app import create_app
     root=tmp_path/'fresh'
-    shutil.copytree(env['cfg'].root/'static',root/'static',copy_function=os.link)
+    def link_or_copy(source, destination):
+        try:return os.link(source, destination)
+        except OSError:return shutil.copy2(source, destination)
+    shutil.copytree(env['cfg'].root/'static',root/'static',copy_function=link_or_copy)
     cfg=replace(env['cfg'],root=root,seed_demo_data=False)
     app=create_app(cfg,env['provider'])
     with TestClient(app,base_url=cfg.base_url):
@@ -202,3 +210,18 @@ def test_new_connected_database_starts_without_demo_business_records(env,tmp_pat
             state=json.loads(db.execute('SELECT body FROM domain_store WHERE id=1').fetchone()['body'])
         assert not state['sales'] and not state['machines'] and not state['tombolaRecords']
         assert state['catalog']['voitures']
+
+
+def test_client_http_error_exposes_status_without_response_secrets(monkeypatch):
+    import io
+    from urllib.error import HTTPError
+    from connectors.website_client import WebsiteHTTPError
+    class Opener:
+        def open(self,request,timeout):
+            raise HTTPError(request.full_url,503,'unavailable',{},io.BytesIO(b'private-error-response'))
+    monkeypatch.setattr('connectors.website_client.build_opener',lambda *args:Opener())
+    client=WebsiteClient('http://127.0.0.1:8081',SECRET,'123')
+    with pytest.raises(WebsiteHTTPError) as error:
+        client._request('GET','commands')
+    assert error.value.status==503
+    assert SECRET not in str(error.value) and 'private-error-response' not in str(error.value)

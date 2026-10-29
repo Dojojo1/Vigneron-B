@@ -380,7 +380,7 @@ def create_app(settings=None, provider=None):
         'tombola':('tombolaRecords',),
         'history':('events',),
         'overview':('sales','machines'),
-        'stats':('sales','machines','machineStats'),
+        'stats':('sales','machines','machineStats','machineBridgeConfirmedOnly'),
     }
 
     def team_data(params,screen=True):
@@ -395,6 +395,15 @@ def create_app(settings=None, provider=None):
                       'avatar':f"/api/pages/team/avatars/{row['id']}?v={hashlib.sha256(row['avatar_file'].encode()).hexdigest()[:16]}" if row['avatar_file'] else row['discord_avatar']} for row in rows]
         return {**views.base({}),'members':members,'pagination':{'team':{'total':total,'offset':offset,'limit':size,'hasMore':offset+size<total}}}
 
+    def machine_projection(state):
+        if cfg.local_preview:return state
+        state=copy.deepcopy(state)
+        state['machineBridgeConfirmedOnly']=True
+        for machine in state.get('machines',[]):
+            if not machine.get('botMachineId'):
+                machine.update(botStatus='unconfirmed',historical=True,trackingDisabled=True)
+        return state
+
     def screen_data(page,request,params,shared_state=None):
         """Même construction des écrans pour une lecture seule ou groupée."""
         if page=='journal': return query_log(store,params,pages)
@@ -404,7 +413,10 @@ def create_app(settings=None, provider=None):
         if page=='team': return team_data(params)
         state=shared_state if shared_state is not None else store.read_domain(
             screen_fields.get(page,()),array_counts=('machineSheetHistory',) if page=='machines' else ())
-        return views.screen(state,page,params)
+        if page in ('sales','machines','overview','stats'):state=machine_projection(state)
+        result=views.screen(state,page,params)
+        if page=='machines':result.update(bridge.machine_status())
+        return result
 
     @app.get('/api/bootstrap')
     def bootstrap(request:Request):
@@ -463,12 +475,15 @@ def create_app(settings=None, provider=None):
             rows,meta=views.paginate(state.get('machineSheetHistory',[]),request.query_params,'sheets')
             return {'machineSheetHistory':rows,'pagination':{'sheets':meta}}
         if view=='active':
+            state=machine_projection(state)
             batch=domain.current_batch(state)
             return {'machines':[batch] if batch else []}
         if view=='export':
             request.state.audit_export=True
             return {'events':state['events']}
+        if page in ('sales','machines','overview','stats'):state=machine_projection(state)
         result=domain.project(state,page)
+        if page=='machines':result.update(bridge.machine_status())
         return result
 
     @app.post('/api/actions/{page}')
@@ -494,6 +509,10 @@ def create_app(settings=None, provider=None):
                             request.state.audit_outcome='duplicate'
                             return {'ok':True,'duplicate':True}
                     state=json.loads(db.execute('SELECT body FROM domain_store WHERE id=1').fetchone()['body'])
+                    if page=='machines' and not cfg.local_preview:
+                        result=bridge.queue_machine(db,data.get('action'),data.get('id'),values,user['id'],user['display_name'] or user['username'],state)
+                        if request_key:db.execute('INSERT INTO operation_keys VALUES(?,?,?,?)',(user['id'],request_key,fingerprint,time.time()))
+                        return result
                     before=copy.deepcopy(state)
                     if data.get('action') in domain.ACTIONS.get(page,set()): request.state.audit_action=data['action']
                     changed=domain.mutate(state,page,data.get('action'),data.get('id'),values,user['display_name'] or user['username'])
@@ -685,6 +704,9 @@ def create_app(settings=None, provider=None):
         with sqlite3.connect(store.path) as source, sqlite3.connect(backup) as destination: source.backup(destination)
         backup.chmod(0o600)
         with store.connect(True) as db:
+            if not cfg.local_preview and (db.execute('SELECT 1 FROM bot_machine_links LIMIT 1').fetchone()
+                    or db.execute('SELECT 1 FROM bot_machine_jobs LIMIT 1').fetchone()):
+                raise HTTPException(409,'Ces données sont liées au bot. La réinitialisation des essais est indisponible.')
             before=json.loads(db.execute('SELECT body FROM domain_store WHERE id=1').fetchone()[0]);after=initial_domain()
             db.execute('UPDATE domain_store SET body=? WHERE id=1',(json.dumps(after),))
             store.audit(db,user['id'],'test_data_reset',{'backup':backup.name,'changes':business_changes(before,after)})

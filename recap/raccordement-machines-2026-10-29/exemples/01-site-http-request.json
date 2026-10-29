@@ -1,0 +1,7 @@
+{
+  "action": "add-machine",
+  "id": null,
+  "values": {
+    "amount": "1000000"
+  }
+}

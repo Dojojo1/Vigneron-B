@@ -25,7 +25,8 @@ def seed():
             'events':[],'raffles':[],'tombolaRecords':[],'catalog':json.loads(json.dumps(CONFIG['catalog'])), 'salesWeek':{'archives':[],'lastResetDate':None}}
 
 def allocations(state):
-    pool = sum(m['amount'] for m in state['machines'] if m.get('recovered') and not m.get('cancelled'))
+    pool = sum(m['amount'] for m in state['machines'] if m.get('recovered') and not m.get('cancelled')
+               and (not state.get('machineBridgeConfirmedOnly') or m.get('botStatus')=='confirmed'))
     result = {}
     for sale in sorted(state['sales'],key=lambda s:(s['created'],int(s['id']))):
         if sale['status']=='cancelled': result[sale['id']]=0; continue
@@ -82,6 +83,16 @@ def current_batch(state):
 
 
 def machine_ranking(state):
+    if state.get('machineBridgeConfirmedOnly'):
+        now=datetime.now(TZ);monday=now.date()-timedelta(days=now.weekday())
+        users={}
+        for machine in state['machines']:
+            if (machine.get('botStatus')!='confirmed' or not machine.get('actorId') or machine.get('cancelled')
+                    or datetime.fromtimestamp(machine['start']/1000,TZ).date()<monday):continue
+            uid=str(machine['actorId'])
+            row=users.setdefault(uid,{'id':uid,'name':machine['launchedBy'],'count':0})
+            row['name']=machine['launchedBy'];row['count']+=1
+        return sorted(users.values(),key=lambda row:(-row['count'],row['name'].casefold(),row['id']))
     stats=state.get('machineStats')
     if stats is not None:
         rows=[{'id':str(uid),'name':info.get('name') or str(uid),'count':max(0,int(info.get('count',0)))} for uid,info in stats.get('users',{}).items()]

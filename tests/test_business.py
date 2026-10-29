@@ -23,6 +23,8 @@ def test_sale_defaults_edit_return_archive_keep_progression(env):
 def test_machine_limit_explicit_recovery_single_credit_and_undo(env,monkeypatch):
     from backend import domain
     login(env,SUPREME)
+    env['cfg'].local_preview=True  # This test covers the explicit local-domain preview.
+    env['security'].check_request=lambda request:None  # OAuth identity remains the simulated Discord member.
     assert action(env,'machines','add-machine',values={'launcher':'Ekio','amount':'1000001'}).status_code==400
     assert action(env,'machines','add-machine',values={'launcher':'Ekio','amount':''}).status_code==409
     assert action(env,'machines','add-machine',values={'launcher':'Ekio','amount':'','confirmPrevious':True}).status_code==409

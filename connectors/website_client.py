@@ -11,6 +11,13 @@ from urllib.parse import urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 
+class WebsiteHTTPError(RuntimeError):
+    """HTTP status without response bodies, credentials or signed request details."""
+    def __init__(self,status):
+        self.status=int(status)
+        super().__init__(f'Website connector returned HTTP {self.status}; check the configuration and site logs.')
+
+
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs):return None
 
@@ -42,7 +49,7 @@ class WebsiteClient:
             with build_opener(NoRedirect()).open(request,timeout=15) as response:
                 return json.loads(response.read(2*1024*1024))
         except HTTPError as error:
-            raise RuntimeError(f'Website connector returned HTTP {error.code}; check the configuration and site logs.') from None
+            raise WebsiteHTTPError(error.code) from None
 
     async def event(self,kind,*,event_id=None,**data):
         payload={**data,'kind':kind,'guildId':self.guild_id,'eventId':event_id or uuid.uuid4().hex}
@@ -52,8 +59,11 @@ class WebsiteClient:
         result=await asyncio.to_thread(self._request,'GET','commands')
         return result['commands']
 
-    async def acknowledge(self,command_id):
-        return await asyncio.to_thread(self._request,'POST','ack',{'guildId':self.guild_id,'commandId':command_id})
+    async def acknowledge(self,command_id,*,status='applied',result=None,error=None):
+        payload={'guildId':self.guild_id,'commandId':command_id,'status':status}
+        if result is not None:payload['result']=result
+        if error is not None:payload['error']=error
+        return await asyncio.to_thread(self._request,'POST','ack',payload)
 
     async def poll(self,handler,interval=10):
         """handler(command) must be idempotent on command['id']; acknowledge only on success.

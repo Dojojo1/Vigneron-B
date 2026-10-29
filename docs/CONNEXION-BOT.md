@@ -143,70 +143,174 @@ Ne pas remplacer les écouteurs existants : ajouter ces appels aux bons endroits
 Les erreurs réseau du site doivent être capturées et journalisées par le bot,
 sans interrompre ses commandes Discord.
 
-## 4. Opérations métier : le raccordement à adapter dans ton bot
+## 4. Machines raccordées au bot existant
 
-Mettre des IDs et des jetons dans `.env` ne dit pas au bot comment modifier ses
-propres dossiers, tableaux et messages. Ce dernier raccordement utilise ses
-fonctions existantes, qui ne sont pas présentes dans ce dossier.
+Le traitement métier des Machines utilise le bot, et non une simulation de
+`discord.Interaction`. Les autres fonctions restent indépendantes et ne sont pas
+mises en file comme si elles étaient déjà raccordées.
 
-Le transport est prêt dans les deux sens :
+Côté bot, conserver `HERITAGE_BOT_BRIDGE_ENABLED=0` pendant l'installation ;
+mettre `1` seulement lorsque le gestionnaire et les traitements du site sont
+installés et vérifiés. Côté site, activer ensuite `HERITAGE_BOT_COMMANDS_ENABLED=1`.
 
-- Site → bot : les opérations validées sont mises en file durable si
-  `HERITAGE_BOT_COMMANDS_ENABLED=1`. Elles restent en attente jusqu’à confirmation.
-- Bot → site : envoyer un événement `action` avec un identifiant stable. Les
-  doublons ne réappliquent pas l’opération et ne repartent pas dans la file du bot.
+Sur le site réel, `HERITAGE_BOT_COMMANDS_ENABLED=0` refuse les opérations Machines
+avec « liaison indisponible ». Le mode `HERITAGE_LOCAL_PREVIEW=1` reste une
+simulation locale explicite. Activer la file uniquement après installation du
+consommateur dans le bot et des deux versions de ce protocole.
 
-Exemple d’opération issue du bot :
+Une demande du site contient :
 
-```python
-result = await website.event(
-    'action',
-    event_id='discord-message-' + str(message.id),
-    page='tombola', action='raffle-record',
-    actor={'id': str(member.id), 'name': member.display_name},
-    values={'vehicle0': 'Brioso', 'type0': 'voiture', 'price0': '125000',
-            'vehicle1': 'Bati 801', 'type1': 'moto', 'price1': ''},
-)
-site_record_id = result['recordId']
+```text
+id: identifiant de commande durable, 32 caractères hexadécimaux
+body.version: 2
+body.protocol: machines-v1
+body.guildId: serveur Discord ciblé
+body.page: machines
+body.action: add-machine | recover | unrecover | edit-machine-time | cancel-machine
+body.recordId: identifiant réservé de la fiche site
+body.values: {amount: entier} ou {launchTime: HH:MM}, sinon {}
+body.actor: {id: identifiant Discord permanent, name: nom du profil connecté}
+body.record: fiche confirmée existante, ou null pour un lancement
 ```
 
-Conserver `site_record_id` dans le stockage du bot pour les modifications futures
-(`recordId`). Réutiliser le même `event_id` lors d’une relance du même événement ;
-utiliser un nouvel ID pour une nouvelle modification.
+Le choix d'un autre lanceur n'est plus proposé dans le formulaire connecté. Le
+serveur conserve l'identifiant du profil qui valide ; le bot vérifie à nouveau
+le membre et ses rôles. Un accès extérieur sans membre Discord est refusé
+explicitement. Les noms ne servent jamais d'identifiant de compte.
 
-Les pages/actions autorisées sont définies dans `backend/domain.py`, dans `ACTIONS`.
-Les champs `values` sont ceux des formulaires du site ; ils restent validés côté Python.
+Le site réserve la demande dans `bot_machine_jobs` sans modifier le montant,
+l'heure ou le compteur confirmés de `domain_store`. L'état est affiché à part :
+**En attente du bot**, **Confirmée par le bot**, **Échec**, ou **Échec partiel —
+vérification nécessaire**. Les erreurs et l'indisponibilité de la liaison restent
+visibles. L'écran Machines lit un état confirmé toutes les 30 secondes, ou toutes les
+15 secondes lorsqu'une demande attend une réponse. Une seule lecture automatique
+peut être en cours ; elle est suspendue si l'onglet est masqué, si un formulaire
+est ouvert, pendant une saisie ou pendant un envoi. Les opérations effectuées
+dans Discord apparaissent donc aussi sans changer de page. Un bouton permet
+d'actualiser manuellement.
 
-Pour lire les actions faites sur le site :
+Seules les commandes présentes dans la nouvelle table de suivi sont délivrées.
+Les anciennes commandes d'essai sans ce suivi restent conservées mais ne seront
+jamais exécutées automatiquement. Une nouvelle activation ne transforme pas les
+anciennes fiches du site en lancements Discord. Elles restent consultables comme
+historiques non confirmés et ne participent pas aux compteurs confirmés.
 
-```python
-async def handle_site_command(command):
-    # À implémenter avec les fonctions de TON bot.
-    # command['id'] doit être dédupliqué durablement dans le stockage du bot.
-    # command['body'] contient page, action, values, actor et le dossier résultant.
-    # Mapper aussi les IDs des dossiers du site aux IDs du bot.
-    raise NotImplementedError('Brancher ici les opérations du bot existant')
+### Confirmation et synchronisation
 
-# Créer une seule tâche après démarrage du bot, pas à chaque reconnexion.
-# website.poll confirme une action seulement si le gestionnaire réussit.
-# Annuler cette tâche à l’arrêt du bot et prévoir la reprise après erreur réseau.
-task = asyncio.create_task(website.poll(handle_site_command))
+Le bot envoie `POST /internal/bot/events` signé avec `kind: machine_sync`, un
+`eventId` stable pour la relivraison, et un objet `machine` :
+
+```text
+machineId, guildId, revision (entier monotone)
+siteRecordId (facultatif pour une opération Discord)
+actor: {id, name}
+amount: montant TOTAL entier, de 1 à 1 000 000
+launchedAt, finishAt: dates ISO avec fuseau, séparées de 4 h 45 réelles
+recovered, cancelled: booléens
+recoveredBy, cancelledBy: {name, id?}, facultatifs pour les historiques
+recoveredAt, cancelledAt: dates ISO facultatives
+storage: {sheetId?, worksheet?, row?, localRef?, warning?}
+messages: {channelId?, launchMessageId?, finishMessageId?, messageIds?}
 ```
 
-Ne mettre `HERITAGE_BOT_COMMANDS_ENABLED=1` qu’après l’implémentation de ce
-gestionnaire. Une action confirmée dans le site n’est pas encore confirmée dans
-Discord : consulter les opérations en attente. La livraison peut se répéter
-après une panne ; le gestionnaire doit donc être idempotent sur `command['id']`.
-Ne pas renvoyer en événement entrant une action déjà reçue du site.
+Pour une demande du site, conserver `siteRecordId` dans le snapshot et
+`commandId` dans l'ACK. Le `commandId` de l'événement est facultatif : le
+connecteur fourni dans le récapitulatif le retire du snapshot. Le serveur valide la
+correspondance avec la fiche réservée et enregistre `bot_machine_links`. Pour une
+opération Discord, une fiche est créée ou actualisée par l'identifiant stable de
+la machine. Le montant et les dates réels sont repris tels quels : une récupération
+ou un rafraîchissement ne relance jamais l'horloge. Un avertissement `storage.warning` de 300 caractères maximum est conservé et
+affiché sur la fiche, par exemple lorsqu'une référence Google historique est
+ambiguë et qu'aucune ligne n'a été modifiée. Une révision plus ancienne ne
+remplace pas la plus récente ; une révision réutilisée avec un autre contenu est
+refusée. Un événement entrant ne crée jamais une nouvelle commande sortante.
 
-Le propriétaire peut consulter `/api/admin/bot-connection` après connexion au site :
-dernier événement reçu et nombre d’opérations non confirmées. Aucun secret n’y figure.
+Un lancement représente toujours le lot entier : montant total habituel et
+maximum 1 000 000 $, un cycle de 4 h 45 et une unité au classement. Le classement
+confirmé groupe les opérations par ID Discord, même si deux membres ont le même
+nom. Les données déjà importées ne sont pas incrémentées une deuxième fois.
+
+Après succès, envoyer `POST /internal/bot/ack` :
+
+```text
+{guildId, commandId, status: applied, result: {machine: état_canonique}}
+```
+
+Le serveur exige `result.machine`, même si la fiche a déjà été synchronisée.
+Il vérifie l'auteur et le montant d'un lancement, ainsi que l'état demandé
+pour une récupération, un retour en non récupérée ou une annulation. Un ACK
+terminal redélivré doit conserver le même statut, résultat et erreur.
+Les projections et confirmations invalides sont annulées dans la même
+transaction. Un échec
+explicite utilise `status: failed`, un effet externe non prouvable utilise
+`status: uncertain`, avec `error: {code, message}`. Ces états restent visibles et
+ne sont pas rejoués automatiquement. Une panne partielle reprenable utilise
+`status: pending` avec une erreur explicite : la commande reste livrable et le
+bot reprend ses étapes durables sans recréer la ligne, la carte ni le compteur.
+Une confirmation finale efface cette erreur de reprise.
+
+Le bot conserve son journal d'exécution par serveur dans son espace de données :
+les namespaces de `bot_guilds.py` ne partagent ni verrous, ni machines, ni mappings.
+Un identifiant de commande déjà traité retrouve le même résultat après redémarrage.
+Un état `uncertain` impose une vérification du stockage ou du message signalé avant
+toute nouvelle tentative ; ne pas supprimer les journaux pour forcer un nouvel
+essai. Consulter les logs du bot et la liste des commandes affichée sur le site.
+La liaison démarre une seule tâche dans le client Discord existant et n'est pas
+recréée à chaque reconnexion. Aucun nouveau bot ni service d'exécution n'est créé.
+
+Le bot peut envoyer `kind: heartbeat` environ toutes les 30 secondes. L'état de
+liaison affiche la dernière présence ; après 90 secondes sans présence elle est
+présentée comme indisponible. Les trois routes internes exactes `/internal/bot/events`,
+`/internal/bot/commands` et `/internal/bot/ack` disposent d'un budget distinct par
+adresse, plafonné par `HERITAGE_VISITOR_PER_MINUTE` (180 par défaut). Elles ne
+consomment pas les tickets d'écriture des visiteurs qui peuvent arriver par le
+même proxy local. Elles restent limitées et chaque échange conserve sa vérification
+HMAC ; les autres chemins gardent les quotas habituels.
+
+Les pannes du site ne doivent jamais interrompre
+les rappels Discord, qui restent gérés par le bot.
+
+### Règles conservées et différences entre les anciennes interfaces
+
+Le bot conserve la référence pour la récupération et la correction d'heure.
+L'ancien site interdisait la récupération avant la fin de 4 h 45 et corrigeait
+l'heure sur le même jour ; le bot permettait certaines récupérations anticipées
+et savait corriger le jour autour de minuit. Le serveur connecté ne réapplique
+pas ces anciennes mutations locales : il soumet la demande aux fonctions du bot.
+Le bouton de récupération du site conserve actuellement le délai visuel de
+4 h 45 ; le moteur/API du bot permet une récupération anticipée. Cette différence
+reste à harmoniser explicitement.
+
+En mode connecté, seuls les lots confirmés alimentent les allocations des
+dossiers et les montants traités, dans les pages Sales, Overview, Stats et le
+préchargement. Les anciennes fiches d'essai restent stockées sans participer
+à ces calculs. Le mode aperçu conserve ses règles de simulation.
+
+La réinitialisation des essais est masquée dans l'interface connectée et
+refusée par le serveur lorsque des correspondances ou demandes Machines
+existent. Elle ne sert pas à débloquer une opération liée au bot.
+
+### État de cette fusion et correctifs du bot
+
+Les changements côté site ont été fusionnés depuis le dossier `recap/` en
+conservant l'attribution par profil et la correction du retour d'onglet. Ce
+travail ne modifie pas le bot Linux, ses données ou les drapeaux du `.env`.
+Les défauts de reprise et de concurrence du bot signalés dans le récapitulatif
+restent à corriger avant la recette réelle. Voir
+[la passation des correctifs du bot](PASSATION-CORRECTIFS-BOT.md).
+
+Aucun secret ne doit être publié dans GitHub Pages. Le raccordement utilise
+`HERITAGE_SITE_URL=http://127.0.0.1:8081` côté bot et le même
+`HERITAGE_CONNECTOR_SECRET` privé dans les deux programmes ; les variables de
+jeton Discord restent `DISCORD_TOKEN` pour le bot et `DISCORD_BOT_TOKEN` pour le
+site. Le tunnel public n'est pas utilisé pour ce trafic local.
 
 ## Vérifications
 
 ```bash
 .venv/bin/python -m pytest tests/test_bot_connection.py -q
 node tests/local_business.mjs
+node tests/machine_refresh.mjs
 node tests/browser_pages.mjs
 ```
 

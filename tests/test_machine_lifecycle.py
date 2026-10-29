@@ -122,3 +122,22 @@ def test_cancelled_and_unconfirmed_historical_rows_do_not_block_actual_cycle(env
     save_state(env,state)
     assert post(env,'add-machine',values={'launcher':'Ekio'}).status_code==200
     assert len(state_of(env)['machines'])==3
+
+
+@pytest.fixture(autouse=True)
+def explicit_local_preview(env, monkeypatch):
+    """Exercise the legacy local-domain workflow with simulated OAuth identity.
+
+    Production authentication remains the existing fake Discord fixture. The local
+    preview HTTP-origin guard belongs to LocalPreviewSecurity and is irrelevant
+    to these domain-boundary tests, which deliberately keep stable Discord IDs.
+    """
+    import sys
+    original=login
+    def preview_login(*args,**kwargs):
+        env['cfg'].local_preview=False
+        result=original(*args,**kwargs)
+        env['cfg'].local_preview=True
+        return result
+    monkeypatch.setattr(env['security'],'check_request',lambda request:None,raising=False)
+    monkeypatch.setattr(sys.modules[__name__],'login',preview_login)

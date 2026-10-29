@@ -36,11 +36,15 @@ aux vrais comptes ou données Discord.
 Ce dossier contient uniquement le site : le programme du bot et ses anciens connecteurs ont été retirés.
 
 Les panneaux « Accès extérieurs » et « Droits et grades Discord » utilisent
-les composants de gestion du serveur. Sur GitHub Pages, ils permettent de
-préparer et tester les réglages avec des grades d’exemple. Ces réglages restent
-dans le navigateur ; les codes marqués `APERCU-` ne sont pas des identifiants réels.
-La récupération des vrais rôles et la révocation des vraies sessions passent
-par le serveur Python. Le bot en activité n’est pas modifié.
+le backend Python pour les vrais comptes et rôles. Le mode aperçu explicite
+permet de préparer des réglages avec des grades d'exemple et des codes `APERCU-`
+qui restent dans le navigateur. Ces codes ne donnent aucun accès réel.
+
+Le raccordement Machines utilise une file de demandes et des confirmations
+signées du bot existant. Il faut installer des versions compatibles dans les
+deux projets et terminer les correctifs du bot avant la recette réelle.
+Les détails sont dans [CONNEXION-BOT.md](docs/CONNEXION-BOT.md) et
+[la passation des correctifs](docs/PASSATION-CORRECTIFS-BOT.md).
 
 ## Démarrage sous Windows
 

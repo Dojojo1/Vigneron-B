@@ -147,7 +147,8 @@
   if($('#profile-avatar img')?.getAttribute('src')!==u.avatar)$('#profile-avatar').innerHTML=`<img src="${escapeHTML(u.avatar)}" alt="">`;
   const markup=session.pages.map(p=>`<a href="#${escapeHTML(p.id)}" data-page="${escapeHTML(p.id)}">${icon(p.id==='profile'?'team':p.id==='council'?'machines':pages[p.id]?.[3]||'home')}<span>${escapeHTML(p.label)}</span></a>`).join('');
   if(markup!==accountMarkup){$('#navigation').innerHTML=markup;accountMarkup=markup;document.querySelectorAll('#navigation [data-page]').forEach(el=>{const selected=el.dataset.page===activePage;el.classList.toggle('active',selected);if(selected)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});}
-  $('#reset-demo').hidden=!u.supreme;
+  $('footer > span:last-child').firstChild.textContent=session.localPreview?'Aperçu local · données d’essai ':'Espace privé · données partagées ';
+  $('#reset-demo').hidden=!u.supreme||!session.localPreview;
   $('#reset-demo').textContent='Réinitialiser les données de test';
   $('#enter-demo .entry-button-label').textContent=can('overview')?'ACCÉDER AU TABLEAU DE BORD':'RETROUVER MON REGISTRE';
   if(session.localPreview){
@@ -385,12 +386,26 @@
   }catch(error){if(version!==navigationVersion)return false;if(error.staleRead&&staleRetries<2)return await window.heritageNavigate({preserveFocus,sessionRefreshed,staleRetries:staleRetries+1});if(error.cancelled&&!error.staleRead)return false;if(!error.status&&!error.clientKind)window.heritageReportError?.('script');if(error.status===401){publishSession(null);location.assign('/?login_error='+(error.reason==='employee_required'?'employee_required':error.reason==='site_access_revoked'?'site_access_revoked':'session'));}else failPage(error);return false;}
   finally{clearTimeout(loading);if(version===navigationVersion){content.setAttribute('aria-busy','false');content.classList.remove('is-refreshing');}}
  };
+ // Machines refresh: fetch confirmed snapshots even when all actions originate in Discord.
+ let machineRefreshInFlight=false,lastMachineRefresh=0;
+ async function refreshMachineSnapshot(){
+  if(!session||activePage!=='machines'||document.hidden||refreshingPages||machineRefreshInFlight||pendingActions.size
+      ||document.querySelector('dialog[open], #content[aria-busy="true"]')||document.activeElement?.matches('input,select,textarea'))return;
+  const interval=state.machineCommands?.some(job=>job.status==='pending')?15000:30000;
+  const now=Date.now();if(now-lastMachineRefresh<interval)return;
+  machineRefreshInFlight=true;lastMachineRefresh=now;
+  try{await window.heritageNavigate({fresh:true,preserveFocus:true});}
+  catch(error){backgroundFailure(error);}
+  finally{machineRefreshInFlight=false;}
+ }
+ setInterval(()=>void refreshMachineSnapshot(),15000);
+ // End Machines refresh.
  async function performAction(action,id,values,requestKey){
   const page=actionPage(action);if(!page)throw Error('Action inconnue.');
-  await api('/api/actions/'+page,{method:'POST',requestKey,body:{action,id:id||null,values}});
+  const result=await api('/api/actions/'+page,{method:'POST',requestKey,body:{action,id:id||null,values}});
   if(action==='add-sale'||action==='confirm-sales-reset'){salesScope='current';search='';pageOffsets.sales=0;pageOffsets.events=0;}
   const refreshed=await window.heritageNavigate({fresh:true,preserveFocus:true});
-  toast(refreshed?'Opération enregistrée dans la base de test.':'Opération enregistrée, mais l’affichage n’a pas pu être actualisé.');
+  toast(result.pending?(refreshed?'Demande en attente du bot. L’opération sera confirmée après exécution.':'Demande envoyée au bot. Actualise la page pour suivre sa confirmation.'):refreshed?'Opération enregistrée dans la base du site.':'Opération enregistrée, mais l’affichage n’a pas pu être actualisé.');
  }
  window.heritageAction=async(action,id,values)=>{
   const key=JSON.stringify([action,id||null,values]);
@@ -503,7 +518,7 @@
  }
  setInterval(verifySession,10000);
  setInterval(async()=>{
-  if(!session||document.hidden||activePage==='welcome'||refreshingPages)return;
+  if(!session||document.hidden||activePage==='welcome'||refreshingPages||machineRefreshInFlight)return;
   refreshingPages=true;
   try{
    await checkSession();await ensurePreloaded();

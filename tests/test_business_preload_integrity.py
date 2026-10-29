@@ -31,6 +31,8 @@ def save(env,state):
 ])
 def test_creation_and_global_archive_reject_a_target_record(env,page,name,identifier,values):
     login(env,SUPREME)
+    env['cfg'].local_preview=True  # This test covers the explicit local-domain preview.
+    env['security'].check_request=lambda request:None  # OAuth identity remains the simulated Discord member.
     state=env['store'].read_domain()
     if page=='machines': state['machines']=[];save(env,state)
     before=copy.deepcopy(state)
@@ -56,6 +58,8 @@ def test_invalid_form_types_never_silently_use_defaults_or_stringify_objects(env
 
 def test_recovery_cancellation_and_archival_refresh_related_preloaded_totals(env):
     login(env,SUPREME)
+    env['cfg'].local_preview=True  # This test covers the explicit local-domain preview.
+    env['security'].check_request=lambda request:None  # OAuth identity remains the simulated Discord member.
     state=env['store'].read_domain()
     state['sales']=[{**state['sales'][0],'id':'041','amount':2000000,'baseTreated':0,'archive':None}]
     state['machines'][0]['start']=int(datetime.now(domain.TZ).timestamp()*1000)-285*60000-1000
@@ -88,7 +92,8 @@ def test_large_sales_selection_paginates_without_losing_totals_or_fifo(env):
     state=env['store'].read_domain();sale=state['sales'][0];machine=state['machines'][0]
     state['sales']=[{**sale,'id':str(i),'created':sale['created']+i,'amount':1000,'baseTreated':0,
                      'giver':str(800000+i),'archive':None if i<700 else '2025-s42'} for i in range(1200)]
-    state['machines']=[{**machine,'recovered':True,'amount':950000}]
+    state['machines']=[{**machine,'recovered':True,'amount':950000,
+                        'botMachineId':'machine-pagination-fixture','botStatus':'confirmed','actorId':SUPREME}]
     state['salesWeek']['archives']=[{'name':'2025-s42','year':2025,'week':42}]
     save(env,state)
     data=env['client'].get('/api/bootstrap',params={'pages':'sales'}).json()['pages']['sales']
