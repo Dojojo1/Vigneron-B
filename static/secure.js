@@ -326,8 +326,11 @@
   if(!session||route==='welcome'){visibleDomain(false);displayedPage=null;activePage=route;return;}
   if(!sessionConfirmedAt||performance.now()-sessionConfirmedAt>=SESSION_LEASE){
    rememberProfileDraft();
-   $('#content').innerHTML=window.heritageLoadingMarkup('Vérification de tes accès…');
-   $('#content').hidden=false;$('#content').setAttribute('aria-busy','true');displayedPage=null;
+   if(!$('#content').hasChildNodes()){
+    $('#content').innerHTML=window.heritageLoadingMarkup('Vérification de tes accès…');
+    displayedPage=null;
+   }
+   $('#content').hidden=false;$('#content').setAttribute('aria-busy','true');
    try{await checkSession();}catch(error){if(!error.cancelled&&version===navigationVersion){if(error.status===401)backgroundFailure(error);else failPage(error);}return false;}
    if(version!==navigationVersion)return false;
   }
@@ -531,11 +534,10 @@
   if(document.hidden||!session||activePage==='welcome'||resumeTask)return resumeTask;
   if(!force&&sessionConfirmedAt&&performance.now()-sessionConfirmedAt<SESSION_LEASE)return;
   rememberProfileDraft();
-  const content=$('#content'),scope=sessionScope(session),epoch=cacheEpoch,version=navigationVersion,route=activePage,focused=document.activeElement;
-  const placeholder=document.createElement('div');placeholder.id='session-resume-loading';placeholder.className='session-resume-state';
-  placeholder.style.minHeight=Math.max(220,content.getBoundingClientRect().height)+'px';
-  placeholder.innerHTML=window.heritageLoadingMarkup('V\u00e9rification de tes acc\u00e8s\u2026');
-  content.before(placeholder);content.hidden=true;content.setAttribute('aria-busy','true');sessionConfirmedAt=0;
+  const content=$('#content'),scope=sessionScope(session),epoch=cacheEpoch,version=navigationVersion,route=activePage;
+  // Keep the already displayed page and its drafts in place during verification.
+  // A confirmed revocation still clears the private UI through the usual handlers.
+  content.setAttribute('aria-busy','true');
   const task=(async()=>{
    try{
     await checkSession();
@@ -544,14 +546,13 @@
     if(!session){visibleDomain(false);return;}
     if(scope===sessionScope(session)&&epoch===cacheEpoch&&displayedPage===route&&content.hasChildNodes()&&can(route)){
      content.hidden=false;content.setAttribute('aria-busy','false');
-     if(focused?.isConnected)focused.focus({preventScroll:true});
     }else await window.heritageNavigate({preserveFocus:true});
    }catch(error){
     if(version!==navigationVersion)return;
     if(error.cancelled){if(session)await window.heritageNavigate({preserveFocus:true});else visibleDomain(false);}
     else if(error.status===401)backgroundFailure(error);else failPage(error);
    }finally{
-    placeholder.remove();if(resumeTask===task)resumeTask=null;
+    if(resumeTask===task)resumeTask=null;
     if(version===navigationVersion&&!content.hidden)content.setAttribute('aria-busy','false');
    }
   })();

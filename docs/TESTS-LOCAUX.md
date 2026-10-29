@@ -43,7 +43,8 @@ Le dernier test utilise aussi le Python de l’environnement du projet. Il lance
 un site isolé sur une adresse locale avec une base temporaire, puis simule les
 retours d’onglet, une vérification de session lente, des navigations simultanées,
 une révocation des droits et une session expirée. Il vérifie que le contenu
-revient et que les brouillons restent conservés, sans contacter Discord.
+reste visible pendant la vérification et que les brouillons restent conservés,
+sans contacter Discord. Un refus d’accès confirmé retire toujours les données privées.
 Le chemin de Chrome peut être fourni en argument ; `PYTHON_BINARY` peut désigner
 le Python à employer. Le test ne lit pas le `.env` ni les données réelles.
 

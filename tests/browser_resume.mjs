@@ -48,7 +48,8 @@ try{
  await js("window.__draftCheckbox=document.querySelector('.access-toggle');window.__draftCheckbox.click();window.__draftValue=window.__draftCheckbox.checked;");
  const before=(await control()).meCount;await control({holdMe:true});
  await js("window.__advanceLease();window.__setHidden(false);window.__setHidden(false);");await waitPending();
- assert.equal(await loaderVisible(),true,'The user must see a visible loading state during delayed session validation');
+ assert.equal(await loaderVisible(),false,'Returning to the site must not replace existing data with a loading screen');
+ assert.equal(await js("!document.querySelector('#content').hidden && document.querySelector('.role-workspace').getClientRects().length>0"),true,'Existing data must stay visible while the session check is delayed');
  assert.equal(await js('window.__draftCheckbox.isConnected'),true,'Resume must retain draft DOM nodes');
  assert.equal((await control()).meCount,before+1,'Duplicate returns must share one session check');
  if(process.env.RESUME_SCREENSHOT){const shot=await command('Page.captureScreenshot',{format:'png'});await writeFile(process.env.RESUME_SCREENSHOT,Buffer.from(shot.data,'base64'));}
@@ -108,7 +109,7 @@ try{
  assert.equal(await js("document.querySelector('.machine-history')===null"),true);
  assert.equal(await js("document.querySelector('#session-resume-loading')===null || document.querySelector('#session-resume-loading').hidden"),true);
  assert.deepEqual(errors,[],'No JavaScript exceptions');
- console.log(JSON.stringify({ok:true,duplicateReturns:true,visibleLoading:true,councilDraftPreserved:true,profileDraftAndFilePreserved:true,navigationDuringValidation:true,completionWhileHidden:true,persistedPageReturn:true,visibleServerError:true,overlappingPeriodicRefresh:true,permissionChangeConcealed:true,expiredSessionConcealed:true,scriptErrors:0}));
+ console.log(JSON.stringify({ok:true,duplicateReturns:true,dataVisibleDuringValidation:true,councilDraftPreserved:true,profileDraftAndFilePreserved:true,navigationDuringValidation:true,completionWhileHidden:true,persistedPageReturn:true,visibleServerError:true,overlappingPeriodicRefresh:true,permissionChangeConcealed:true,expiredSessionConcealed:true,scriptErrors:0}));
 }finally{
  socket?.close();browser?.kill();
  if(browser)await new Promise(done=>{if(browser.exitCode!==null)done();else{browser.once('exit',done);setTimeout(done,3000);}});
