@@ -359,3 +359,13 @@ body.on-entry .estate-atmosphere { display: none; }
   margin-top: 8px;
   flex: none;
 }
+
+/* Le classement reste dans sa carte sur les petits écrans. */
+@media (max-width: 600px) {
+  .stats-grid .panel-header { flex-wrap: wrap; }
+  .stats-grid .machine-report-picker {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+}

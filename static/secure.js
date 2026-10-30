@@ -203,13 +203,13 @@
   $('#retry-page')?.addEventListener('click',()=>window.heritageRetry());
  }
  function profilePage(){
-  const u=session.user;
-  $('#content').innerHTML=`<section class="panel register-panel"><div class="register-heading"><img class="register-avatar" src="${escapeHTML(u.avatar)}" alt="Avatar de ${escapeHTML(u.displayName)}"><div><p class="eyebrow">MON REGISTRE</p><h2>${escapeHTML(u.displayName)}</h2><p>${escapeHTML(session.localPreview?u.role.name:u.supreme?'Administrateur Suprême':u.role.name)}</p></div></div><dl class="register-details"><div><dt>${u.authProvider==='access_code'?'Compte du site':'Compte Discord'}</dt><dd>${escapeHTML(u.discordName)}</dd></div><div><dt>Identifiant permanent</dt><dd>${escapeHTML(u.id)}</dd></div><div><dt>Entrée au registre</dt><dd>${when(u.createdAt)}</dd></div><div><dt>Dernière connexion</dt><dd>${when(u.lastLogin)}</dd></div></dl><form id="secure-profile-form"><label class="field">Pseudo sur L’Héritage<input name="displayName" value="${escapeHTML(u.displayName)}" required maxlength="60"></label><label class="field">Photo sur L’Héritage<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label><p class="form-note">JPG, PNG ou WebP · 10 Mo maximum. Ces changements concernent uniquement L’Héritage.</p><div class="register-actions"><button class="button primary" type="submit">Enregistrer mon profil →</button><button class="button glass" type="button" id="restore-discord-profile">Rétablir mon profil Discord</button><button class="button glass" type="button" id="register-logout">Se déconnecter</button></div></form></section>`;
+  const u=session.user,nameLocked=u.authProvider==='discord';
+  $('#content').innerHTML=`<section class="panel register-panel"><div class="register-heading"><img class="register-avatar" src="${escapeHTML(u.avatar)}" alt="Avatar de ${escapeHTML(u.displayName)}"><div><p class="eyebrow">MON REGISTRE</p><h2>${escapeHTML(u.displayName)}</h2><p>${escapeHTML(session.localPreview?u.role.name:u.supreme?'Administrateur Suprême':u.role.name)}</p></div></div><dl class="register-details"><div><dt>${u.authProvider==='access_code'?'Compte du site':'Compte Discord'}</dt><dd>${escapeHTML(u.discordName)}</dd></div><div><dt>Identifiant permanent</dt><dd>${escapeHTML(u.id)}</dd></div><div><dt>Entrée au registre</dt><dd>${when(u.createdAt)}</dd></div><div><dt>Dernière connexion</dt><dd>${when(u.lastLogin)}</dd></div></dl><form id="secure-profile-form"><label class="field">${nameLocked?'Surnom sur le serveur Discord':'Pseudo sur L’Héritage'}<input name="displayName" value="${escapeHTML(u.displayName)}" ${nameLocked?'readonly aria-describedby="discord-name-note"':'required maxlength="60"'}></label>${nameLocked?'<p class="form-note" id="discord-name-note">Ce pseudo suit automatiquement ton surnom sur le serveur. Tu peux le modifier dans Discord.</p>':''}<label class="field">Photo sur L’Héritage<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label><p class="form-note">JPG, PNG ou WebP · 10 Mo maximum. Ces changements concernent uniquement L’Héritage.</p><div class="register-actions"><button class="button primary" type="submit">Enregistrer mon profil →</button><button class="button glass" type="button" id="restore-discord-profile">Rétablir mon profil Discord</button><button class="button glass" type="button" id="register-logout">Se déconnecter</button></div></form></section>`;
   if(u.authProvider==='access_code')$('#restore-discord-profile').textContent='Rétablir le profil d’origine';
   if(u.authProvider==='local'){$('#restore-discord-profile').textContent='Rétablir le profil de test';$('#register-logout').textContent='Revenir à l’accueil';}
   const profileForm=$('#secure-profile-form');
   if(profileDraft?.userId===u.id){
-   profileForm.querySelector('[name=displayName]').value=profileDraft.displayName;
+   if(!nameLocked)profileForm.querySelector('[name=displayName]').value=profileDraft.displayName;
    if(profileDraft.file){try{const transfer=new DataTransfer();transfer.items.add(profileDraft.file);profileForm.querySelector('[name=photo]').files=transfer.files;}catch{toast('Ton pseudo est conservé. Sélectionne à nouveau la photo avant d’enregistrer.');}}
   }
   profileForm.addEventListener('submit',async e=>{
@@ -217,7 +217,7 @@
    try{
     const data=new FormData(e.target),file=data.get('photo');
     if(file?.size>10*1024*1024)throw Error('Choisis une photo de 10 Mo maximum.');
-    await api('/api/me/profile',{method:'PATCH',body:{displayName:data.get('displayName')}});
+    if(!nameLocked)await api('/api/me/profile',{method:'PATCH',body:{displayName:data.get('displayName')}});
     if(file?.size){const form=new FormData();form.append('file',file);await api('/api/me/avatar',{method:'POST',form});}
     const account=await api('/api/me');profileDraft=null;publishSession(account);if(profileForm.isConnected)profilePage();toast('Ton profil est enregistré.');
    }catch(error){toast(error.message);}finally{button.disabled=false;delete e.target.dataset.submitting;}
