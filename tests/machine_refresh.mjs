@@ -43,13 +43,14 @@ openDialog=false;editing=true;await context.pollMachines();assert.equal(calls,3)
 editing=false;pageBusy=true;await context.pollMachines();assert.equal(calls,3);
 pageBusy=false;context.refreshingPages=true;await context.pollMachines();assert.equal(calls,3);
 context.refreshingPages=false;context.pendingActions.set('submit',true);await context.pollMachines();assert.equal(calls,3);
-context.pendingActions.clear();context.activePage='overview';await context.pollMachines();assert.equal(calls,3);
-context.activePage='machines';context.session=null;await context.pollMachines();assert.equal(calls,3);
+context.pendingActions.clear();context.activePage='profile';await context.pollMachines();assert.equal(calls,3);
+context.activePage='overview';await context.pollMachines();assert.equal(calls,4,'The dashboard must also refresh confirmed business data.');
+context.activePage='machines';context.session=null;await context.pollMachines();assert.equal(calls,4);
 
 const app=readFileSync(new URL('../static/app.js',import.meta.url),'utf8');
 const history=app.slice(app.indexOf('function machineHistoryRows(){'),app.indexOf('function machineConnectionPanel(){'));
 context.state={machines:[{id:'machine',start:0,amount:1000000,launchedBy:'Paul',storage:{warning:'<script>historical reference</script>'}}]};
-Object.assign(context,{machineSearch:'',machineFilter:'all',machineStatus:()=> 'running',money:String,date:String,DURATION:17100000,
+Object.assign(context,{lotName:m=>m.lotLabel||m.id,finishTimes:()=>'',machineSearch:'',machineFilter:'all',machineStatus:()=> 'running',money:String,date:String,DURATION:17100000,
  escapeHTML:value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))});
 vm.runInContext(history+'\nglobalThis.renderMachineHistory=machineHistoryRows;',context);
 const markup=context.renderMachineHistory();
