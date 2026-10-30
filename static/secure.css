@@ -228,3 +228,26 @@ dialog > .site-error { position: absolute; top: 12px; left: 12px; right: 12px; w
 .machine-command-list li { padding: 12px 0; border-bottom: 1px solid #c5a47126; overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; }
 .machine-command-list strong { color: var(--gold); }
 .machine-command-list p { margin: 5px 0 0; color: #c8bda6; }
+
+/* Proportions communes des lots, sans changement de direction artistique. */
+.night-heading-actions > .launch-lot-button,.launch-lot-button { display:inline-flex; align-items:center; justify-content:center; min-height:46px; min-width:180px; max-width:none; padding:12px 20px; border:1px solid #c5a47170; border-radius:2px; background:linear-gradient(110deg,#a58955,#756140); color:#f7e8c9; font:500 15px var(--serif); letter-spacing:.2px; text-transform:none; white-space:normal; text-align:center; }
+.launch-lot-button:disabled { opacity:.45; cursor:not-allowed; }
+.batch-card .batch-main { grid-template-columns:minmax(170px,1fr) minmax(190px,.85fr) minmax(185px,1fr); gap:24px; }
+.batch-card .batch-center .cycle-dial { width:200px; }
+.batch-card .batch-identity h3 { font-size:25px; text-transform:none; overflow-wrap:anywhere; }
+.lot-year { display:block; margin:5px 0; font:11px/1.5 var(--sans); color:#b9a78c; }
+.batch-card .batch-details dt { font-size:10px; letter-spacing:1px; }
+.batch-card .batch-details dd { font-size:18px; overflow-wrap:anywhere; }
+.machine-finish-times { min-width:170px; }
+.machine-finish-zone { display:block; margin:6px 0; font:13px/1.5 var(--sans); white-space:normal; }
+.machine-finish-zone small { display:block; font:10px/1.4 var(--sans); color:#b9a78c; }
+.machine-finish-zone time { font-variant-numeric:tabular-nums; }
+.batch-card .batch-footer { justify-content:space-between; flex-wrap:wrap; }
+.batch-details-link { color:#bda98a; font:13px var(--serif); }
+.batch-card .batch-footer-actions { flex-wrap:wrap; justify-content:flex-end; gap:10px; }
+.batch-card .batch-footer-actions > button { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:10px 15px; font:14px var(--serif); white-space:normal; }
+.batch-card .batch-footer-actions > button:disabled { opacity:.45; cursor:not-allowed; }
+.batch-card .batch-footer-actions .danger { color:#d69d91; border-color:#a7726259; }
+.machine-history-table .record-actions { flex-wrap:wrap; }
+@media(max-width:1100px){.batch-card .batch-main {grid-template-columns:minmax(160px,1fr) minmax(180px,1fr);}.batch-card .batch-details {grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;border-left:0;border-top:1px solid #ae8b4e30;padding:14px 0 0;}.batch-card .batch-details > div {border:0;padding:0;}.batch-card .batch-details > div:last-child {grid-column:auto;}}
+@media(max-width:600px){.night-heading-actions {flex-wrap:wrap;justify-content:flex-end;}.night-heading-actions > .launch-lot-button,.launch-lot-button {min-width:154px;min-height:44px;font-size:14px;}.batch-card > .cut-inner {padding:20px 17px 16px;}.batch-card .batch-main {grid-template-columns:minmax(0,1fr);gap:20px;}.batch-card .batch-center .cycle-dial {width:190px;}.batch-card .batch-details {grid-template-columns:minmax(0,1fr) minmax(0,1fr);}.batch-card .batch-details > div:last-child {grid-column:1/-1;}.batch-card .batch-footer-actions {width:100%;display:grid;grid-template-columns:1fr 1fr;}.batch-card .batch-footer-actions > [data-action=recover] {grid-column:1/-1;}.batch-card .batch-footer-actions > button {font-size:13px;padding:10px;}.machine-finish-times {min-width:0;}}

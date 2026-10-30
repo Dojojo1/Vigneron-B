@@ -40,9 +40,10 @@
  }
  const can=page=>Boolean(session?.pages.some(p=>p.id===page));
  const landingPage=()=>can('overview')?'overview':'profile';
- const actionPage=action=>['add-sale','sale-detail','finish-sale','sale-waiting','sale-progress','cancel-sale','confirm-sales-reset','archive-sales'].includes(action)?'sales':['add-machine','edit-machine-time','recover','unrecover','cancel-machine'].includes(action)?'machines':['raffle-record','vehicle-buy','vehicle-pay','pay-all','reset-payments'].includes(action)?'tombola':null;
- const when=seconds=>new Intl.DateTimeFormat('fr-BE',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Brussels'}).format(new Date(seconds*1000));
- async function api(path,{method='GET',body,form,signal,requestKey,visit=false,exporting=false,cached,pageResponse}={}){
+ const actionPage=action=>['add-sale','sale-detail','finish-sale','sale-waiting','sale-progress','cancel-sale','confirm-sales-reset','archive-sales'].includes(action)?'sales':['add-machine','edit-machine-time','recover','unrecover','cancel-machine'].includes(action)?'machines':['raffle-record','vehicle-buy','vehicle-pay','pay-all','reset-payments','delete-vehicle','delete-tombola-week'].includes(action)?'tombola':null;
+ const whenFormatter=new Intl.DateTimeFormat('fr-BE',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Brussels'});
+ const when=seconds=>whenFormatter.format(new Date(seconds*1000));
+ async function api(path,{method='GET',body,form,signal,requestKey,visit=false,exporting=false,cached,pageResponse,background=false}={}){
   const requestScope=sessionScope(session),requestEpoch=cacheEpoch,privateRead=method==='GET'&&(path.startsWith('/api/pages/')||path.split('?')[0]==='/api/bootstrap');
   const currentScope=()=>(!requestScope||requestScope===sessionScope(session))&&(!privateRead||requestEpoch===cacheEpoch);
   const cooldownKey=path.split('?')[0],cooldown=requestCooldowns.get(cooldownKey);
@@ -52,6 +53,7 @@
   if(visit)headers['X-Heritage-Visit']='1';
   if(exporting)headers['X-Heritage-Export']='1';
   if(cached?.version)headers['X-Heritage-Cache']=cached.version;
+  if(background)headers['X-Heritage-Background']='1';
   if(requestKey)headers['Idempotency-Key']=requestKey;
   if(body){headers['Content-Type']='application/json';body=JSON.stringify(body);}
   const controller=new AbortController();
@@ -256,7 +258,14 @@
    const query=routes?'?'+new URLSearchParams(selected.map(route=>['pages',route])):'';
    let data;
    try{
-    data=await api('/api/bootstrap'+query);
+    // An unchanged visible screen needs only an authenticated version check.
+    const route=selected.length===1&&versionedRoutes.has(selected[0])?selected[0]:null;
+    const cached=route?cachedPage(defaults[route]):null;
+    if(cached?.version){
+     const pageResponse={},page=await api(defaults[route],{cached,pageResponse,background:true});
+     data={pages:{[route]:page},versions:{[route]:pageResponse.version},
+           identity:{userId:session.user.id,roleId:session.user.role.id}};
+    }else data=await api('/api/bootstrap'+query);
     if(epoch!==cacheEpoch||scope!==sessionScope(session))return false;
     if(!data||typeof data.pages!=='object'||!data.pages||Array.isArray(data.pages)||typeof data.versions!=='object'||!data.versions||!data.identity)throw bootstrapError('Le chargement du domaine est incomplet. Réessaie.');
     if(typeof data.identity!=='object'||Array.isArray(data.identity)||![data.identity.userId,data.identity.roleId].every(id=>typeof id==='string'&&/^(?:[0-9]{1,24}|local-preview|guest-[0-9a-f]{32}|access-code)$/.test(id)))throw bootstrapError('Le serveur a renvoyé une identité invalide. Réessaie.');
@@ -284,7 +293,7 @@
  function backgroundFailure(error){
   if(error.cancelled)return;
   if(error.status===401){publishSession(null);visibleDomain(false);$('.entry-demo-note').textContent=error.message;}
-  else if(error.status===403||error.status===503||error.sessionChanged)failPage(error);
+  else if(error.status===403||error.sessionChanged||!$('#content').hasChildNodes())failPage(error);
   // Les autres erreurs sont déjà présentées par api(), sans effacer une saisie.
  }
  function queuePreload(routes=null){
@@ -392,9 +401,9 @@
  // Machines refresh: fetch confirmed snapshots even when all actions originate in Discord.
  let machineRefreshInFlight=false,lastMachineRefresh=0;
  async function refreshMachineSnapshot(){
-  if(!session||activePage!=='machines'||document.hidden||refreshingPages||machineRefreshInFlight||pendingActions.size
+  if(!session||!['machines','sales','tombola','overview','stats'].includes(activePage)||document.hidden||refreshingPages||machineRefreshInFlight||pendingActions.size
       ||document.querySelector('dialog[open], #content[aria-busy="true"]')||document.activeElement?.matches('input,select,textarea'))return;
-  const interval=state.machineCommands?.some(job=>job.status==='pending')?15000:30000;
+  const interval=[...(state.machineCommands||[]),...(state.businessCommands||[])].some(job=>job.status==='pending')?15000:30000;
   const now=Date.now();if(now-lastMachineRefresh<interval)return;
   machineRefreshInFlight=true;lastMachineRefresh=now;
   try{await window.heritageNavigate({fresh:true,preserveFocus:true});}
@@ -471,8 +480,12 @@
  document.addEventListener('click',e=>{if(!e.target.closest('.account-controls'))hidePanels();});
  document.addEventListener('keydown',e=>{if(e.key==='Escape')hidePanels();});
  window.addEventListener('hashchange',hidePanels);
- function clock(){const now=new Date();$('#estate-date').textContent=new Intl.DateTimeFormat('fr-BE',{dateStyle:'full',timeZone:'Europe/Brussels'}).format(now);$('#estate-clock').textContent=new Intl.DateTimeFormat('fr-BE',{timeStyle:'medium',timeZone:'Europe/Brussels'}).format(now);}
+ const estateDateFormatter=new Intl.DateTimeFormat('fr-BE',{dateStyle:'full',timeZone:'Europe/Brussels'});
+ const estateClockFormatter=new Intl.DateTimeFormat('fr-BE',{timeStyle:'medium',timeZone:'Europe/Brussels'});
+ function clock(){if(document.hidden||document.body.classList.contains('on-entry'))return;const now=new Date();$('#estate-date').textContent=estateDateFormatter.format(now);$('#estate-clock').textContent=estateClockFormatter.format(now);}
  clock();setInterval(clock,1000);
+ document.addEventListener('visibilitychange',clock);
+ window.addEventListener('heritage:domain-visibility',clock);
  async function boot(){
   $('#enter-demo').disabled=true;
   let account,error;
@@ -516,7 +529,7 @@
     if(activePage!=='welcome')await window.heritageNavigate({preserveFocus:true});
     toast('Ton accès au domaine a été actualisé.');
    }
-  }catch(error){if(error.cancelled)return;state=seed();if(error.status===401){publishSession(null);visibleDomain(false);$('.entry-demo-note').textContent=error.message;if(error.reason==='employee_required')location.assign('/?login_error=employee_required');}else failPage(error);}
+  }catch(error){if(error.cancelled)return;if(error.status===401){publishSession(null);visibleDomain(false);$('.entry-demo-note').textContent=error.message;if(error.reason==='employee_required')location.assign('/?login_error=employee_required');}else backgroundFailure(error);}
   finally{checkingSession=false;}
  }
  setInterval(verifySession,10000);
@@ -529,7 +542,7 @@
   }catch(error){backgroundFailure(error);}
   finally{refreshingPages=false;}
  },REFRESH_INTERVAL);
- let resumeTask=null;
+ let resumeTask=null,deferredResumeRoute=null;
  function resumePrivateView({force=false}={}){
   if(document.hidden||!session||activePage==='welcome'||resumeTask)return resumeTask;
   if(!force&&sessionConfirmedAt&&performance.now()-sessionConfirmedAt<SESSION_LEASE)return;
@@ -546,11 +559,15 @@
     if(!session){visibleDomain(false);return;}
     if(scope===sessionScope(session)&&epoch===cacheEpoch&&displayedPage===route&&content.hasChildNodes()&&can(route)){
      content.hidden=false;content.setAttribute('aria-busy','false');
+     if(versionedRoutes.has(route)){
+      if(document.querySelector('dialog[open]')||document.activeElement?.matches('input,select,textarea')||pendingActions.size){await ensurePreloaded([route]);deferredResumeRoute=route;}
+      else await window.heritageNavigate({fresh:true,preserveFocus:true});
+     }
     }else await window.heritageNavigate({preserveFocus:true});
    }catch(error){
     if(version!==navigationVersion)return;
     if(error.cancelled){if(session)await window.heritageNavigate({preserveFocus:true});else visibleDomain(false);}
-    else if(error.status===401)backgroundFailure(error);else failPage(error);
+    else backgroundFailure(error);
    }finally{
     if(resumeTask===task)resumeTask=null;
     if(version===navigationVersion&&!content.hidden)content.setAttribute('aria-busy','false');
@@ -558,6 +575,13 @@
   })();
   resumeTask=task;return task;
  }
+ function refreshDeferredResume(){
+  if(!deferredResumeRoute||document.hidden||!session||activePage!==deferredResumeRoute||document.querySelector('dialog[open]')||document.activeElement?.matches('input,select,textarea')||pendingActions.size)return;
+  deferredResumeRoute=null;void window.heritageNavigate({fresh:true,preserveFocus:true});
+ }
+ document.addEventListener('focusout',()=>setTimeout(refreshDeferredResume,0));
+ document.addEventListener('close',()=>setTimeout(refreshDeferredResume,0),true);
+ window.addEventListener('online',()=>void resumePrivateView({force:true}));
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void resumePrivateView();});
  window.addEventListener('focus',()=>void resumePrivateView());
  window.addEventListener('pageshow',event=>{if(event.persisted){sessionConfirmedAt=0;void resumePrivateView({force:true});}});

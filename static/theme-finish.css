@@ -342,7 +342,7 @@ body.on-entry .estate-atmosphere { display: none; }
 .sidebar::before {
   height: 72%;
   bottom: 0;
-  background: url('assets/midnight-statue.png') center bottom / cover no-repeat;
+  background: url('assets/midnight-statue.webp') center bottom / cover no-repeat;
   /* Fond réellement transparent en haut : pas de bande noire sur le bleu nuit.
      Conserver les deux écritures pour les moteurs Chromium et Firefox. */
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #0004 20%, #000 42%, #000 100%);

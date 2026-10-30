@@ -50,6 +50,13 @@ window.heritageLocalBusiness=()=>{
     if(!/^\d+$/.test(index||'')||!r.vehicles[Number(index)])throw Error('Véhicule introuvable.');
     const v=r.vehicles[Number(index)],flag=action==='vehicle-buy'?'bought':'paid';v[flag]=!v[flag];
    }else for(const v of r.vehicles){v.paid=action==='pay-all';if(action==='reset-payments')v.bought=false;}
+  }else if(action==='delete-vehicle'){
+   const [rid,index]=String(id).split('|'),r=record(next.tombolaRecords,rid);
+   if(!/^\d+$/.test(index||'')||!r.vehicles[Number(index)])throw Error('Véhicule introuvable.');
+   r.vehicles.splice(Number(index),1);
+  }else if(action==='delete-tombola-week'){
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(String(id)))throw Error('Semaine invalide.');
+   next.tombolaRecords=next.tombolaRecords.filter(record=>record.week!==id);
   }else if(action==='add-sale'||action==='sale-detail'){
    const old=id?record(next.sales,id):null,group=String(values.group||'').trim(),giver=String(values.giver??old?.giver??'').trim();
    if(!group||group.length>60||!/^\d{1,20}$/.test(giver))throw Error('Vérifie le groupe et l’identifiant du joueur.');
@@ -75,7 +82,7 @@ window.heritageLocalBusiness=()=>{
    else if(action==='unrecover'){if(next.machines.some(other=>other.id!==id&&!other.recovered&&!other.cancelled))throw Error('Un autre lot est déjà actif.');m.recovered=false;delete m.recoveredAt;delete m.recoveredBy;}
    else if(action==='cancel-machine')m.cancelled=true;else m.start=correctedLaunch(m.start,String(values.launchTime||''));
   }else throw Error('Cette action n’est pas encore disponible pour les essais locaux.');
-  const titles={'raffle-record':'Fiche tombola enregistrée','vehicle-buy':'Achat du véhicule modifié','vehicle-pay':'Paiement du véhicule modifié','pay-all':'Véhicules payés','reset-payments':'Paiements remis en attente','add-sale':'Dossier ajouté','sale-detail':'Dossier modifié','finish-sale':'Dossier restitué','cancel-sale':'Dossier annulé','add-machine':'Lot lancé','recover':'Lot récupéré','unrecover':'Récupération annulée','cancel-machine':'Lot annulé','edit-machine-time':'Heure du lot modifiée','confirm-sales-reset':'Semaine archivée'};
+  const titles={'delete-vehicle':'Véhicule supprimé','delete-tombola-week':'Semaine de tombola supprimée','raffle-record':'Fiche tombola enregistrée','vehicle-buy':'Achat du véhicule modifié','vehicle-pay':'Paiement du véhicule modifié','pay-all':'Véhicules payés','reset-payments':'Paiements remis en attente','add-sale':'Dossier ajouté','sale-detail':'Dossier modifié','finish-sale':'Dossier restitué','cancel-sale':'Dossier annulé','add-machine':'Lot lancé','recover':'Lot récupéré','unrecover':'Récupération annulée','cancel-machine':'Lot annulé','edit-machine-time':'Heure du lot modifiée','confirm-sales-reset':'Semaine archivée'};
   next.events.unshift({id:localId(),title:titles[action]||'Dossier actualisé',detail:'Essai local · '+action,author:actor.name,created:now});
   const saved={version:1};for(const name of fields)saved[name]=next[name];
   try{localStorage.setItem(key,JSON.stringify(saved));}catch{throw Error('Sauvegarde impossible dans ce navigateur. Libère de l’espace ou autorise le stockage ; la modification n’a pas été enregistrée.');}
