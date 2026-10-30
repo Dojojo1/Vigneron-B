@@ -1,0 +1,9 @@
+# Example only. Keep the completed file outside Git in ~/.config/ngrok/ngrok.yml.
+version: 3
+agent:
+  authtoken: REMPLACER_LOCALEMENT_PAR_LE_JETON_NGROK
+endpoints:
+  - name: heritage
+    url: https://unabashed-tackle-claw.ngrok-free.dev
+    upstream:
+      url: http://127.0.0.1:8081
