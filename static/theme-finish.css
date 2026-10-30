@@ -350,3 +350,12 @@ body.on-entry .estate-atmosphere { display: none; }
   mask-mode: alpha;
   opacity: .95;
 }
+
+/* Une progression lisible dans chaque dossier, même lorsqu’il est fermé. */
+.sale-record .sale-row-progress {
+  display: block;
+  width: min(240px, 100%);
+  height: 5px;
+  margin-top: 8px;
+  flex: none;
+}
