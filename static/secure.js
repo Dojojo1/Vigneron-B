@@ -33,6 +33,7 @@
   }
  }
  function affectedPages(path){
+  if(path==='/api/admin/company-history')return ['overview','stats','journal'];
   if(path.startsWith('/api/actions/tombola')){catalogCache=null;return ['tombola','history','journal'];}
   if(path.startsWith('/api/actions/'))return ['overview','sales','machines','stats','history','journal'];
   if(path.startsWith('/api/me/'))return ['profile','team','council','journal'];
@@ -40,7 +41,7 @@
  }
  const can=page=>Boolean(session?.pages.some(p=>p.id===page));
  const landingPage=()=>can('overview')?'overview':'profile';
- const actionPage=action=>['add-sale','sale-detail','finish-sale','sale-waiting','sale-progress','cancel-sale','confirm-sales-reset','archive-sales'].includes(action)?'sales':['add-machine','edit-machine-time','recover','unrecover','cancel-machine'].includes(action)?'machines':['raffle-record','vehicle-buy','vehicle-pay','pay-all','reset-payments','delete-vehicle','delete-tombola-week'].includes(action)?'tombola':null;
+ const actionPage=action=>action==='company-history'?'stats':['add-sale','sale-detail','finish-sale','sale-waiting','sale-progress','cancel-sale','confirm-sales-reset','archive-sales'].includes(action)?'sales':['add-machine','edit-machine-time','recover','unrecover','cancel-machine'].includes(action)?'machines':['raffle-record','vehicle-buy','vehicle-pay','pay-all','reset-payments','delete-vehicle','delete-tombola-week'].includes(action)?'tombola':null;
  const whenFormatter=new Intl.DateTimeFormat('fr-BE',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Brussels'});
  const when=seconds=>whenFormatter.format(new Date(seconds*1000));
  async function api(path,{method='GET',body,form,signal,requestKey,visit=false,exporting=false,cached,pageResponse,background=false}={}){
@@ -413,6 +414,14 @@
  setInterval(()=>void refreshMachineSnapshot(),15000);
  // End Machines refresh.
  async function performAction(action,id,values,requestKey){
+  if(action==='company-history'){
+   if(!session?.user.supreme||!can('stats'))throw Error('Cet accès est réservé à l’administrateur suprême.');
+   const payload=companyHistorySubmission(values);
+   await api('/api/admin/company-history',{method:'POST',body:{...payload,operationKey:requestKey,expectedId:id||null}});
+   const refreshed=await window.heritageNavigate({fresh:true,preserveFocus:true});
+   toast(refreshed?'Cumul historique déclaré enregistré.':'Cumul enregistré. Actualise la page pour voir la référence.');return;
+  }
+
   const page=actionPage(action);if(!page)throw Error('Action inconnue.');
   const result=await api('/api/actions/'+page,{method:'POST',requestKey,body:{action,id:id||null,values}});
   if(action==='add-sale'||action==='confirm-sales-reset'){salesScope='current';search='';pageOffsets.sales=0;pageOffsets.events=0;}
@@ -428,6 +437,7 @@
   catch(error){if(!error.uncertain)operationKeys.delete(key);throw error;}
   finally{pendingActions.delete(key);}
  };
+ $('#form-dialog').addEventListener('close',()=>{if(formMode==='company-history')for(const key of operationKeys.keys())if(key.startsWith('["company-history",'))operationKeys.delete(key);});
  window.heritageCatalog=async()=>{
   if(!catalogCache)catalogCache=(await api('/api/pages/tombola?view=catalog')).catalog;
   state.catalog=catalogCache;
