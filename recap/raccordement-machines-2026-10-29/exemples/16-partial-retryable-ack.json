@@ -1,9 +1,0 @@
-{
-  "guildId": "910000000000000001",
-  "commandId": "55555555555555555555555555555555",
-  "status": "pending",
-  "error": {
-    "code": "operation_incomplete",
-    "message": "Une étape prouvée reste à terminer ; la même commande sera relivrée."
-  }
-}

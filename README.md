@@ -1,5 +1,7 @@
 # L’Héritage
 
+Dossier : **Site GitHub (`Vigneron-B`)**.
+
 Pour connecter le site au bot existant, suivre [la configuration du raccordement](docs/CONNEXION-BOT.md).
 Les IDs et secrets sont renseignés uniquement dans le `.env` privé ; l’entrée
 GitHub Pages ne reçoit que l’adresse publique du backend.
@@ -40,11 +42,11 @@ le backend Python pour les vrais comptes et rôles. Le mode aperçu explicite
 permet de préparer des réglages avec des grades d'exemple et des codes `APERCU-`
 qui restent dans le navigateur. Ces codes ne donnent aucun accès réel.
 
-Le raccordement Machines utilise une file de demandes et des confirmations
-signées du bot existant. Il faut installer des versions compatibles dans les
-deux projets et terminer les correctifs du bot avant la recette réelle.
-Les détails sont dans [CONNEXION-BOT.md](docs/CONNEXION-BOT.md) et
-[la passation des correctifs](docs/PASSATION-CORRECTIFS-BOT.md).
+Le Site Linux (`vigneron_site`) utilise la file persistante et les confirmations
+signées du bot existant. Les machines, dossiers et véhicules restent gérés par
+les moteurs du bot. Le setup est conservé dans `bot_blanchiment/bot_setup/`.
+Les détails du raccordement sont dans [CONNEXION-BOT.md](docs/CONNEXION-BOT.md).
+Les anciens paquets de passation ont été retirés après sauvegarde privée.
 
 ## Démarrage sous Windows
 
@@ -94,7 +96,7 @@ Après une modification de `static/index.html`, régénérer l’accueil GitHub 
 .\.venv\Scripts\python.exe scripts\sync_pages.py
 ```
 
-Le test public utilise Node.js et Chrome, sans compte ni serveur Python :
+Le test de l’accueil utilise Node.js et Chrome, sans compte Discord :
 
 ```powershell
 node tests/browser_pages.mjs

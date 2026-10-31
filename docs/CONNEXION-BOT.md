@@ -293,14 +293,13 @@ La réinitialisation des essais est masquée dans l'interface connectée et
 refusée par le serveur lorsque des correspondances ou demandes Machines
 existent. Elle ne sert pas à débloquer une opération liée au bot.
 
-### État de cette fusion et correctifs du bot
+### Organisation du raccordement
 
-Les changements côté site ont été fusionnés depuis le dossier `recap/` en
-conservant l'attribution par profil et la correction du retour d'onglet. Ce
-travail ne modifie pas le bot Linux, ses données ou les drapeaux du `.env`.
-Les défauts de reprise et de concurrence du bot signalés dans le récapitulatif
-restent à corriger avant la recette réelle. Voir
-[la passation des correctifs du bot](PASSATION-CORRECTIFS-BOT.md).
+Les correctifs de reprise, de concurrence et de synchronisation ont été intégrés
+aux sources actuelles. Les anciens paquets de passation ne sont pas nécessaires
+au fonctionnement et ont été retirés après sauvegarde privée.
+Le bot conserve son setup dans `bot_setup/` ; ses tests sont rangés dans `tests/`
+et ses guides dans `docs/`. Les données métier et leurs chemins sont conservés.
 
 Aucun secret ne doit être publié dans GitHub Pages. Le raccordement utilise
 `HERITAGE_SITE_URL=http://127.0.0.1:8081` côté bot et le même
