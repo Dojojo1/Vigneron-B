@@ -21,7 +21,7 @@ assert.equal(ctx.history(),'','Missing history must not fabricate a zero referen
 ctx.state.companyHistory=history;
 const before=JSON.stringify(ctx.state);
 let html=ctx.home();
-assert.ok(html.includes('Cumul historique déclaré'));
+assert.ok(html.includes('Total de l’entreprise'));
 assert.ok(html.includes('DEPUIS LA REPRISE DE L’ENTREPRISE'));
 assert.ok(html.includes('20 octobre 2026'));
 assert.ok(html.includes('9000 $')&&html.includes('1350 $')&&html.includes('7200 $'));
@@ -30,12 +30,12 @@ assert.ok(!html.includes('9500 $'),'The declared cumulative amount is never adde
 assert.ok(!html.includes('100 %'),'A manual cumulative reference cannot assign a progress percentage.');
 assert.equal(JSON.stringify(ctx.state),before,'Rendering cannot alter records or allocations.');
 html=ctx.stats();
-assert.ok(html.includes('Cumul historique déclaré'));
+assert.ok(html.includes('Total de l’entreprise'));
 assert.ok(!html.includes('data-action="company-history"'),'Ordinary readers cannot edit history.');
 ctx.window.heritageSession.user.supreme=true;
 assert.ok(ctx.stats().includes('data-action="company-history"'));
 ctx.state.companyHistory=null;
-assert.ok(ctx.stats().includes('Reprendre un historique'),'The owner can create the first reference.');
+assert.ok(ctx.stats().includes('Reprendre le total'),'The owner can create the first reference.');
 for(const changes of [{source:'bot_verified'},{completed:false},{gross:null},{asOf:'2026-02-31'},{company:9999},{operations:-1}]){
  ctx.state.companyHistory={...history,...changes};
  assert.equal(ctx.history(),'','Invalid or unconfirmed historical values are not displayed as financial facts.');
@@ -47,4 +47,16 @@ assert.deepEqual(JSON.parse(JSON.stringify(ctx.submit(form))),{gross:9000,compan
 for(const changes of [{gross:'9000.00'},{gross:'9e3'},{gross:'9007199254740992'},{gross:true},{company:'9999'},{operations:'0'},{completed:false},{asOf:'2026-02-31'}]){
  assert.throws(()=>ctx.submit({...form,...changes}),'Ambiguous or inconsistent financial input must be refused.');
 }
-console.log('OK: historical reference, no double count, unknown/zero distinction, owner controls and strict whole-dollar form.');
+
+ctx.state.companyHistory=history;
+ctx.state.companyTotal={...history,gross:9300,company:1395,group:7440,operations:3,
+ source:'owner_opening_and_bot',automatic:true,upToDate:true,completed:false};
+html=ctx.home();
+assert.ok(html.includes('9300 $'),'The opening total is increased by the confirmed new transaction.');
+assert.ok(!html.includes('9500 $'),'Existing tracked records are already part of the opening total.');
+assert.ok(html.includes('s’ajoutent automatiquement'));
+ctx.state.companyTotal.upToDate=false;
+assert.ok(ctx.home().includes('Dernier total connu'));
+ctx.state.companyTotal=null;
+assert.ok(ctx.home().includes('Le total nécessite une vérification.'));
+console.log('OK: inclusive opening total, automatic updates, owner controls, retry and unknown values.');

@@ -419,7 +419,7 @@
    const payload=companyHistorySubmission(values);
    await api('/api/admin/company-history',{method:'POST',body:{...payload,operationKey:requestKey,expectedId:id||null}});
    const refreshed=await window.heritageNavigate({fresh:true,preserveFocus:true});
-   toast(refreshed?'Cumul historique déclaré enregistré.':'Cumul enregistré. Actualise la page pour voir la référence.');return;
+   toast(refreshed?'Total de départ enregistré.':'Total enregistré. Actualise la page pour le consulter.');return;
   }
 
   const page=actionPage(action);if(!page)throw Error('Action inconnue.');
