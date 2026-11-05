@@ -12,8 +12,6 @@
    if(target.protocol!=='https:'||target.username||target.password||target.pathname!=='/'||target.search||target.hash||target.origin===location.origin)throw Error('Adresse du serveur invalide.');
    apiBase=target.origin;
    if(/\.ngrok(?:-free)?\.(?:dev|app)$/.test(target.hostname))bridgeHeaders={'ngrok-skip-browser-warning':'true'};
-   const probe=await fetch(apiBase+'/api/status',{headers:bridgeHeaders,cache:'no-store',signal:AbortSignal.timeout(5000)});
-   if(!probe.ok)throw Error('Le serveur connecté n’est pas encore prêt.');
    bearer=sessionStorage.getItem('heritage.backend-token')||'';
    window.heritageLogin=()=>location.assign(apiBase+'/auth/start');
    const ticket=/^#auth=([A-Za-z0-9_-]{40,80})$/.exec(location.hash)?.[1];
@@ -28,7 +26,15 @@
     location.hash=result.landing;
    }
   }catch(error){
-   void window.heritageOpenConnectedSite().then(connected=>{if(connected==='preview')window.heritagePublicDemo();});
+   const failedTicket=location.hash.startsWith('#auth=');
+   if(failedTicket)history.replaceState(null,'',location.pathname+location.search);
+   void window.heritageOpenConnectedSite().then(connected=>{
+    if(connected==='preview')window.heritagePublicDemo();
+    else if(failedTicket){
+     document.querySelector('.entry-demo-note').textContent='La connexion Discord n’a pas pu être terminée. Réessaie dans un instant.';
+     window.heritageFeedback?.show({title:'Connexion incomplète',message:'Le serveur n’a pas confirmé cette connexion. Réessaie depuis le bouton Discord.',key:'auth-handoff'});
+    }
+   });
    return;
   }
  }
