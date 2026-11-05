@@ -370,6 +370,27 @@
   try{return await sessionCheck;}finally{sessionCheck=null;}
  }
  window.heritageFilter=key=>{pageOffsets[key]=0;clearTimeout(filterTimer);filterTimer=setTimeout(()=>void window.heritageNavigate({preserveFocus:true}),300);};
+ let overviewBotStatus=null,overviewBotCheckedAt=0,overviewBotRequest=null;
+ function refreshOverviewBotStatus(){
+  const label=document.querySelector('#overview-bot-status');
+  if(!label||!session)return;
+  const current=Date.now();
+  if(overviewBotStatus&&current-overviewBotCheckedAt<25000){label.textContent=overviewBotStatus;return;}
+  if(overviewBotRequest)return;
+  const route=['machines','sales','tombola'].find(can);
+  if(!route){label.textContent='État du bot indisponible';return;}
+  overviewBotRequest=api(pageURL(route,true),{background:true}).then(data=>{
+   const connection=data?.botConnection;
+   overviewBotStatus=!connection||connection.enabled===false?'État du bot indisponible':connection.online?'Bot connecté':'Bot déconnecté';
+   overviewBotCheckedAt=Date.now();
+   const visible=document.querySelector('#overview-bot-status');
+   if(visible)visible.textContent=overviewBotStatus;
+  }).catch(()=>{
+   overviewBotStatus='État du bot indisponible';overviewBotCheckedAt=Date.now();
+   const visible=document.querySelector('#overview-bot-status');
+   if(visible)visible.textContent=overviewBotStatus;
+  }).finally(()=>{overviewBotRequest=null;});
+ }
  window.heritageNavigate=async({preserveFocus=false,fresh=false,sessionRefreshed=false,staleRetries=0}={})=>{
   clearTimeout(filterTimer);
   const version=++navigationVersion;
@@ -407,6 +428,7 @@
   function showData(data,incremental=false){
    const selected=document.activeElement,inputId=selected?.id,selection=selected?.selectionStart;
    state=data;render({incremental});applyAccessUI();displayedPage=route;showing=true;content.hidden=false;
+   if(route==='overview')refreshOverviewBotStatus();
    if(inputId){const input=document.getElementById(inputId);if(input&&input!==selected){input.focus({preventScroll:true});if(typeof selection==='number'&&input.setSelectionRange)input.setSelectionRange(selection,selection);}}
   }
   try{

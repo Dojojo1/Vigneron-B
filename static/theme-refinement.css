@@ -122,9 +122,12 @@ a { text-underline-offset: .2em; }
   padding: 5px 18px 5px 8px;
 }
 .account-lower {
+  align-self: flex-end;
+  width: max-content;
+  max-width: 100%;
   background: linear-gradient(90deg, #07131dba, #07131de0);
   border-radius: 3px;
-  padding: 3px 5px;
+  padding: 3px 6px;
 }
 .account-lower .estate-date,
 .account-lower #estate-clock {
