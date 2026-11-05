@@ -18,6 +18,9 @@ HTTPS temporaire sans domaine. L’adresse change à chaque redémarrage du tunn
 il faut alors actualiser la configuration du site et le retour OAuth2 Discord.
 Ce tunnel de test ne constitue pas une adresse de production permanente.
 
+Pour garder l'adresse ngrok attribuee au compte et demarrer automatiquement le
+tunnel et le serveur Python sur Linux, suivre [TUNNEL-FIXE.md](TUNNEL-FIXE.md).
+
 ## 1. Configuration privée du site
 
 Copier `.env.example` vers `.env` seulement si `.env` n’existe pas déjà.
