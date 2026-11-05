@@ -43,10 +43,11 @@ def test_github_preflight_allows_only_configured_origin(env):
     cfg.public_site_url = PUBLIC + '/Vigneron-B/'
     with TestClient(create_app(cfg, env['provider']), base_url=cfg.base_url) as client:
         headers = {'Origin': PUBLIC, 'Access-Control-Request-Method': 'POST',
-                   'Access-Control-Request-Headers': 'authorization,content-type,x-csrf-token'}
+                   'Access-Control-Request-Headers': 'authorization,content-type,x-csrf-token,ngrok-skip-browser-warning'}
         result = client.options('/api/actions/sales', headers=headers)
         assert result.status_code == 200
         assert result.headers['access-control-allow-origin'] == PUBLIC
+        assert 'ngrok-skip-browser-warning' in result.headers['access-control-allow-headers'].lower()
         assert client.options('/api/actions/sales', headers={**headers, 'Origin': 'https://evil.example'}).headers.get('access-control-allow-origin') is None
 
 

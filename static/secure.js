@@ -1,7 +1,7 @@
 'use strict';
 (async () => {
  const publicPages=location.hostname.endsWith('.github.io')||document.querySelector('meta[name="heritage-hosting"]')?.content==='github-pages';
- let apiBase='',bearer='';
+ let apiBase='',bearer='',bridgeHeaders={};
  if(publicPages){
   try{
    const response=await fetch(new URL('site-config.json',document.baseURI),{cache:'no-store'});
@@ -11,7 +11,8 @@
    const target=new URL(config.backendUrl);
    if(target.protocol!=='https:'||target.username||target.password||target.pathname!=='/'||target.search||target.hash||target.origin===location.origin)throw Error('Adresse du serveur invalide.');
    apiBase=target.origin;
-   const probe=await fetch(apiBase+'/api/status',{cache:'no-store',signal:AbortSignal.timeout(5000)});
+   if(/\.ngrok(?:-free)?\.(?:dev|app)$/.test(target.hostname))bridgeHeaders={'ngrok-skip-browser-warning':'true'};
+   const probe=await fetch(apiBase+'/api/status',{headers:bridgeHeaders,cache:'no-store',signal:AbortSignal.timeout(5000)});
    if(!probe.ok)throw Error('Le serveur connecté n’est pas encore prêt.');
    bearer=sessionStorage.getItem('heritage.backend-token')||'';
    window.heritageLogin=()=>location.assign(apiBase+'/auth/start');
@@ -19,7 +20,7 @@
    if(ticket){
     history.replaceState(null,'',location.pathname+location.search);
     bearer='';sessionStorage.removeItem('heritage.backend-token');
-    const handoff=await fetch(apiBase+'/auth/handoff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket}),cache:'no-store'});
+    const handoff=await fetch(apiBase+'/auth/handoff',{method:'POST',headers:{'Content-Type':'application/json',...bridgeHeaders},body:JSON.stringify({ticket}),cache:'no-store'});
     if(!handoff.ok)throw Error('Cette connexion a expiré. Recommence depuis l’accueil.');
     const result=await handoff.json();
     if(!/^[A-Za-z0-9_-]{40,80}$/.test(result.token)||!['overview','profile'].includes(result.landing))throw Error('Réponse de connexion invalide.');
@@ -74,7 +75,7 @@
   const urls=new Set();
   const collect=value=>{if(!value||typeof value!=='object')return;if(Array.isArray(value)){value.forEach(collect);return;}for(const [key,item] of Object.entries(value)){if(key==='avatar'&&typeof item==='string'&&item.startsWith('/api/'))urls.add(item);else if(item&&typeof item==='object')collect(item);}};
   collect(data);
-  await Promise.all([...urls].map(async url=>{if(avatarCache.has(url))return;try{const response=await fetch(apiBase+url,{headers:{Authorization:'Bearer '+bearer},cache:'no-store'});if(response.ok)avatarCache.set(url,URL.createObjectURL(await response.blob()));}catch{}}));
+  await Promise.all([...urls].map(async url=>{if(avatarCache.has(url))return;try{const response=await fetch(apiBase+url,{headers:{Authorization:'Bearer '+bearer,...bridgeHeaders},cache:'no-store'});if(response.ok)avatarCache.set(url,URL.createObjectURL(await response.blob()));}catch{}}));
   const replace=value=>{if(!value||typeof value!=='object')return;if(Array.isArray(value)){value.forEach(replace);return;}for(const [key,item] of Object.entries(value)){if(key==='avatar'&&avatarCache.has(item))value[key]=avatarCache.get(item);else if(item&&typeof item==='object')replace(item);}};
   replace(data);
  }
@@ -99,6 +100,7 @@
   try{
    let response;
    if(publicPages&&bearer)headers.Authorization='Bearer '+bearer;
+   Object.assign(headers,bridgeHeaders);
    try{response=await fetch(apiBase+path,{method,headers,body:form||body,credentials:publicPages?'omit':'same-origin',cache:'no-store',keepalive:path.startsWith('/api/visits/'),signal:controller.signal});}
    catch(cause){
     if(signal?.aborted){const error=new Error('Chargement remplacé.');error.cancelled=true;throw error;}
@@ -164,7 +166,7 @@
    while(session&&errorStorage()===key&&pendingErrors(key).length){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
     try{
-     const response=await fetch(apiBase+'/api/client-errors',{method:'POST',credentials:publicPages?'omit':'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json','X-CSRF-Token':session.csrf,...(publicPages&&bearer?{Authorization:'Bearer '+bearer}:{})},body:JSON.stringify(pendingErrors(key)[0])});
+     const response=await fetch(apiBase+'/api/client-errors',{method:'POST',credentials:publicPages?'omit':'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json','X-CSRF-Token':session.cs,...(publicPages&&bearer?{Authorization:'Bearer '+bearer}:{}),...bridgeHeaders},body:JSON.stringify(pendingErrors(key)[0])});
      if(!response.ok)break;
      pendingErrors(key).shift();persistErrors(key);
     }catch{break;}finally{clearTimeout(timer);}
@@ -517,7 +519,7 @@
   notice.hidden=false;notice.textContent='Vérification de ton accès…';
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
   try{
-   const values=new FormData(form),response=await fetch(apiBase+'/auth/access-code',{method:'POST',credentials:publicPages?'omit':'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({loginName:values.get('loginName'),accessCode:values.get('accessCode')})});
+   const values=new FormData(form),response=await fetch(apiBase+'/auth/access-code',{method:'POST',credentials:publicPages?'omit':'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json',...bridgeHeaders},body:JSON.stringify({loginName:values.get('loginName'),accessCode:values.get('accessCode')})});
    const result=await response.json();
    if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:'La connexion a échoué. Réessaie.');
    if(publicPages){if(!/^[A-Za-z0-9_-]{40,80}$/.test(result.token||''))throw new Error('Réponse de connexion invalide.');bearer=result.token;sessionStorage.setItem('heritage.backend-token',bearer);}

@@ -827,6 +827,6 @@ def create_app(settings=None, provider=None):
     if public_origin:
         app.add_middleware(CORSMiddleware,allow_origins=[public_origin],allow_credentials=False,
                            allow_methods=['GET','POST','PUT','PATCH','DELETE'],
-                           allow_headers=['Authorization','Content-Type','X-CSRF-Token','X-Heritage-Visit','X-Heritage-Export','X-Heritage-Cache','X-Heritage-Background','Idempotency-Key'],
+                           allow_headers=['Authorization','Content-Type','X-CSRF-Token','X-Heritage-Visit','X-Heritage-Export','X-Heritage-Cache','X-Heritage-Background','Idempotency-Key','ngrok-skip-browser-warning'],
                            expose_headers=['X-Heritage-Data-Version','X-Heritage-User','X-Heritage-Role','Retry-After'])
     return app
