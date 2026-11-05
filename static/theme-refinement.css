@@ -110,6 +110,29 @@
 ::selection { background: #b79760; color: #0a1218; }
 input, textarea { caret-color: #dfc28f; }
 a { text-underline-offset: .2em; }
+
+/* Lisibilité des mentions posées sur les images de l'en-tête. */
+.hero .eyebrow {
+  color: #e9d6b2;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.8;
+  text-shadow: 0 1px 3px #02080e, 0 2px 10px #02080e;
+  background: linear-gradient(90deg, #07131dce, #07131d91 72%, transparent);
+  padding: 5px 18px 5px 8px;
+}
+.account-lower {
+  background: linear-gradient(90deg, #07131dba, #07131de0);
+  border-radius: 3px;
+  padding: 3px 5px;
+}
+.account-lower .estate-date,
+.account-lower #estate-clock {
+  color: #f0ddbb;
+  font-size: 11px;
+  font-weight: 600;
+  text-shadow: 0 1px 4px #02080e;
+}
 @media (hover: hover) and (pointer: fine) {
   .button:hover:not(:disabled), .finish-actions button:hover:not(:disabled),
   .record-actions button:hover:not(:disabled), .batch-footer-actions > button:hover:not(:disabled) {
