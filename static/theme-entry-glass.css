@@ -9,7 +9,7 @@ body.on-entry { margin: 0; overflow-x: clip; }
   align-items: center;
   justify-content: center;
   background: linear-gradient(0deg, #040a0cb3, #040b1014 52%, #030a102b),
-    url('assets/midnight-hero.png') center / cover fixed;
+    url('assets/midnight-hero.webp') center / cover fixed;
 }
 .entry-screen::before {
   background: radial-gradient(ellipse at 50% 44%, #02090d12 12%, #02080c33 85%);
@@ -77,7 +77,7 @@ body.on-entry { margin: 0; overflow-x: clip; }
   pointer-events: none;
   background: radial-gradient(ellipse at 100% 42%, #d9943e59, transparent 45%),
     linear-gradient(115deg, #17283873, #07121b9c 55%, #392b2573),
-    url('assets/midnight-hero.png') center / cover fixed;
+    url('assets/midnight-hero.webp') center / cover fixed;
   filter: blur(18px) saturate(1.12);
 }
 .entry-panel > :not(.entry-glass-details) { position: relative; z-index: 1; }

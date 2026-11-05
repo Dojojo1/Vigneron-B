@@ -1,0 +1,16 @@
+[Unit]
+Description=Serveur du site L'Heritage
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=dojojo
+WorkingDirectory=/home/dojojo/Documents/vigneron_site
+ExecStart=/home/dojojo/Documents/vigneron_site/.venv/bin/python -m uvicorn backend.app:create_app --factory --host 127.0.0.1 --port 8081 --no-access-log --no-proxy-headers
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

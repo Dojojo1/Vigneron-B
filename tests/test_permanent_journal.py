@@ -35,11 +35,13 @@ def test_business_before_after_values_actor_and_request_correlation(env):
 
 def test_profile_changes_never_store_oauth_credentials(env):
     login(env)
-    result=env['client'].patch('/api/me/profile',json={'displayName':'Nouveau nom'},headers=headers(env))
+    with env['store'].connect(True) as db:
+        db.execute('UPDATE users SET display_name=? WHERE id=?',('Ancien pseudo',MEMBER))
+    result=env['client'].patch('/api/me/profile',json={'resetName':True},headers=headers(env))
     assert result.status_code==200
     event=records(env,'profile_changed')[-1]['detail']
-    assert event['before']['display_name'] is None and event['after']['display_name']=='Nouveau nom'
-    assert next(c for c in event['changes'] if c['path']=='/display_name')['after']=='Nouveau nom'
+    assert event['before']['display_name']=='Ancien pseudo' and event['after']['display_name'] is None
+    assert next(c for c in event['changes'] if c['path']=='/display_name')['after'] is None
     login_event=records(env,'login')[-1]['detail']
     assert login_event['before'] is None and login_event['after']['id']==MEMBER
     with env['store'].connect() as db: text=' '.join(row[0] for row in db.execute('SELECT detail FROM audit'))

@@ -67,6 +67,11 @@ def main():
             if path=='/__resume_control':
                 if request.method=='POST':
                     changes=await request.json()
+                    if changes.get('cancelActive'):
+                        with app.state.store.connect(True) as db:
+                            data=json.loads(db.execute('SELECT body FROM domain_store WHERE id=1').fetchone()[0])
+                            for machine in data['machines']:machine.update(cancelled=True,recovered=True)
+                            db.execute('UPDATE domain_store SET body=? WHERE id=1',(json.dumps(data),))
                     if 'holdMe' in changes:
                         state['holdMe']=bool(changes['holdMe'])
                         if state['holdMe']:gate.clear()

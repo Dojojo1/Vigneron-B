@@ -22,11 +22,14 @@ from starlette.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 from .config import Settings
 from .storage import Store
+from .identity import display_name, custom_name_allowed
+from .company_history import import_history, project_history, HistoryValidationError, HistoryConflict
 from .security import Security, EmployeeRoleRequired, COOKIE, STATE_COOKIE, hashed
 from .access_accounts import AccessAccounts, SiteAccessRevoked, is_guest, assert_site_access, active_credential
 from .budget_counter import LimitReached
 from .discord_api import DiscordAPI, DiscordOAuthError, DiscordVerificationError
 from .limits import BodyLimitMiddleware, AVATAR_MAX_BYTES, request_body_limit
+from .public_assets import PublicAssetCompression
 from .traffic import TrafficLimits, VisitorLimitMiddleware, APIBudgetExceeded
 from .local_preview import LocalPreviewSecurity
 from .registry import discover_pages
@@ -117,9 +120,10 @@ def create_app(settings=None, provider=None):
     def profile(user):
         role=security.highest_role(user)
         return {'id':user['id'],'discordName':user['username'],'discordAvatar':user['discord_avatar'],
-                'displayName':user['display_name'] or user['username'],
+                'displayName':display_name(user),
                 'avatar':f"/api/me/avatar?v={user['avatar_file']}" if user['avatar_file'] else user['discord_avatar'],
-                'customName':user['display_name'],'customAvatar':bool(user['avatar_file']),
+                'customName':user['display_name'] if custom_name_allowed(user) else None,
+                'nameEditable':custom_name_allowed(user),'customAvatar':bool(user['avatar_file']),
                 'role':{'id':role['id'],'name':role['name'],'position':role['position']},
                 'supreme':security.is_supreme(user),'createdAt':user['created'],'lastLogin':user['last_login'],
                 'authProvider':'access_code' if is_guest(user) else 'local' if user['id']=='local-preview' else 'discord'}
@@ -139,6 +143,8 @@ def create_app(settings=None, provider=None):
                     'X-Heritage-Role':role_id,'Cache-Control':'no-store'}
         previous = request.headers.get('x-heritage-cache','')
         if re.fullmatch(r'[0-9a-f]{64}',previous) and hmac.compare_digest(previous,version):
+            # Unchanged background polls are not new data reads or navigation.
+            if request.headers.get('x-heritage-background')=='1':request.state.audit_background=True
             return Response(status_code=304,headers=metadata)
         response.headers.update(metadata)
         return response
@@ -154,7 +160,7 @@ def create_app(settings=None, provider=None):
             if request.method in ('POST','PUT','PATCH'):
                 length=request.headers.get('content-length')
                 if length and (not length.isdigit() or int(length)>request_body_limit(path)): raise HTTPException(413,'Requête trop volumineuse.')
-            public=path in {'/','/api/status','/auth/start','/auth/callback','/auth/access-code','/auth/logout',BOT_PATH+'/events',BOT_PATH+'/commands',BOT_PATH+'/ack'} or path in public_files or path.startswith('/assets/')
+            public=path in {'/','/api/status','/auth/start','/auth/callback','/auth/access-code','/auth/logout',BOT_PATH+'/events',BOT_PATH+'/commands',BOT_PATH+'/ack',BOT_PATH+'/resolve'} or path in public_files or path.startswith('/assets/')
             if not public:
                 request.state.audit_stage='authentication'
                 user,session=await security.resolve(request)
@@ -201,7 +207,11 @@ def create_app(settings=None, provider=None):
         response.headers['X-Frame-Options']='DENY'
         response.headers['Permissions-Policy']='camera=(), microphone=(), geolocation=()'
         response.headers['Content-Security-Policy']="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://cdn.discordapp.com https://media.discordapp.net; media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-        if path.startswith(('/api/','/auth/','/app','/spaces/')): response.headers['Cache-Control']='no-store'
+        if path == '/app' or path.startswith(('/api/','/auth/','/app/','/spaces/')): response.headers['Cache-Control']='no-store'
+        elif response.status_code==200 and path in public_files and request.query_params.get('v'):
+            response.headers['Cache-Control']='public, max-age=31536000, immutable'
+        elif response.status_code==200 and path.startswith('/assets/'):
+            response.headers['Cache-Control']='public, max-age=86400'
         return response
 
     @app.get('/api/status')
@@ -210,7 +220,7 @@ def create_app(settings=None, provider=None):
 
     @app.api_route(BOT_PATH+'/{operation}',methods=['GET','POST'])
     async def bot_exchange(operation:str,request:Request):
-        if (operation,request.method) not in {('commands','GET'),('events','POST'),('ack','POST')}:
+        if (operation,request.method) not in {('commands','GET'),('events','POST'),('ack','POST'),('resolve','POST')}:
             raise HTTPException(405,'Opération du connecteur inconnue.')
         body=await request.body()
         nonce=bridge.verify(request.method,request.url.path,request.headers,body)
@@ -375,12 +385,12 @@ def create_app(settings=None, provider=None):
         return log_entry(store,entry_id)
 
     screen_fields={
-        'sales':('sales','machines','events','salesWeek'),
+        'sales':('weeklyHistory','sales','machines','events','salesWeek','businessSources','salesBridgeConfirmedOnly','businessChoices'),
         'machines':('machines',),
-        'tombola':('tombolaRecords',),
+        'tombola':('tombolaRecords','businessSources','salesBridgeConfirmedOnly','businessChoices'),
         'history':('events',),
-        'overview':('sales','machines'),
-        'stats':('sales','machines','machineStats','machineBridgeConfirmedOnly'),
+        'overview':('sales','machines','businessSources','salesBridgeConfirmedOnly','businessChoices','companyHistory'),
+        'stats':('sales','machines','machineStats','machineBridgeConfirmedOnly','businessSources','salesBridgeConfirmedOnly','businessChoices','companyHistory'),
     }
 
     def team_data(params,screen=True):
@@ -390,21 +400,30 @@ def create_app(settings=None, provider=None):
             total=db.execute('SELECT count(*) FROM users WHERE member=1').fetchone()[0]
             offset=min(views.number(params,'teamOffset'),((total-1)//size)*size if total else 0)
             rows=db.execute('SELECT id,username,display_name,created,avatar_file,discord_avatar FROM users WHERE member=1 ORDER BY created,id LIMIT ? OFFSET ?',(size,offset))
-            members=[{'id':row['id'],'displayName':row['display_name'] or row['username'],
+            members=[{'id':row['id'],'displayName':display_name(row),
                       'discordName':row['username'],'joinedAt':row['created'],
                       'avatar':f"/api/pages/team/avatars/{row['id']}?v={hashlib.sha256(row['avatar_file'].encode()).hexdigest()[:16]}" if row['avatar_file'] else row['discord_avatar']} for row in rows]
         return {**views.base({}),'members':members,'pagination':{'team':{'total':total,'offset':offset,'limit':size,'hasMore':offset+size<total}}}
 
     def machine_projection(state):
         if cfg.local_preview:return state
-        state=copy.deepcopy(state)
+        # Only these branches receive projection flags. Keep read-only collections
+        # shared, while nested machine/source data stays independent of storage.
+        state=dict(state)
+        if 'machines' in state:state['machines']=copy.deepcopy(state['machines'])
+        if cfg.business_commands_enabled:
+            sources=copy.deepcopy(state.get('businessSources',{}))
+            state['businessSources']=sources
+            sources.setdefault('sales',{'available':False})
+            sources.setdefault('tombola',{'available':False})
+            state['salesBridgeConfirmedOnly']=True
         state['machineBridgeConfirmedOnly']=True
         for machine in state.get('machines',[]):
             if not machine.get('botMachineId'):
                 machine.update(botStatus='unconfirmed',historical=True,trackingDisabled=True)
         return state
 
-    def screen_data(page,request,params,shared_state=None):
+    def screen_data(page,request,params,shared_state=None,projected_state=None):
         """Même construction des écrans pour une lecture seule ou groupée."""
         if page=='journal': return query_log(store,params,pages)
         if page=='profile': return {'page':page}
@@ -413,8 +432,17 @@ def create_app(settings=None, provider=None):
         if page=='team': return team_data(params)
         state=shared_state if shared_state is not None else store.read_domain(
             screen_fields.get(page,()),array_counts=('machineSheetHistory',) if page=='machines' else ())
-        if page in ('sales','machines','overview','stats'):state=machine_projection(state)
+        if page in ('sales','machines','tombola','overview','stats'):
+            state=projected_state if projected_state is not None else machine_projection(state)
         result=views.screen(state,page,params)
+        if page in ('sales','tombola','overview','stats'):
+            sources=state.get('businessSources',{})
+            sales_source=sources.get('sales',{})
+            result.update(businessSources=sources,salesAvailable=sales_source.get('available',not cfg.business_commands_enabled),businessChoices=state.get('businessChoices',{}))
+            if page in ('sales','tombola'):
+                result.update(bridge.business.status(page))
+                result['botConnection']=bridge.machine_status()['botConnection']
+                result['botConnection']['enabled']=bool(cfg.business_commands_enabled and cfg.connector_secret)
         if page=='machines':result.update(bridge.machine_status())
         return result
 
@@ -432,10 +460,12 @@ def create_app(settings=None, provider=None):
         domain_pages=[page for page in selected if page not in ('profile','council','journal','team')]
         fields=tuple(dict.fromkeys(field for page in domain_pages for field in screen_fields.get(page,())))
         # Un seul décodage des collections utiles, jamais le catalogue, les images
-        # ou les détails du journal. Chaque projection reste propre à sa page.
+        # No journal details; each screen reads the same projection without mutation.
         shared=store.read_domain(fields,array_counts=('machineSheetHistory',) if 'machines' in selected else ()) if fields else None
         role_id=security.highest_role(user)['id']
-        screens={page:screen_data(page,request,{},shared) for page in selected}
+        projected=machine_projection(shared) if shared is not None and any(
+            page in ('sales','machines','tombola','overview','stats') for page in domain_pages) else None
+        screens={page:screen_data(page,request,{},shared,projected) for page in selected}
         versions={page:data_version(JSONResponse(data).body,user,role_id) for page,data in screens.items()}
         return {'pages':screens,'versions':versions,'identity':{'userId':user['id'],'roleId':role_id}}
 
@@ -481,8 +511,15 @@ def create_app(settings=None, provider=None):
         if view=='export':
             request.state.audit_export=True
             return {'events':state['events']}
-        if page in ('sales','machines','overview','stats'):state=machine_projection(state)
+        if page in ('sales','machines','tombola','overview','stats'):state=machine_projection(state)
         result=domain.project(state,page)
+        if page in ('sales','tombola','overview','stats'):
+            sources=state.get('businessSources',{})
+            result.update(businessSources=sources,salesAvailable=sources.get('sales',{}).get('available',not cfg.business_commands_enabled),businessChoices=state.get('businessChoices',{}))
+            if page in ('sales','tombola'):
+                result.update(bridge.business.status(page))
+                result['botConnection']=bridge.machine_status()['botConnection']
+                result['botConnection']['enabled']=bool(cfg.business_commands_enabled and cfg.connector_secret)
         if page=='machines':result.update(bridge.machine_status())
         return result
 
@@ -509,13 +546,17 @@ def create_app(settings=None, provider=None):
                             request.state.audit_outcome='duplicate'
                             return {'ok':True,'duplicate':True}
                     state=json.loads(db.execute('SELECT body FROM domain_store WHERE id=1').fetchone()['body'])
+                    if page in ('sales','tombola') and cfg.business_commands_enabled and not cfg.local_preview:
+                        result=bridge.business.queue(db,page,data.get('action'),data.get('id'),values,user['id'],display_name(user),state)
+                        if request_key:db.execute('INSERT INTO operation_keys VALUES(?,?,?,?)',(user['id'],request_key,fingerprint,time.time()))
+                        return result
                     if page=='machines' and not cfg.local_preview:
-                        result=bridge.queue_machine(db,data.get('action'),data.get('id'),values,user['id'],user['display_name'] or user['username'],state)
+                        result=bridge.queue_machine(db,data.get('action'),data.get('id'),values,user['id'],display_name(user),state)
                         if request_key:db.execute('INSERT INTO operation_keys VALUES(?,?,?,?)',(user['id'],request_key,fingerprint,time.time()))
                         return result
                     before=copy.deepcopy(state)
                     if data.get('action') in domain.ACTIONS.get(page,set()): request.state.audit_action=data['action']
-                    changed=domain.mutate(state,page,data.get('action'),data.get('id'),values,user['display_name'] or user['username'])
+                    changed=domain.mutate(state,page,data.get('action'),data.get('id'),values,display_name(user))
                     if changed is not False:
                         db.execute('UPDATE domain_store SET body=? WHERE id=1',(json.dumps(state,ensure_ascii=False),))
                         collection={'sales':'sales','machines':'machines','tombola':'tombolaRecords'}[page]
@@ -525,7 +566,7 @@ def create_app(settings=None, provider=None):
                             record=next((item['id'] for item in state[collection] if item['id'] not in existing),None)
                         store.audit(db,user['id'],'business_action',{'page':page,'action':data.get('action'),'record':record,
                                                                    'changes':business_changes(before,state)})
-                        bridge.enqueue(db,page,data['action'],record,values,user['id'],user['display_name'] or user['username'],state)
+                        bridge.enqueue(db,page,data['action'],record,values,user['id'],display_name(user),state)
                     else: request.state.audit_outcome='duplicate'
                     if request_key: db.execute('INSERT INTO operation_keys VALUES(?,?,?,?)',(user['id'],request_key,fingerprint,time.time()))
             except (ValueError,TypeError,KeyError,OverflowError): raise HTTPException(400,'Les informations du formulaire sont invalides ou la fiche n’est plus modifiable.') from None
@@ -537,7 +578,9 @@ def create_app(settings=None, provider=None):
         user=auth(request);data=await json_body(request)
         def commit_operation():
             if not isinstance(data,dict) or set(data)-{'displayName','resetName','resetAvatar'}: raise HTTPException(400,'Modification de profil invalide.')
-            name=data.get('displayName',user['display_name'])
+            if not custom_name_allowed(user) and 'displayName' in data and data['displayName']!=user['username']:
+                raise HTTPException(400,'Le pseudo suit automatiquement ton surnom sur le serveur Discord. Modifie-le dans Discord.')
+            name=data.get('displayName',user['display_name']) if custom_name_allowed(user) else user['display_name']
             if data.get('resetName') is True: name=None
             if name is not None and (not isinstance(name,str) or not 1<=len(name.strip())<=60): raise HTTPException(400,'Choisis un pseudo de 1 à 60 caractères.')
             with store.connect(True) as db:
@@ -654,11 +697,31 @@ def create_app(settings=None, provider=None):
             return {'ok':True}
         return await run_in_threadpool(commit_operation)
 
+    @app.get('/api/admin/company-history')
+    def company_history(request:Request):
+        supreme(request)
+        return {'companyHistory':project_history(store.read_domain(('companyHistory',)))}
+
+    @app.post('/api/admin/company-history')
+    async def declare_company_history(request:Request):
+        user=supreme(request);data=await json_body(request)
+        def commit_declaration():
+            try:
+                with store.connect(True) as db:
+                    require_live_session(request,db)
+                    return import_history(db,store,user['id'],data)
+            except HistoryValidationError as error:
+                raise HTTPException(400,str(error)) from None
+            except HistoryConflict as error:
+                raise HTTPException(409,str(error)) from None
+        async with security.lock:
+            return await run_in_threadpool(commit_declaration)
+
     @app.get('/api/admin/users')
     def users(request:Request):
         supreme(request)
         with store.connect() as db:
-            result=[{**{key:row[key] for key in ('id','username','display_name','created','last_login','member','role_ids')},'siteAccess':accounts.snapshot(db,row['id']),'protected':accounts.protected(row['id'])} for row in db.execute('SELECT * FROM users ORDER BY last_login DESC')]
+            result=[{**{key:row[key] for key in ('id','username','created','last_login','member','role_ids')},'display_name':row['display_name'] if custom_name_allowed(row) else None,'siteAccess':accounts.snapshot(db,row['id']),'protected':accounts.protected(row['id'])} for row in db.execute('SELECT * FROM users ORDER BY last_login DESC')]
         return {'users':result}
 
     @app.post('/api/admin/access-accounts')
@@ -704,8 +767,12 @@ def create_app(settings=None, provider=None):
         with sqlite3.connect(store.path) as source, sqlite3.connect(backup) as destination: source.backup(destination)
         backup.chmod(0o600)
         with store.connect(True) as db:
+            if db.execute('SELECT 1 FROM company_history_references LIMIT 1').fetchone() or db.execute("SELECT 1 FROM domain_store WHERE json_type(body,'$.weeklyHistory') IS NOT NULL").fetchone():
+                raise HTTPException(409,'Un cumul historique a été déclaré. La réinitialisation des essais est indisponible.')
             if not cfg.local_preview and (db.execute('SELECT 1 FROM bot_machine_links LIMIT 1').fetchone()
-                    or db.execute('SELECT 1 FROM bot_machine_jobs LIMIT 1').fetchone()):
+                    or db.execute('SELECT 1 FROM bot_machine_jobs LIMIT 1').fetchone()
+                    or db.execute('SELECT 1 FROM bot_business_jobs LIMIT 1').fetchone()
+                    or db.execute('SELECT 1 FROM bot_business_sources LIMIT 1').fetchone()):
                 raise HTTPException(409,'Ces données sont liées au bot. La réinitialisation des essais est indisponible.')
             before=json.loads(db.execute('SELECT body FROM domain_store WHERE id=1').fetchone()[0]);after=initial_domain()
             db.execute('UPDATE domain_store SET body=? WHERE id=1',(json.dumps(after),))
@@ -725,6 +792,7 @@ def create_app(settings=None, provider=None):
         if filename not in {p.name for p in static.iterdir() if p.is_file() and p.suffix in ('.css','.js')}:
             raise HTTPException(404,'Fichier introuvable.')
         return FileResponse(static/filename)
+    app.add_middleware(PublicAssetCompression,minimum_size=1024,compresslevel=5)
     app.add_middleware(BodyLimitMiddleware)
     app.add_middleware(VisitorLimitMiddleware, limits=traffic)
     app.add_middleware(AuditHTTPMiddleware, store=store, session_cookie=COOKIE,writer=audit_writer)

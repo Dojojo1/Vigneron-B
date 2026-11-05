@@ -5,6 +5,8 @@ import os
 import sqlite3
 import time
 from .auditing import clean, context, differences
+from .identity import display_name
+from .company_history import SCHEMA as COMPANY_HISTORY_SCHEMA
 
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS schema_version(version INTEGER PRIMARY KEY);
@@ -43,7 +45,7 @@ CREATE INDEX IF NOT EXISTS audit_page_idx ON audit(json_extract(detail,'$.page')
 CREATE INDEX IF NOT EXISTS audit_result_idx ON audit(json_extract(detail,'$.result'),id DESC);
 CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT,'Journal permanent : modification interdite'); END;
 CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT,'Journal permanent : suppression interdite'); END;
-'''
+''' + COMPANY_HISTORY_SCHEMA
 
 class Store:
     def __init__(self, path):
@@ -90,8 +92,8 @@ class Store:
             detail['changes']=differences(detail['before'],detail['after'])
         detail.setdefault('result','failure' if kind.endswith('_failed') else 'success')
         if actor:
-            row=db.execute('SELECT username,display_name FROM users WHERE id=?',(actor,)).fetchone()
-            detail.setdefault('actorName',(row['display_name'] or row['username']) if row else str(actor))
+            row=db.execute('SELECT id,username,display_name FROM users WHERE id=?',(actor,)).fetchone()
+            detail.setdefault('actorName',display_name(row) if row else str(actor))
         detail={**(context.get() or {}),**detail}
         db.execute('INSERT INTO audit(at,actor,kind,detail) VALUES(?,?,?,?)', (time.time(), actor, kind, json.dumps(detail, ensure_ascii=False)))
 

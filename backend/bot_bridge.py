@@ -9,6 +9,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from . import domain
+from .business_bridge import BusinessBridge
 from .auditing import business_changes
 
 PATH = '/internal/bot'
@@ -22,6 +23,10 @@ CREATE TABLE IF NOT EXISTS bot_machine_links(
  guild_id TEXT NOT NULL, machine_id TEXT NOT NULL, site_record_id TEXT NOT NULL,
  revision INTEGER NOT NULL, snapshot TEXT NOT NULL,
  PRIMARY KEY(guild_id,machine_id), UNIQUE(guild_id,site_record_id));
+CREATE TABLE IF NOT EXISTS bot_resolutions(
+ id TEXT PRIMARY KEY, command_id TEXT NOT NULL, request_fingerprint TEXT NOT NULL,
+ body TEXT NOT NULL, status TEXT NOT NULL, complete_fingerprint TEXT, result TEXT);
+CREATE UNIQUE INDEX IF NOT EXISTS bot_active_resolution ON bot_resolutions(command_id) WHERE status='prepared';
 CREATE TABLE IF NOT EXISTS bot_inbox(
  id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, result TEXT NOT NULL);
 '''
@@ -36,6 +41,7 @@ class BotBridge:
     def __init__(self, settings, store):
         self.settings,self.store=settings,store
         with store.connect() as db:db.executescript(SCHEMA)
+        self.business=BusinessBridge(settings,store)
 
     def verify(self, method, path, headers, body):
         secret=self.settings.connector_secret
@@ -50,7 +56,7 @@ class BotBridge:
         return nonce
 
     def enqueue(self, db, page, action, record, values, actor_id, actor_name, state):
-        # Only Machines have a consumer. Other modules retain their existing local workflow.
+        # Legacy hook: canonical Machines/business commands use their dedicated queues.
         return None
 
     def queue_machine(self, db, action, record, values, actor_id, actor_name, state):
@@ -121,15 +127,21 @@ class BotBridge:
             db.execute('INSERT INTO event_nonces VALUES(?,?)',(nonce,now+120))
             if operation=='commands':
                 if not self.settings.bot_commands_enabled:return {'commands':[]}
-                rows=db.execute("SELECT c.id,c.created,c.body FROM bot_commands c JOIN bot_machine_jobs j ON j.id=c.id WHERE c.acknowledged IS NULL AND j.status='pending' ORDER BY c.created,c.id LIMIT 50")
-                return {'commands':[{'id':r['id'],'createdAt':r['created'],'body':json.loads(r['body'])} for r in rows]}
+                rows=db.execute("SELECT c.id,c.created,c.body FROM bot_commands c JOIN bot_machine_jobs j ON j.id=c.id WHERE c.acknowledged IS NULL AND j.status='pending' AND NOT EXISTS(SELECT 1 FROM bot_resolutions r WHERE r.command_id=c.id AND r.status='prepared') ORDER BY c.created,c.id LIMIT 50")
+                return {'commands':sorted([{'id':r['id'],'createdAt':r['created'],'body':json.loads(r['body'])} for r in rows]+self.business.commands(db),key=lambda row:(row['createdAt'],row['id']))[:50]}
             if not isinstance(payload,dict) or payload.get('guildId')!=self.settings.guild_id:
                 raise HTTPException(400,'Serveur Discord ou message invalide.')
+            if operation=='resolve':
+                return self.resolve(db,payload,now)
             if operation=='ack':
+                if db.execute('SELECT 1 FROM bot_business_jobs WHERE id=?',(payload.get('commandId'),)).fetchone():
+                    return self.business.acknowledge(db,payload,now)
                 command=payload.get('commandId')
                 if not isinstance(command,str) or not re.fullmatch(r'[a-f0-9]{32}',command):raise HTTPException(400,'Identifiant invalide.')
                 row=db.execute('SELECT c.acknowledged,j.status,j.result,j.error FROM bot_commands c JOIN bot_machine_jobs j ON j.id=c.id WHERE c.id=?',(command,)).fetchone()
                 if not row:raise HTTPException(404,'Opération Machines introuvable ou antérieure au raccordement.')
+                if db.execute("SELECT 1 FROM bot_resolutions WHERE command_id=? AND status='prepared'",(command,)).fetchone():
+                    raise HTTPException(409,'Une résolution administrative réserve cette commande.')
                 status=payload.get('status','applied')
                 if status not in ('pending','applied','failed','uncertain'):raise HTTPException(400,'État de confirmation invalide.')
                 result=payload.get('result') or {}
@@ -186,11 +198,15 @@ class BotBridge:
             if kind=='member_remove':
                 db.execute('UPDATE users SET member=0 WHERE id=?',(uid,))
                 db.execute('DELETE FROM sessions WHERE user_id=?',(uid,))
+        elif kind=='business_sync':
+            result.update(self.business.apply_snapshot(db,payload.get('snapshot')))
         elif kind=='machine_sync':
             result.update(self.sync_machine(db,payload.get('machine'),payload.get('commandId')))
         elif kind=='action':
             page=payload.get('page');action=payload.get('action');values=payload.get('values',{})
             if page=='machines':raise HTTPException(400,'Les machines exigent une confirmation canonique machine_sync du bot.')
+            if self.settings.business_commands_enabled and page in ('sales','tombola'):
+                raise HTTPException(400,'Les opérations métier exigent une confirmation canonique business_sync du bot.')
             identifier=payload.get('recordId');actor=payload.get('actor',{})
             if (page not in domain.ACTIONS or action not in domain.ACTIONS[page] or not isinstance(values,dict)
                     or identifier is not None and not isinstance(identifier,str)
@@ -298,6 +314,16 @@ class BotBridge:
             date_key=key.removesuffix('By')+'At'
             if date_value is not None:item[date_key]=date_value
             else:item.pop(date_key,None)
+        for key in ('lotLabel','lotKey','discordWarning'):
+            value=raw.get(key)
+            if value is not None:
+                if not isinstance(value,str) or not 1<=len(value)<=300:invalid()
+                item[key]=value
+        for key in ('lotYear','lotWeek','lotSequence'):
+            value=raw.get(key)
+            if value is not None:
+                if type(value) is not int or value<1 or key=='lotWeek' and value>53:invalid()
+                item[key]=value
         state['machineBridgeConfirmedOnly']=True
         db.execute('UPDATE domain_store SET body=? WHERE id=1',(json.dumps(state,ensure_ascii=False),))
         db.execute('INSERT INTO bot_machine_links VALUES(?,?,?,?,?) ON CONFLICT(guild_id,machine_id) DO UPDATE SET revision=excluded.revision,snapshot=excluded.snapshot',
@@ -305,3 +331,148 @@ class BotBridge:
         self.store.audit(db,None,'bot_machine_confirmed',{'page':'machines','recordId':site_id,'machineId':machine_id,
                                                         'commandId':command_id,'changes':business_changes(before,state)})
         return {'recordId':site_id,'machineId':machine_id}
+
+    @staticmethod
+    def resolution_json(value):
+        return json.dumps(value,ensure_ascii=False,sort_keys=True,separators=(',',':'))
+
+    @classmethod
+    def resolution_hash(cls,value):
+        return hashlib.sha256(cls.resolution_json(value).encode()).hexdigest()
+
+    def resolution_command(self,db,command_id):
+        row=db.execute('''SELECT c.id,c.body,c.acknowledged,j.status,j.error,j.result,j.site_record_id
+            FROM bot_commands c JOIN bot_machine_jobs j ON j.id=c.id WHERE c.id=?''',(command_id,)).fetchone()
+        if row is None:raise HTTPException(404,'Commande Machines introuvable ou antérieure au raccordement.')
+        body=json.loads(row['body'])
+        if (body.get('guildId')!=self.settings.guild_id or body.get('version')!=2
+                or body.get('protocol')!='machines-v1' or body.get('page')!='machines'
+                or body.get('action') not in domain.ACTIONS['machines']):
+            raise HTTPException(409,'La commande ne possède pas le contrat Machines courant.')
+        result=json.loads(row['result']) if row['result'] else None
+        error=json.loads(row['error']) if row['error'] else None
+        command={'id':row['id'],'body':body,'status':row['status'],'error':error,
+                 'result':result,'acknowledged':row['acknowledged']}
+        return command,{
+            'commandFingerprint':self.resolution_hash(body),
+            'jobFingerprint':self.resolution_hash({key:command[key] for key in ('status','error','result','acknowledged')})}
+
+    def resolve(self,db,payload,now):
+        """Administrative CAS resolution. Original command IDs and journals remain intact."""
+        mode=payload.get('mode')
+        command_id=payload.get('commandId')
+        admin=payload.get('admin')
+        if (mode not in ('inspect','prepare','complete','cancel')
+                or not isinstance(command_id,str) or not re.fullmatch(r'[a-f0-9]{32}',command_id)
+                or not isinstance(admin,dict) or set(admin)!={'id','name'}
+                or not isinstance(admin['id'],str) or not re.fullmatch(r'[0-9]{1,24}',admin['id'])
+                or not isinstance(admin['name'],str) or not 1<=len(admin['name'])<=100):
+            raise HTTPException(400,'Demande de résolution invalide.')
+        command,current=self.resolution_command(db,command_id)
+        if mode=='inspect':
+            if set(payload)-{'guildId','commandId','mode','admin'}:raise HTTPException(400,'Champs de consultation inconnus.')
+            active=db.execute("SELECT id,body FROM bot_resolutions WHERE command_id=? AND status='prepared'",(command_id,)).fetchone()
+            return {'ok':True,'command':command,**current,
+                    'activeResolution':{'id':active['id'],'decision':json.loads(active['body'])['decision']} if active else None}
+        common_names={'guildId','commandId','resolutionId','admin','decision','reason','expected','requestFingerprint'}
+        extra={'mode'} | ({'outcome','result','proof'} if mode=='complete' else {'proof','error'} if mode=='cancel' else set())
+        if set(payload)!=(common_names|extra):raise HTTPException(400,'Champs de résolution manquants ou inconnus.')
+        rid=payload['resolutionId'];decision=payload['decision'];reason=payload['reason'];expected=payload['expected']
+        if (not isinstance(rid,str) or not re.fullmatch(r'[a-f0-9]{32}',rid)
+                or decision not in ('adopt-storage','adopt-message','abort-unexecuted','resume')
+                or not isinstance(reason,str) or not 8<=len(reason.strip()) or len(reason)>500
+                or not isinstance(expected,dict) or set(expected)!={'commandFingerprint','jobFingerprint'}
+                or any(not isinstance(expected[key],str) or not re.fullmatch(r'[a-f0-9]{64}',expected[key]) for key in expected)
+                or not isinstance(payload['requestFingerprint'],str) or not re.fullmatch(r'[a-f0-9]{64}',payload['requestFingerprint'])):
+            raise HTTPException(400,'Identifiant, décision ou version de résolution invalide.')
+        common={key:payload[key] for key in common_names}
+        request_hash=self.resolution_hash(common)
+        previous=db.execute('SELECT * FROM bot_resolutions WHERE id=?',(rid,)).fetchone()
+        if previous and (previous['command_id']!=command_id or previous['request_fingerprint']!=request_hash):
+            raise HTTPException(409,'Cet identifiant de résolution possède déjà un autre contenu.')
+        if mode=='prepare':
+            if previous:
+                if previous['status']=='canceled':raise HTTPException(409,'Cette préparation a été annulée ; utiliser un nouvel identifiant.')
+                return json.loads(previous['result']) if previous['status']=='complete' else {'ok':True,'status':'prepared','resolutionId':rid,'duplicate':True}
+            if expected!=current:raise HTTPException(409,'La commande ou son état a changé. Refaire la consultation.')
+            if command['status'] not in ('pending','uncertain','failed'):
+                raise HTTPException(409,'Cette commande ne nécessite pas une résolution administrative.')
+            if db.execute("SELECT 1 FROM bot_resolutions WHERE command_id=? AND status='prepared'",(command_id,)).fetchone():
+                raise HTTPException(409,'Une autre résolution réserve déjà cette commande.')
+            db.execute('INSERT INTO bot_resolutions VALUES(?,?,?,?,?,NULL,NULL)',
+                       (rid,command_id,request_hash,self.resolution_json(common),'prepared'))
+            self.store.audit(db,admin['id'],'machine_resolution_prepared',
+                             {'resolutionId':rid,'commandId':command_id,'admin':admin,'decision':decision,'reason':reason,'before':command})
+            return {'ok':True,'status':'prepared','resolutionId':rid}
+        if not previous:raise HTTPException(409,'La résolution doit être préparée avant toute finalisation.')
+        complete_hash=self.resolution_hash(payload)
+        if previous['status'] in ('complete','canceled'):
+            if previous['complete_fingerprint']!=complete_hash:
+                raise HTTPException(409,'Cette résolution possède déjà un autre résultat.')
+            return {**json.loads(previous['result']),'duplicate':True}
+        if expected!=current:raise HTTPException(409,'La commande a changé après la préparation.')
+        proof=payload['proof']
+        if (not isinstance(proof,dict) or set(proof)!={'coreOperationId','coreFingerprint','coreStateHash','coreStage'}
+                or proof['coreOperationId']!='site:'+command_id
+                or any(not isinstance(proof[key],str) or not re.fullmatch(r'[a-f0-9]{64}',proof[key]) for key in ('coreFingerprint','coreStateHash'))):
+            raise HTTPException(400,'Preuve de résolution du moteur invalide.')
+        if mode=='cancel':
+            error=payload['error']
+            if (proof['coreStage']!='unchanged' or not isinstance(error,dict) or set(error)!={'code','message'}
+                    or any(not isinstance(error[key],str) or not 1<=len(error[key])<=500 for key in error)):
+                raise HTTPException(400,'La préparation ne peut être annulée sans preuve d’absence de modification du moteur.')
+            response={'ok':True,'status':'canceled','resolutionId':rid,'commandId':command_id}
+            db.execute("UPDATE bot_resolutions SET status='canceled',complete_fingerprint=?,result=? WHERE id=?",
+                       (complete_hash,self.resolution_json(response),rid))
+            self.store.audit(db,admin['id'],'machine_resolution_preparation_canceled',
+                             {'resolutionId':rid,'commandId':command_id,'admin':admin,'decision':decision,'reason':reason,'error':error,'proof':proof})
+            return response
+        outcome=payload['outcome'];result=payload['result']
+        if outcome not in ('applied','aborted') or not isinstance(result,dict):raise HTTPException(400,'Résultat administratif invalide.')
+        body=command['body'];action=body['action']
+        if outcome=='applied':
+            if proof['coreStage']!='done' or decision=='abort-unexecuted' or set(result)!={'machine'}:
+                raise HTTPException(400,'La résolution appliquée nécessite une machine confirmée.')
+            machine=result['machine']
+            if not isinstance(machine,dict):raise HTTPException(400,'Machine confirmée requise.')
+            original=body.get('record') or {}
+            expected_actor=body.get('actor',{}).get('id') if action=='add-machine' else original.get('actorId')
+            expected_amount=body.get('values',{}).get('amount') if action=='add-machine' else original.get('amount')
+            machine_actor=machine.get('actor')
+            if (not isinstance(machine_actor,dict) or machine_actor.get('id')!=str(expected_actor)
+                    or machine.get('amount')!=expected_amount
+                    or machine.get('siteRecordId')!=body.get('recordId')
+                    or machine.get('guildId')!=self.settings.guild_id
+                    or action!='add-machine' and machine.get('machineId')!=original.get('botMachineId')):
+                raise HTTPException(409,'La machine résolue ne correspond pas à la commande et son auteur initial.')
+            if ((action=='recover' and (machine.get('recovered') is not True or machine.get('cancelled') is True))
+                    or (action=='unrecover' and (machine.get('recovered') is not False or machine.get('cancelled') is True))
+                    or (action=='cancel-machine' and machine.get('cancelled') is not True)):
+                raise HTTPException(409,'Le résultat ne prouve pas la modification demandée.')
+            if action=='edit-machine-time':
+                try:
+                    text=body['values']['launchTime'];hour,minute=map(int,text.split(':'))
+                    launched=datetime.fromisoformat(machine['launchedAt'].replace('Z','+00:00')).astimezone(domain.TZ)
+                    if (launched.hour,launched.minute)!=(hour,minute):raise ValueError()
+                except (ValueError,TypeError,KeyError,AttributeError):
+                    raise HTTPException(409,'L’heure confirmée ne correspond pas à la correction demandée.') from None
+            self.sync_machine(db,machine,command_id)
+            target='applied';error=None
+        else:
+            if proof['coreStage']!='aborted' or decision!='abort-unexecuted' or result:
+                raise HTTPException(400,'Un abandon exige la preuve qu’aucun effet de cette opération n’a été exécuté.')
+            if action=='add-machine' and db.execute('SELECT 1 FROM bot_machine_links WHERE guild_id=? AND site_record_id=?',
+                                                    (self.settings.guild_id,body['recordId'])).fetchone():
+                raise HTTPException(409,'Une machine reliée ne peut pas être déclarée non exécutée.')
+            target='failed';error={'code':'resolved_aborted','message':reason}
+        db.execute('UPDATE bot_commands SET acknowledged=? WHERE id=?',(now,command_id))
+        db.execute('UPDATE bot_machine_jobs SET status=?,result=?,error=? WHERE id=?',
+                   (target,self.resolution_json(result),self.resolution_json(error) if error else None,command_id))
+        response={'ok':True,'status':target,'outcome':outcome,'resolutionId':rid,'commandId':command_id,
+                  'recordId':body['recordId']}
+        db.execute("UPDATE bot_resolutions SET status='complete',complete_fingerprint=?,result=? WHERE id=?",
+                   (complete_hash,self.resolution_json(response),rid))
+        self.store.audit(db,admin['id'],'machine_resolution_completed',
+                         {'resolutionId':rid,'commandId':command_id,'admin':admin,'decision':decision,'reason':reason,
+                          'outcome':outcome,'proof':proof,'before':command,'after':{'status':target,'result':result,'error':error}})
+        return response

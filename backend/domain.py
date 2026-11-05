@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from fastapi import HTTPException
+from .weekly_history import archive_catalog
+from .company_history import project_history, project_company_total
 
 CONFIG = json.loads(Path(__file__).with_name('business_config.json').read_text(encoding='utf-8'))
 RULES = CONFIG['rules']
@@ -14,7 +16,7 @@ TZ = ZoneInfo(RULES['timeZone'])
 ACTIONS = {
  'sales': {'add-sale','sale-detail','finish-sale','sale-waiting','sale-progress','cancel-sale','confirm-sales-reset'},
  'machines': {'add-machine','edit-machine-time','recover','unrecover','cancel-machine'},
- 'tombola': {'raffle-record','vehicle-buy','vehicle-pay','pay-all','reset-payments'},
+ 'tombola': {'raffle-record','vehicle-buy','vehicle-pay','pay-all','reset-payments','delete-vehicle','delete-tombola-week'},
 }
 
 def seed():
@@ -25,25 +27,78 @@ def seed():
             'events':[],'raffles':[],'tombolaRecords':[],'catalog':json.loads(json.dumps(CONFIG['catalog'])), 'salesWeek':{'archives':[],'lastResetDate':None}}
 
 def allocations(state):
+    source=state.get('businessSources',{}).get('sales')
+    if source is not None and not source.get('available'):
+        # A partial read proves only the records received in this exact revision.
+        # Preserve older evidence in storage without presenting it as current.
+        result = {}
+        for sale in state['sales']:
+            fresh = (source.get('partial') is True and type(source.get('revision')) is int
+                     and type(sale.get('_verifiedRevision')) is int
+                     and sale['_verifiedRevision'] == source['revision']
+                     and sale.get('botStatus') == 'confirmed')
+            treated = sale.get('treated')
+            result[sale['id']] = (0 if sale['status']=='cancelled' else
+                min(sale['amount'], max(0, treated))
+                if fresh and sale.get('progressKnown') is True and type(treated) is int else None)
+        return result
     pool = sum(m['amount'] for m in state['machines'] if m.get('recovered') and not m.get('cancelled')
                and (not state.get('machineBridgeConfirmedOnly') or m.get('botStatus')=='confirmed'))
     result = {}
-    for sale in sorted(state['sales'],key=lambda s:(s['created'],int(s['id']))):
-        if sale['status']=='cancelled': result[sale['id']]=0; continue
+    for sale in sorted(state['sales'],key=lambda s:(s['created'],str(s['id']))):
+        if sale['status']=='cancelled':
+            result[sale['id']]=0
+            continue
+        if sale.get('botStatus')=='confirmed':
+            treated=sale.get('treated')
+            result[sale['id']]=min(sale['amount'],max(0,treated)) if sale.get('progressKnown') is True and type(treated) is int else None
+            continue
+        if state.get('salesBridgeConfirmedOnly'):
+            result[sale['id']]=None
+            continue
         extra = min(max(0,sale['amount']-sale.get('baseTreated',0)),pool)
         pool -= extra
         result[sale['id']] = min(sale['amount'],sale.get('baseTreated',0)+extra)
     return result
 
-def financial(state):
-    valid = [s for s in state['sales'] if s['status']!='cancelled']
-    a = allocations(state)
-    gross = sum(s['amount'] for s in valid)
-    opened = [s for s in valid if s['status']=='active']
+
+def financial_sales(state, sales=None):
+    """Select current verified evidence without claiming an incomplete ledger is whole."""
+    rows=state['sales'] if sales is None else sales
+    source=state.get('businessSources',{}).get('sales')
+    partial=bool(source and source.get('available') is False and source.get('partial') is True)
+    unavailable=source is not None and not source.get('available')
+    if unavailable:
+        revision=source.get('revision')
+        selected=[sale for sale in rows if partial and type(revision) is int and revision>=0
+                  and sale.get('botStatus')=='confirmed'
+                  and type(sale.get('_verifiedRevision')) is int
+                  and sale['_verifiedRevision']==revision]
+    else:
+        selected=[sale for sale in rows if not state.get('salesBridgeConfirmedOnly')
+                  or sale.get('botStatus')=='confirmed']
+    coverage={'available':not unavailable or bool(selected), 'partial':partial,
+              'includedCount':len(selected), 'unverifiedStoredCount':len(rows)-len(selected),
+              # Unresolved records can belong to any week, not just this selection.
+              'unresolvedCount':source.get('unresolvedCount',0) if partial else 0}
+    return selected,coverage
+
+
+def financial(state, sales=None):
+    selected,coverage=financial_sales(state,sales)
+    keys=('gross','company','group','loss','treated','pending','restitute')
+    if not coverage['available']:
+        return {key:None for key in keys}
+    valid=[sale for sale in selected if sale['status']!='cancelled']
+    values=allocations(state)
+    gross=sum(sale['amount'] for sale in valid)
+    known=all(values.get(sale['id']) is not None for sale in valid)
+    opened=[sale for sale in valid if sale['status']=='active']
     return {'gross':gross,'company':gross*.15,'group':gross*.8,'loss':gross*.05,
-            'treated':sum(a.get(s['id'],0) for s in valid),
-            'pending':sum(max(0,s['amount']-a.get(s['id'],0)) for s in opened),
-            'restitute':sum(s['amount']*.8 for s in opened if a.get(s['id'],0)>=s['amount'])}
+            'treated':sum(values[sale['id']] for sale in valid) if known else None,
+            'pending':sum(max(0,sale['amount']-values[sale['id']]) for sale in opened) if known else None,
+            'restitute':sum(sale['amount']*.8 for sale in opened if values[sale['id']]>=sale['amount']) if known else None}
+
 
 def amount(raw,default=None,maximum=9007199254740991,allow_zero=False):
     if isinstance(raw,float):
@@ -79,7 +134,7 @@ def creating_actor(values, actor):
     return actor.strip(),actor_id
 
 def current_batch(state):
-    return next(iter(sorted([m for m in state['machines'] if not m.get('cancelled') and not m.get('recovered') and not m.get('historical') and not m.get('trackingDisabled')],key=lambda m:m['start'],reverse=True)),None)
+    return max((m for m in state['machines'] if not m.get('cancelled') and not m.get('recovered') and not m.get('historical') and not m.get('trackingDisabled')),key=lambda m:m['start'],default=None)
 
 
 def machine_ranking(state):
@@ -201,7 +256,14 @@ def mutate(state,page,action,identifier,values,actor):
                 if datetime.fromtimestamp(changed.timestamp(),TZ).strftime('%H:%M')!=f'{hour:02}:{minute:02}': raise ValueError('Heure inexistante à Bruxelles.')
                 machine['start']=int(changed.timestamp()*1000)
     else:
-        if action=='raffle-record':
+        if action=='delete-tombola-week':
+            selected=str(identifier)
+            try:
+                parsed=datetime.strptime(selected,'%Y-%m-%d')
+                if parsed.weekday()!=0:raise ValueError()
+            except ValueError:raise ValueError('Semaine invalide.') from None
+            state['tombolaRecords']=[record for record in state['tombolaRecords'] if record['week']!=selected]
+        elif action=='raffle-record':
             selected=datetime.strptime(date_text(values.get('weekDate')),'%d/%m/%Y');week=(selected-timedelta(days=selected.weekday())).date().isoformat()
             vehicles=[]
             existing=get_record(state['tombolaRecords'],identifier) if identifier else None
@@ -215,7 +277,7 @@ def mutate(state,page,action,identifier,values,actor):
                 price=amount(raw_price,allow_zero=True) if str(raw_price if raw_price is not None else '').strip() else None
                 old=existing['vehicles'][index] if existing and index<len(existing['vehicles']) else {}
                 vehicles.append({'name':name,'type':kind,'price':price,'bought':old.get('bought',False),'paid':old.get('paid',False)})
-            if len(vehicles)<2: raise ValueError('Configure au moins deux véhicules.')
+            if not vehicles or (not existing and len(vehicles)<2): raise ValueError('Configure au moins deux véhicules pour une nouvelle fiche.')
             if existing: existing.update(week=week,vehicles=vehicles)
             else: state['tombolaRecords'].append({'id':str(uuid.uuid4()),'week':week,'vehicles':vehicles})
             for vehicle in vehicles:
@@ -223,7 +285,14 @@ def mutate(state,page,action,identifier,values,actor):
                 if vehicle['name'] not in choices: choices.append(vehicle['name'])
         else:
             rid,_,index=str(identifier).partition('|');record=get_record(state['tombolaRecords'],rid)
-            if action in ('vehicle-buy','vehicle-pay'):
+            if action=='delete-vehicle':
+                try:
+                    position=int(index)
+                    if position<0:raise ValueError()
+                    record['vehicles'].pop(position)
+                except (ValueError,IndexError):raise ValueError('Véhicule introuvable.') from None
+                if not record['vehicles']:state['tombolaRecords'].remove(record)
+            elif action in ('vehicle-buy','vehicle-pay'):
                 try: vehicle=record['vehicles'][int(index)]
                 except (ValueError,IndexError): raise ValueError('Véhicule introuvable.') from None
                 if int(index)<0: raise ValueError('Véhicule introuvable.')
@@ -237,7 +306,9 @@ def mutate(state,page,action,identifier,values,actor):
 
 def project(state,page):
     result={'sales':[],'machines':[],'events':[],'raffles':[],'tombolaRecords':[],'catalog':state.get('catalog',CONFIG['catalog']),'salesWeek':{'archives':[],'lastResetDate':None},'allocations':{}}
-    if page=='sales': result.update(sales=state['sales'],salesWeek=state['salesWeek'],allocations=allocations(state),events=[e for e in state['events'] if e.get('page')=='sales'])
+    if page in ('sales','overview','stats'):result['salesCoverage']=financial_sales(state)[1]
+    if page in ('overview','stats'):result.update(companyHistory=project_history(state),companyTotal=project_company_total(state))
+    if page=='sales': result.update(sales=state['sales'],salesWeek=state['salesWeek'],allocations=allocations(state),events=[e for e in state['events'] if e.get('page')=='sales'],importedArchives=archive_catalog(state))
     elif page=='machines': result.update(machines=state['machines'],machineSheetHistory=state.get('machineSheetHistory',[]))
     elif page=='tombola': result.update(tombolaRecords=state['tombolaRecords'],catalog=state['catalog'])
     elif page=='history': result['events']=state['events']
@@ -246,10 +317,11 @@ def project(state,page):
         batch=current_batch(state);result['machines']=[batch] if batch else []
         if page=='stats':
             now=datetime.now(TZ)
+            selected,coverage=financial_sales(state)
             result['days']=[]
             for offset in range(6,-1,-1):
                 day=now.date()-timedelta(days=offset)
-                total=sum(s['amount'] for s in state['sales'] if s['status']!='cancelled' and datetime.fromtimestamp(s['created']/1000,TZ).date()==day)
+                total=sum(s['amount'] for s in selected if s['status']!='cancelled' and datetime.fromtimestamp(s['created']/1000,TZ).date()==day) if coverage['available'] else None
                 result['days'].append({'label':['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'][day.weekday()],'amount':total})
             result['employeesTotal']=machine_ranking(state)
             stats=state.get('machineStats',{})
@@ -257,5 +329,5 @@ def project(state,page):
             for key,report in stats.get('history',{}).items():
                 rows=sorted([{'id':str(uid),'name':info.get('name') or str(uid),'count':max(0,int(info.get('count',0)))} for uid,info in report.get('users',{}).items()],key=lambda row:(-row['count'],row['name'].casefold()))
                 result['machineReports'].append({'key':key,'weekStart':report.get('week_start',key),'rows':rows})
-            result['groups']=[{'name':name,'gross':sum(s['amount'] for s in state['sales'] if s['group']==name and s['status']!='cancelled')} for name in RULES['groups']]
+            result['groups']=[{'name':name,'gross':sum(s['amount'] for s in selected if s['group']==name and s['status']!='cancelled') if coverage['available'] else None} for name in RULES['groups']]
     return result

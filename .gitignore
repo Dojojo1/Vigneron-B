@@ -26,3 +26,6 @@ sales-reset-state.json
 *.pyc
 *.pyo
 *.log
+
+# Anciens paquets de passation, sans utilité à l’exécution
+/recap/

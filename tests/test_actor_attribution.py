@@ -32,10 +32,15 @@ def prepare(env):
 
 def session(env,uid,name=None):
     env['client'].cookies.clear()
-    assert login(env,uid).status_code==303
     if name:
-        result=env['client'].patch('/api/me/profile',json={'displayName':name},headers=headers(env))
-        assert result.status_code==200,result.text
+        env['provider'].names[uid]=name
+        if not getattr(env['provider'],'nickname_fixture',False):
+            original=env['provider'].member
+            async def named_member(user_id):
+                return {**await original(user_id),'nick':env['provider'].names[user_id]}
+            env['provider'].member=named_member
+            env['provider'].nickname_fixture=True
+    assert login(env,uid).status_code==303
     profile=env['client'].get('/api/me').json()
     return {'cookies':dict(env['client'].cookies),'headers':{
         'Origin':env['cfg'].base_url,'X-CSRF-Token':profile['csrf']},

@@ -66,7 +66,7 @@ def business_changes(before,after):
 
 
 def route_info(path):
-    if path in ('/internal/bot/events','/internal/bot/commands','/internal/bot/ack'):
+    if path in ('/internal/bot/events','/internal/bot/commands','/internal/bot/ack','/internal/bot/resolve'):
         return path,None
     if path in ('/','/app','/auth/start','/auth/callback','/auth/access-code','/auth/logout','/api/status',
                 '/api/me','/api/me/profile','/api/me/avatar','/api/client-errors','/api/bootstrap'):

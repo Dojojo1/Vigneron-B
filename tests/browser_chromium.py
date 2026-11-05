@@ -282,7 +282,7 @@ const style=getComputedStyle(document.querySelector('#sidebar'),'::before');
 return {mask:style.maskImage,webkitMask:style.getPropertyValue('-webkit-mask-image'),mode:style.maskMode,background:style.backgroundImage,height:style.height,supports:CSS.supports('mask-image','linear-gradient(transparent,black)')};
 """)
             assert fade['supports'] and 'linear-gradient' in fade['mask']
-            assert 'midnight-statue.png' in fade['background'] and fade['mode'] == 'alpha'
+            assert 'midnight-statue.webp' in fade['background'] and fade['mode'] == 'alpha'
             screenshot('chromium-desktop-overview')
             driver.script("document.querySelector('#profile-toggle').click();")
             assert driver.script("return !document.querySelector('#profile-menu').hidden;")

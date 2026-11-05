@@ -46,7 +46,10 @@ def mount_static(source,destination):
         def link_or_copy(src,dst):
             try:return os.link(src,dst)
             except OSError:return shutil.copy2(src,dst)
-        shutil.copytree(source,destination,copy_function=link_or_copy)
+        # API fixtures need the real HTML/JS/CSS, not repeated multi-MB videos.
+        # Asset existence and browser rendering are verified against the real static tree.
+        shutil.copytree(source,destination,copy_function=link_or_copy,ignore=shutil.ignore_patterns('assets'))
+        (destination/'assets').mkdir()
 
 
 @pytest.fixture

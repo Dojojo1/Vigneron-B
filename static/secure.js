@@ -33,6 +33,7 @@
   }
  }
  function affectedPages(path){
+  if(path==='/api/admin/company-history')return ['overview','stats','journal'];
   if(path.startsWith('/api/actions/tombola')){catalogCache=null;return ['tombola','history','journal'];}
   if(path.startsWith('/api/actions/'))return ['overview','sales','machines','stats','history','journal'];
   if(path.startsWith('/api/me/'))return ['profile','team','council','journal'];
@@ -40,9 +41,10 @@
  }
  const can=page=>Boolean(session?.pages.some(p=>p.id===page));
  const landingPage=()=>can('overview')?'overview':'profile';
- const actionPage=action=>['add-sale','sale-detail','finish-sale','sale-waiting','sale-progress','cancel-sale','confirm-sales-reset','archive-sales'].includes(action)?'sales':['add-machine','edit-machine-time','recover','unrecover','cancel-machine'].includes(action)?'machines':['raffle-record','vehicle-buy','vehicle-pay','pay-all','reset-payments'].includes(action)?'tombola':null;
- const when=seconds=>new Intl.DateTimeFormat('fr-BE',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Brussels'}).format(new Date(seconds*1000));
- async function api(path,{method='GET',body,form,signal,requestKey,visit=false,exporting=false,cached,pageResponse}={}){
+ const actionPage=action=>action==='company-history'?'stats':['add-sale','sale-detail','finish-sale','sale-waiting','sale-progress','cancel-sale','confirm-sales-reset','archive-sales'].includes(action)?'sales':['add-machine','edit-machine-time','recover','unrecover','cancel-machine'].includes(action)?'machines':['raffle-record','vehicle-buy','vehicle-pay','pay-all','reset-payments','delete-vehicle','delete-tombola-week'].includes(action)?'tombola':null;
+ const whenFormatter=new Intl.DateTimeFormat('fr-BE',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Brussels'});
+ const when=seconds=>whenFormatter.format(new Date(seconds*1000));
+ async function api(path,{method='GET',body,form,signal,requestKey,visit=false,exporting=false,cached,pageResponse,background=false}={}){
   const requestScope=sessionScope(session),requestEpoch=cacheEpoch,privateRead=method==='GET'&&(path.startsWith('/api/pages/')||path.split('?')[0]==='/api/bootstrap');
   const currentScope=()=>(!requestScope||requestScope===sessionScope(session))&&(!privateRead||requestEpoch===cacheEpoch);
   const cooldownKey=path.split('?')[0],cooldown=requestCooldowns.get(cooldownKey);
@@ -52,6 +54,7 @@
   if(visit)headers['X-Heritage-Visit']='1';
   if(exporting)headers['X-Heritage-Export']='1';
   if(cached?.version)headers['X-Heritage-Cache']=cached.version;
+  if(background)headers['X-Heritage-Background']='1';
   if(requestKey)headers['Idempotency-Key']=requestKey;
   if(body){headers['Content-Type']='application/json';body=JSON.stringify(body);}
   const controller=new AbortController();
@@ -201,13 +204,13 @@
   $('#retry-page')?.addEventListener('click',()=>window.heritageRetry());
  }
  function profilePage(){
-  const u=session.user;
-  $('#content').innerHTML=`<section class="panel register-panel"><div class="register-heading"><img class="register-avatar" src="${escapeHTML(u.avatar)}" alt="Avatar de ${escapeHTML(u.displayName)}"><div><p class="eyebrow">MON REGISTRE</p><h2>${escapeHTML(u.displayName)}</h2><p>${escapeHTML(session.localPreview?u.role.name:u.supreme?'Administrateur Suprême':u.role.name)}</p></div></div><dl class="register-details"><div><dt>${u.authProvider==='access_code'?'Compte du site':'Compte Discord'}</dt><dd>${escapeHTML(u.discordName)}</dd></div><div><dt>Identifiant permanent</dt><dd>${escapeHTML(u.id)}</dd></div><div><dt>Entrée au registre</dt><dd>${when(u.createdAt)}</dd></div><div><dt>Dernière connexion</dt><dd>${when(u.lastLogin)}</dd></div></dl><form id="secure-profile-form"><label class="field">Pseudo sur L’Héritage<input name="displayName" value="${escapeHTML(u.displayName)}" required maxlength="60"></label><label class="field">Photo sur L’Héritage<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label><p class="form-note">JPG, PNG ou WebP · 10 Mo maximum. Ces changements concernent uniquement L’Héritage.</p><div class="register-actions"><button class="button primary" type="submit">Enregistrer mon profil →</button><button class="button glass" type="button" id="restore-discord-profile">Rétablir mon profil Discord</button><button class="button glass" type="button" id="register-logout">Se déconnecter</button></div></form></section>`;
+  const u=session.user,nameLocked=u.authProvider==='discord';
+  $('#content').innerHTML=`<section class="panel register-panel"><div class="register-heading"><img class="register-avatar" src="${escapeHTML(u.avatar)}" alt="Avatar de ${escapeHTML(u.displayName)}"><div><p class="eyebrow">MON REGISTRE</p><h2>${escapeHTML(u.displayName)}</h2><p>${escapeHTML(session.localPreview?u.role.name:u.supreme?'Administrateur Suprême':u.role.name)}</p></div></div><dl class="register-details"><div><dt>${u.authProvider==='access_code'?'Compte du site':'Compte Discord'}</dt><dd>${escapeHTML(u.discordName)}</dd></div><div><dt>Identifiant permanent</dt><dd>${escapeHTML(u.id)}</dd></div><div><dt>Entrée au registre</dt><dd>${when(u.createdAt)}</dd></div><div><dt>Dernière connexion</dt><dd>${when(u.lastLogin)}</dd></div></dl><form id="secure-profile-form"><label class="field">${nameLocked?'Surnom sur le serveur Discord':'Pseudo sur L’Héritage'}<input name="displayName" value="${escapeHTML(u.displayName)}" ${nameLocked?'readonly aria-describedby="discord-name-note"':'required maxlength="60"'}></label>${nameLocked?'<p class="form-note" id="discord-name-note">Ce pseudo suit automatiquement ton surnom sur le serveur. Tu peux le modifier dans Discord.</p>':''}<label class="field">Photo sur L’Héritage<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label><p class="form-note">JPG, PNG ou WebP · 10 Mo maximum. Ces changements concernent uniquement L’Héritage.</p><div class="register-actions"><button class="button primary" type="submit">Enregistrer mon profil →</button><button class="button glass" type="button" id="restore-discord-profile">Rétablir mon profil Discord</button><button class="button glass" type="button" id="register-logout">Se déconnecter</button></div></form></section>`;
   if(u.authProvider==='access_code')$('#restore-discord-profile').textContent='Rétablir le profil d’origine';
   if(u.authProvider==='local'){$('#restore-discord-profile').textContent='Rétablir le profil de test';$('#register-logout').textContent='Revenir à l’accueil';}
   const profileForm=$('#secure-profile-form');
   if(profileDraft?.userId===u.id){
-   profileForm.querySelector('[name=displayName]').value=profileDraft.displayName;
+   if(!nameLocked)profileForm.querySelector('[name=displayName]').value=profileDraft.displayName;
    if(profileDraft.file){try{const transfer=new DataTransfer();transfer.items.add(profileDraft.file);profileForm.querySelector('[name=photo]').files=transfer.files;}catch{toast('Ton pseudo est conservé. Sélectionne à nouveau la photo avant d’enregistrer.');}}
   }
   profileForm.addEventListener('submit',async e=>{
@@ -215,7 +218,7 @@
    try{
     const data=new FormData(e.target),file=data.get('photo');
     if(file?.size>10*1024*1024)throw Error('Choisis une photo de 10 Mo maximum.');
-    await api('/api/me/profile',{method:'PATCH',body:{displayName:data.get('displayName')}});
+    if(!nameLocked)await api('/api/me/profile',{method:'PATCH',body:{displayName:data.get('displayName')}});
     if(file?.size){const form=new FormData();form.append('file',file);await api('/api/me/avatar',{method:'POST',form});}
     const account=await api('/api/me');profileDraft=null;publishSession(account);if(profileForm.isConnected)profilePage();toast('Ton profil est enregistré.');
    }catch(error){toast(error.message);}finally{button.disabled=false;delete e.target.dataset.submitting;}
@@ -256,7 +259,14 @@
    const query=routes?'?'+new URLSearchParams(selected.map(route=>['pages',route])):'';
    let data;
    try{
-    data=await api('/api/bootstrap'+query);
+    // An unchanged visible screen needs only an authenticated version check.
+    const route=selected.length===1&&versionedRoutes.has(selected[0])?selected[0]:null;
+    const cached=route?cachedPage(defaults[route]):null;
+    if(cached?.version){
+     const pageResponse={},page=await api(defaults[route],{cached,pageResponse,background:true});
+     data={pages:{[route]:page},versions:{[route]:pageResponse.version},
+           identity:{userId:session.user.id,roleId:session.user.role.id}};
+    }else data=await api('/api/bootstrap'+query);
     if(epoch!==cacheEpoch||scope!==sessionScope(session))return false;
     if(!data||typeof data.pages!=='object'||!data.pages||Array.isArray(data.pages)||typeof data.versions!=='object'||!data.versions||!data.identity)throw bootstrapError('Le chargement du domaine est incomplet. Réessaie.');
     if(typeof data.identity!=='object'||Array.isArray(data.identity)||![data.identity.userId,data.identity.roleId].every(id=>typeof id==='string'&&/^(?:[0-9]{1,24}|local-preview|guest-[0-9a-f]{32}|access-code)$/.test(id)))throw bootstrapError('Le serveur a renvoyé une identité invalide. Réessaie.');
@@ -284,7 +294,7 @@
  function backgroundFailure(error){
   if(error.cancelled)return;
   if(error.status===401){publishSession(null);visibleDomain(false);$('.entry-demo-note').textContent=error.message;}
-  else if(error.status===403||error.status===503||error.sessionChanged)failPage(error);
+  else if(error.status===403||error.sessionChanged||!$('#content').hasChildNodes())failPage(error);
   // Les autres erreurs sont déjà présentées par api(), sans effacer une saisie.
  }
  function queuePreload(routes=null){
@@ -392,9 +402,9 @@
  // Machines refresh: fetch confirmed snapshots even when all actions originate in Discord.
  let machineRefreshInFlight=false,lastMachineRefresh=0;
  async function refreshMachineSnapshot(){
-  if(!session||activePage!=='machines'||document.hidden||refreshingPages||machineRefreshInFlight||pendingActions.size
+  if(!session||!['machines','sales','tombola','overview','stats'].includes(activePage)||document.hidden||refreshingPages||machineRefreshInFlight||pendingActions.size
       ||document.querySelector('dialog[open], #content[aria-busy="true"]')||document.activeElement?.matches('input,select,textarea'))return;
-  const interval=state.machineCommands?.some(job=>job.status==='pending')?15000:30000;
+  const interval=[...(state.machineCommands||[]),...(state.businessCommands||[])].some(job=>job.status==='pending')?15000:30000;
   const now=Date.now();if(now-lastMachineRefresh<interval)return;
   machineRefreshInFlight=true;lastMachineRefresh=now;
   try{await window.heritageNavigate({fresh:true,preserveFocus:true});}
@@ -404,6 +414,14 @@
  setInterval(()=>void refreshMachineSnapshot(),15000);
  // End Machines refresh.
  async function performAction(action,id,values,requestKey){
+  if(action==='company-history'){
+   if(!session?.user.supreme||!can('stats'))throw Error('Cet accès est réservé à l’administrateur suprême.');
+   const payload=companyHistorySubmission(values);
+   await api('/api/admin/company-history',{method:'POST',body:{...payload,operationKey:requestKey,expectedId:id||null}});
+   const refreshed=await window.heritageNavigate({fresh:true,preserveFocus:true});
+   toast(refreshed?'Total de départ enregistré.':'Total enregistré. Actualise la page pour le consulter.');return;
+  }
+
   const page=actionPage(action);if(!page)throw Error('Action inconnue.');
   const result=await api('/api/actions/'+page,{method:'POST',requestKey,body:{action,id:id||null,values}});
   if(action==='add-sale'||action==='confirm-sales-reset'){salesScope='current';search='';pageOffsets.sales=0;pageOffsets.events=0;}
@@ -419,6 +437,7 @@
   catch(error){if(!error.uncertain)operationKeys.delete(key);throw error;}
   finally{pendingActions.delete(key);}
  };
+ $('#form-dialog').addEventListener('close',()=>{if(formMode==='company-history')for(const key of operationKeys.keys())if(key.startsWith('["company-history",'))operationKeys.delete(key);});
  window.heritageCatalog=async()=>{
   if(!catalogCache)catalogCache=(await api('/api/pages/tombola?view=catalog')).catalog;
   state.catalog=catalogCache;
@@ -471,8 +490,12 @@
  document.addEventListener('click',e=>{if(!e.target.closest('.account-controls'))hidePanels();});
  document.addEventListener('keydown',e=>{if(e.key==='Escape')hidePanels();});
  window.addEventListener('hashchange',hidePanels);
- function clock(){const now=new Date();$('#estate-date').textContent=new Intl.DateTimeFormat('fr-BE',{dateStyle:'full',timeZone:'Europe/Brussels'}).format(now);$('#estate-clock').textContent=new Intl.DateTimeFormat('fr-BE',{timeStyle:'medium',timeZone:'Europe/Brussels'}).format(now);}
+ const estateDateFormatter=new Intl.DateTimeFormat('fr-BE',{dateStyle:'full',timeZone:'Europe/Brussels'});
+ const estateClockFormatter=new Intl.DateTimeFormat('fr-BE',{timeStyle:'medium',timeZone:'Europe/Brussels'});
+ function clock(){if(document.hidden||document.body.classList.contains('on-entry'))return;const now=new Date();$('#estate-date').textContent=estateDateFormatter.format(now);$('#estate-clock').textContent=estateClockFormatter.format(now);}
  clock();setInterval(clock,1000);
+ document.addEventListener('visibilitychange',clock);
+ window.addEventListener('heritage:domain-visibility',clock);
  async function boot(){
   $('#enter-demo').disabled=true;
   let account,error;
@@ -516,7 +539,7 @@
     if(activePage!=='welcome')await window.heritageNavigate({preserveFocus:true});
     toast('Ton accès au domaine a été actualisé.');
    }
-  }catch(error){if(error.cancelled)return;state=seed();if(error.status===401){publishSession(null);visibleDomain(false);$('.entry-demo-note').textContent=error.message;if(error.reason==='employee_required')location.assign('/?login_error=employee_required');}else failPage(error);}
+  }catch(error){if(error.cancelled)return;if(error.status===401){publishSession(null);visibleDomain(false);$('.entry-demo-note').textContent=error.message;if(error.reason==='employee_required')location.assign('/?login_error=employee_required');}else backgroundFailure(error);}
   finally{checkingSession=false;}
  }
  setInterval(verifySession,10000);
@@ -529,7 +552,7 @@
   }catch(error){backgroundFailure(error);}
   finally{refreshingPages=false;}
  },REFRESH_INTERVAL);
- let resumeTask=null;
+ let resumeTask=null,deferredResumeRoute=null;
  function resumePrivateView({force=false}={}){
   if(document.hidden||!session||activePage==='welcome'||resumeTask)return resumeTask;
   if(!force&&sessionConfirmedAt&&performance.now()-sessionConfirmedAt<SESSION_LEASE)return;
@@ -546,11 +569,15 @@
     if(!session){visibleDomain(false);return;}
     if(scope===sessionScope(session)&&epoch===cacheEpoch&&displayedPage===route&&content.hasChildNodes()&&can(route)){
      content.hidden=false;content.setAttribute('aria-busy','false');
+     if(versionedRoutes.has(route)){
+      if(document.querySelector('dialog[open]')||document.activeElement?.matches('input,select,textarea')||pendingActions.size){await ensurePreloaded([route]);deferredResumeRoute=route;}
+      else await window.heritageNavigate({fresh:true,preserveFocus:true});
+     }
     }else await window.heritageNavigate({preserveFocus:true});
    }catch(error){
     if(version!==navigationVersion)return;
     if(error.cancelled){if(session)await window.heritageNavigate({preserveFocus:true});else visibleDomain(false);}
-    else if(error.status===401)backgroundFailure(error);else failPage(error);
+    else backgroundFailure(error);
    }finally{
     if(resumeTask===task)resumeTask=null;
     if(version===navigationVersion&&!content.hidden)content.setAttribute('aria-busy','false');
@@ -558,6 +585,13 @@
   })();
   resumeTask=task;return task;
  }
+ function refreshDeferredResume(){
+  if(!deferredResumeRoute||document.hidden||!session||activePage!==deferredResumeRoute||document.querySelector('dialog[open]')||document.activeElement?.matches('input,select,textarea')||pendingActions.size)return;
+  deferredResumeRoute=null;void window.heritageNavigate({fresh:true,preserveFocus:true});
+ }
+ document.addEventListener('focusout',()=>setTimeout(refreshDeferredResume,0));
+ document.addEventListener('close',()=>setTimeout(refreshDeferredResume,0),true);
+ window.addEventListener('online',()=>void resumePrivateView({force:true}));
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void resumePrivateView();});
  window.addEventListener('focus',()=>void resumePrivateView());
  window.addEventListener('pageshow',event=>{if(event.persisted){sessionConfirmedAt=0;void resumePrivateView({force:true});}});

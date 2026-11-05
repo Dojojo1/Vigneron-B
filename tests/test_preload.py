@@ -221,7 +221,7 @@ def test_navigation_does_not_consume_business_write_quota_but_counts_global_requ
     env['cfg'].visitor_writes_per_minute = 1
     for _ in range(5):
         assert env['client'].post('/api/visits/profile',headers=h).status_code == 200
-    assert env['client'].patch('/api/me/profile',json={'displayName':'Nom'},headers=h).status_code == 200
+    assert env['client'].patch('/api/me/profile',json={'displayName':'Membre du domaine'},headers=h).status_code == 200
     assert env['client'].patch('/api/me/profile',json={'displayName':'Autre'},headers=h).status_code == 429
     # Repartir sur une nouvelle fenêtre de configuration sans tickets pré-réservés.
     env['cfg'].visitor_per_minute = 1

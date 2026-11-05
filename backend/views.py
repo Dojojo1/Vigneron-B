@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 
 from . import domain
+from .weekly_history import archive_catalog, selected_archive
+from .company_history import project_history, project_company_total
 
 
 def number(params, key, default=0, maximum=10000000):
@@ -42,16 +44,32 @@ def screen(state, page, params):
         result['pagination'][key]=meta
         return values
 
+    if page in ('sales','overview','stats'):result['salesCoverage']=domain.financial_sales(state)[1]
+    if page in ('overview','stats'):result.update(companyHistory=project_history(state),companyTotal=project_company_total(state))
     if page=='sales':
+        result['importedArchives']=archive_catalog(state)
         scope=params.get('scope','current')
+        archived=selected_archive(state,scope)
+        if archived is not None:
+            rows=archived['rows']
+            known=all(row['amount'] is not None for row in rows)
+            gross=sum(row['amount'] for row in rows) if known else None
+            filtered=[row for row in rows if query in ' '.join(str(row.get(k,'')) for k in ('id','group','employee','giver','receivedDate')).casefold()]
+            result.update(salesWeek=state['salesWeek'],scopeCount=len(rows),archiveRows=take(filtered,'sales'),
+                importedArchiveSelected={'id':str(archived['sheetId']),'name':archived['name'],'count':len(rows)},
+                scopeTotals={'gross':gross,'company':gross*.15 if known else None,'group':gross*.8 if known else None,'loss':gross*.05 if known else None},
+                archiveIncomplete=not known)
+            return result
+
         selected=[s for s in state['sales'] if scope=='all' or
                   (scope=='current' and not s.get('archive')) or
                   (scope=='open' and s['status']=='active') or s.get('archive')==scope]
-        gross=sum(s['amount'] for s in selected if s['status']!='cancelled')
+        totals=domain.financial(state,selected)
         result.update(salesWeek=state['salesWeek'],scopeCount=len(selected),
-                      scopeTotals={'gross':gross,'company':gross*.15,'group':gross*.8,'loss':gross*.05})
+                      scopeCoverage=domain.financial_sales(state,selected)[1],
+                      scopeTotals={key:totals[key] for key in ('gross','company','group','loss')})
         filtered=[s for s in selected if query in ' '.join(str(s.get(k,'')) for k in ('id','group','employee','giver')).casefold()]
-        filtered.sort(key=lambda s:(s['created'],int(s['id'])),reverse=True)
+        filtered.sort(key=lambda s:(s['created'],str(s['id'])),reverse=True)
         result['sales']=take(filtered,'sales')
         allocations=domain.allocations(state)
         result['allocations']={s['id']:allocations.get(s['id'],0) for s in result['sales']}
@@ -81,19 +99,24 @@ def screen(state, page, params):
     elif page=='tombola':
         now=datetime.now(domain.TZ)
         current=(now.date()-timedelta(days=now.weekday())).isoformat()
-        weeks=sorted({current,*[r['week'] for r in state['tombolaRecords']]},reverse=True)
+        weeks=sorted({current,*[r['week'] for r in state['tombolaRecords'] if not r.get('deleted')]},reverse=True)
         week=params.get('week') or current
-        result.update(tombolaWeeks=weeks,tombolaRecords=take([r for r in state['tombolaRecords'] if r['week']==week],'tombola'))
+        result.update(tombolaWeeks=weeks,tombolaRecords=take([r for r in state['tombolaRecords'] if r['week']==week and not r.get('deleted')],'tombola'))
     elif page=='history':
         result['events']=take(sorted(state['events'],key=lambda e:e['created'],reverse=True),'history')
     elif page=='stats':
         result['summary']=domain.financial(state)
         now=datetime.now(domain.TZ)
-        result['days']=[]
-        for offset in range(6,-1,-1):
-            day=now.date()-timedelta(days=offset)
-            total=sum(s['amount'] for s in state['sales'] if s['status']!='cancelled' and datetime.fromtimestamp(s['created']/1000,domain.TZ).date()==day)
-            result['days'].append({'label':['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'][day.weekday()],'amount':total})
+        days=[now.date()-timedelta(days=offset) for offset in range(6,-1,-1)]
+        totals=dict.fromkeys(days,0)
+        selected,coverage=domain.financial_sales(state)
+        for sale in selected:
+            if sale['status']=='cancelled':continue
+            day=datetime.fromtimestamp(sale['created']/1000,domain.TZ).date()
+            if day in totals:totals[day]+=sale['amount']
+        unavailable=not coverage['available']
+        result['days']=[{'label':['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'][day.weekday()],
+                         'amount':None if unavailable else totals[day]} for day in days]
         stats=state.get('machineStats',{})
         reports=[{'key':'current','weekStart':stats.get('week_start')}]
         reports.extend({'key':key,'weekStart':report.get('week_start',key)} for key,report in stats.get('history',{}).items())

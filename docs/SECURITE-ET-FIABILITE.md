@@ -50,4 +50,4 @@ Références de contrôle : [OWASP — autorisations](https://cheatsheetseries.o
 
 Les valeurs avant/après des anciens événements ne sont pas récupérables rétroactivement. Le journal n’efface aucun ancien événement, mais ne reconstitue pas des informations qui n’avaient jamais été enregistrées. Les erreurs navigateur ne sont confirmées dans le journal qu’après réception par le serveur ; voir les limites et la file locale dans le README.
 
-Voir [le bilan complet](AUDIT-COMPLET-2026-10-24.md) pour les corrections, les parcours de toutes les pages en largeur 390 px, la reprise après limite d’utilisation et les points restant à préparer. La dernière activation a conservé comptes, permissions, sessions, données métier et les 599 anciens logs contrôlés.
+Voir [l’architecture actuelle](ARCHITECTURE.md) pour le rôle des composants et leurs sources de données. Les anciens rapports de passation ne décrivent pas nécessairement la version déployée ; les comptes, permissions, sessions et historiques restent conservés.

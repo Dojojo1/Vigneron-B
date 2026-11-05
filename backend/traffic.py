@@ -40,7 +40,7 @@ class VisitorLimitMiddleware:
         cfg = self.limits.settings
         # Ne jamais utiliser X-Forwarded-For, User-Agent ou un cookie fourni par le visiteur.
         address = str((scope.get('client') or ('unknown', 0))[0])
-        connector = scope['path'] in ('/internal/bot/events','/internal/bot/commands','/internal/bot/ack')
+        connector = scope['path'] in ('/internal/bot/events','/internal/bot/commands','/internal/bot/ack','/internal/bot/resolve')
         bucket = 'connector:' + address if connector else address
         if connector:
             # Signed exchanges have their own bounded budget. HMAC verification

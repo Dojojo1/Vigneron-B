@@ -15,6 +15,7 @@ class Settings:
     bot_token: str = ''
     connector_secret: str = ''
     bot_commands_enabled: bool = False
+    business_commands_enabled: bool = False
     seed_demo_data: bool = False
     guild_id: str = '1500958425281204305'
     supreme_id: str = '356404251905228802'
@@ -40,6 +41,8 @@ class Settings:
     def configured(self): return bool(self.client_id and self.client_secret and self.bot_token)
 
     def validate_local_preview(self):
+        if self.business_commands_enabled and (not self.bot_commands_enabled or not self.connector_secret):
+            raise ValueError("Active les échanges du bot et son secret avant les opérations métier.")
         if self.connector_secret and len(self.connector_secret)<32:
             raise ValueError('HERITAGE_CONNECTOR_SECRET doit contenir au moins 32 caractères.')
         if self.bot_commands_enabled and not self.connector_secret:
@@ -59,6 +62,7 @@ class Settings:
                      bot_token=os.getenv('DISCORD_BOT_TOKEN', ''), guild_id=os.getenv('DISCORD_GUILD_ID', cls.guild_id),
                      connector_secret=os.getenv('HERITAGE_CONNECTOR_SECRET',''),
                      bot_commands_enabled=os.getenv('HERITAGE_BOT_COMMANDS_ENABLED','0')=='1',
+                     business_commands_enabled=os.getenv('HERITAGE_BUSINESS_COMMANDS_ENABLED','0')=='1',
                      seed_demo_data=os.getenv('HERITAGE_SEED_DEMO_DATA','0')=='1',
                      supreme_id=os.getenv('HERITAGE_SUPREME_ID', cls.supreme_id),
                      employee_role_id=os.getenv('HERITAGE_EMPLOYEE_ROLE_ID', cls.employee_role_id),

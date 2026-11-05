@@ -11,6 +11,7 @@ import time
 from uuid import uuid4
 
 from fastapi import HTTPException
+from .identity import display_name
 
 GUEST_PREFIX='guest-'
 GUEST_ROLE='access-code'
@@ -70,7 +71,7 @@ class AccessAccounts:
     def snapshot(self,db,user_id):
         row=db.execute('SELECT u.id,u.username,u.display_name,a.login_name,a.pages,a.expires_at,b.blocked_at FROM users u LEFT JOIN access_accounts a ON a.user_id=u.id LEFT JOIN site_access_blocks b ON b.user_id=u.id WHERE u.id=?',(user_id,)).fetchone()
         if not row:return None
-        return {'id':row['id'],'displayName':row['display_name'] or row['username'],
+        return {'id':row['id'],'displayName':display_name(row),
                 'provider':'access_code' if row['login_name'] else 'discord','loginName':row['login_name'],
                 'pages':json.loads(row['pages']) if row['pages'] else [],'expiresAt':row['expires_at'],
                 'blocked':row['blocked_at'] is not None}

@@ -83,10 +83,18 @@ try{
  await control({holdMe:true});await js("window.__advanceLease();window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}))");await waitPending();
  await control({holdMe:false});await wait("!document.querySelector('#content').hidden && document.querySelector('#content').getAttribute('aria-busy')==='false'");
 
- // A server error must show a visible error panel, not hide it under the loading state.
+ // Three hours away: the old DOM stays visible during auth, then cancellation is fetched.
+ await control({holdMe:true,cancelActive:true});
+ await js("window.__timeOffset+=10800000;window.__setHidden(true);window.__setHidden(false)");
+ await waitPending();
+ assert.equal(await js("!document.querySelector('#content').hidden && !!document.querySelector('.batch-card')"),true);
+ await control({holdMe:false});
+ await wait("!document.querySelector('#content').hidden && document.querySelector('#content').getAttribute('aria-busy')==='false' && document.querySelector('.machine-history') && !document.querySelector('.batch-card')");
+
+ // A transient server error keeps the confirmed page visible with a retry notice.
  await control({fault:'503'});await js('window.__advanceLease();window.__setHidden(false)');
- await wait("!!document.querySelector('.secure-message') && !document.querySelector('#content').hidden && document.querySelector('#content').getAttribute('aria-busy')==='false'");
- await control({fault:''});await js('void window.heritageRetry()');
+ await wait("!!document.querySelector('.machine-history') && !document.querySelector('#content').hidden && document.querySelector('#content').getAttribute('aria-busy')==='false' && !document.querySelector('#site-error').hidden");
+ await control({fault:''});await js('window.heritageRetry()');
  await wait("!!document.querySelector('.machine-history') && !document.querySelector('#content').hidden && document.querySelector('#content').getAttribute('aria-busy')==='false'");
 
  // Resume can overlap both real session-verification and data-refresh timers.
@@ -100,7 +108,7 @@ try{
  await wait("!!document.querySelector('.secure-message') && !document.querySelector('#content').hidden && document.querySelector('#content').getAttribute('aria-busy')==='false'");
  assert.equal(await js("document.querySelector('.machine-history')===null"),true);
  assert.equal(await js("document.querySelector('.secure-message h2').textContent"),'Accès réservé');
- await control({restricted:false});await js('void window.heritageRetry()');
+ await control({restricted:false});await js('window.heritageRetry()');
  await wait("!!document.querySelector('.machine-history') && !document.querySelector('#content').hidden && document.querySelector('#content').getAttribute('aria-busy')==='false'");
 
  // Expired sessions discard private UI and leave a usable entry screen.

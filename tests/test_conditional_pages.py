@@ -165,3 +165,24 @@ def test_session_endpoint_combines_public_configuration_without_401_private_data
     assert account['user']['id'] == MEMBER and account['csrf'] and account['pages']
     assert account['preview'] is True and account['configured'] is True and account['localPreview'] is False
     assert 'test-client-secret' not in json.dumps(account) and 'test-bot-token' not in json.dumps(account)
+
+
+def test_unchanged_background_poll_avoids_fake_reads_but_preserves_explicit_visits_and_denials(env):
+    grant(env, '100', 'sales'); login(env)
+    client=env['client']
+    first=client.get(SCREEN)
+    cached=cache_headers(first, **{'X-Heritage-Background':'1'})
+    unchanged=client.get(SCREEN,headers=cached)
+    assert unchanged.status_code==304
+    with env['store'].connect() as db:
+        count=db.execute("SELECT count(*) FROM audit WHERE json_extract(detail,'$.requestId')=?",(unchanged.headers['X-Request-ID'],)).fetchone()[0]
+        assert count==0
+    visit=client.get(SCREEN,headers={**cached,'X-Heritage-Visit':'1'})
+    assert visit.status_code==304
+    grant(env, '100', 'sales', False)
+    denied=client.get(SCREEN,headers=cached)
+    assert denied.status_code==403
+    with env['store'].connect() as db:
+        for response,kind in ((first,'data_read'),(visit,'page_view'),(denied,'request_refused')):
+            row=db.execute("SELECT kind FROM audit WHERE json_extract(detail,'$.requestId')=?",(response.headers['X-Request-ID'],)).fetchone()
+            assert row and row['kind']==kind

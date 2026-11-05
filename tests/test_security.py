@@ -38,15 +38,18 @@ def test_oauth_state_is_single_use(env):
     assert c.get('/auth/callback',params={'state':state,'code':MEMBER},follow_redirects=False).status_code==400
 
 
-def test_login_creates_one_account_and_reuses_custom_profile(env):
+def test_login_reuses_account_and_keeps_discord_name_authoritative(env):
     assert login(env).status_code==303
     c=env['client'];u=c.get('/api/me').json()['user']
     assert u['id']==MEMBER and u['role']['name']=='Membre'
     assert [p['id'] for p in c.get('/api/me').json()['pages']]==['profile']
     response=c.patch('/api/me/profile',json={'displayName':'Mon pseudo'},headers=headers(env))
-    assert response.status_code==200
+    assert response.status_code==400
+    with env['store'].connect(True) as db:
+        db.execute('UPDATE users SET display_name=? WHERE id=?',('Ancien pseudo',MEMBER))
     assert login(env).status_code==303
-    assert c.get('/api/me').json()['user']['displayName']=='Mon pseudo'
+    assert c.get('/api/me').json()['user']['displayName']=='Membre du domaine'
+    assert env['store'].read_user(MEMBER)['display_name']=='Ancien pseudo'
     with env['store'].connect() as db:
         assert db.execute('SELECT count(*) FROM users').fetchone()[0]==1
         token=db.execute('SELECT access_token FROM users').fetchone()[0]
@@ -148,7 +151,7 @@ def test_session_expiry_and_logout(env):
 
 def test_profiles_and_avatar_are_personal_and_validated(env):
     login(env);c=env['client'];h=headers(env)
-    assert c.patch('/api/me/profile',json={'displayName':'Personnage'},headers=h).status_code==200
+    assert c.patch('/api/me/profile',json={'displayName':'Personnage'},headers=h).status_code==400
     assert c.post('/api/me/avatar',files={'file':('photo.png',b'<svg onload="alert(1)"/>','image/png')},headers=h).status_code==400
     image=io.BytesIO();Image.new('RGB',(8,8),(40,50,60)).save(image,format='PNG')
     assert c.post('/api/me/avatar',files={'file':('../../evil.png',image.getvalue(),'image/png')},headers=h).status_code==200
@@ -157,7 +160,7 @@ def test_profiles_and_avatar_are_personal_and_validated(env):
     assert c.get('/api/me/avatar').status_code==404
     assert c.get('/api/me').json()['user']['displayName']=='Autre membre'
     login(env,MEMBER)
-    assert c.get('/api/me').json()['user']['displayName']=='Personnage'
+    assert c.get('/api/me').json()['user']['displayName']=='Membre du domaine'
     assert c.patch('/api/me/profile',json={'resetName':True,'resetAvatar':True},headers=headers(env)).status_code==200
     assert c.get('/api/me').json()['user']['displayName']=='Membre du domaine'
 
@@ -185,7 +188,7 @@ def test_avatar_accepts_ten_megabytes_and_rejects_larger_file(env):
     assert client.get('/api/me/avatar').content==saved
 
 
-def test_server_nickname_is_used_on_login_and_refresh_without_erasing_custom_name(env):
+def test_server_nickname_overrides_legacy_custom_name_on_login_and_refresh(env):
     provider=env['provider'];original=provider.member
     profile={'nick':'Tom Kerrigan','user':{'id':MEMBER,'global_name':'Nom du compte','username':'compte'}}
     async def member(user_id):
@@ -197,12 +200,15 @@ def test_server_nickname_is_used_on_login_and_refresh_without_erasing_custom_nam
     assert user['displayName']==user['discordName']=='Tom Kerrigan'
     profile['nick']='Tom du domaine'
     assert client.get('/api/me').json()['user']['displayName']=='Tom du domaine'
-    response=client.patch('/api/me/profile',json={'displayName':'Mon pseudo du site'},headers=headers(env))
-    assert response.status_code==200
+    with env['store'].connect(True) as db:
+        db.execute('UPDATE users SET display_name=? WHERE id=?',('Mon pseudo du site',MEMBER))
+    response=client.patch('/api/me/profile',json={'displayName':'Autre pseudo'},headers=headers(env))
+    assert response.status_code==400
     profile['nick']='Tom nouveau surnom'
     user=client.get('/api/me').json()['user']
-    assert user['displayName']=='Mon pseudo du site'
-    assert user['discordName']=='Tom nouveau surnom'
+    assert user['displayName']==user['discordName']=='Tom nouveau surnom'
+    assert user['nameEditable'] is False and user['customName'] is None
+    assert env['store'].read_user(MEMBER)['display_name']=='Mon pseudo du site'
     restored=client.patch('/api/me/profile',json={'resetName':True},headers=headers(env))
     assert restored.json()['user']['displayName']=='Tom nouveau surnom'
     profile['nick']=None
