@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS role_permissions(role_id TEXT NOT NULL, page_id TEXT 
 CREATE TABLE IF NOT EXISTS access_roles(role_id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS sessions(hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), csrf TEXT NOT NULL, created REAL NOT NULL, expires REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS oauth_states(hash TEXT PRIMARY KEY, expires REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS site_handoffs(hash TEXT PRIMARY KEY, token TEXT NOT NULL, landing TEXT NOT NULL, expires REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY AUTOINCREMENT, at REAL NOT NULL, actor TEXT, kind TEXT NOT NULL, detail TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS event_nonces(nonce TEXT PRIMARY KEY,expires REAL NOT NULL);
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS access_accounts(
 CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires);
 CREATE INDEX IF NOT EXISTS oauth_expiry_idx ON oauth_states(expires);
+CREATE INDEX IF NOT EXISTS site_handoffs_expiry_idx ON site_handoffs(expires);
 CREATE INDEX IF NOT EXISTS nonces_expiry_idx ON event_nonces(expires);
 CREATE INDEX IF NOT EXISTS users_members_created_idx ON users(member,created,id);
 CREATE INDEX IF NOT EXISTS users_login_idx ON users(last_login DESC,id);

@@ -149,7 +149,8 @@ class Security:
             self.store.audit(db,user_id,'access_revoked',{'reason':'employee_role_required','before':{'connected':True},'after':{'connected':False}})
 
     async def resolve(self, request):
-        value = request.cookies.get(COOKIE,'')
+        authorization = request.headers.get('authorization','')
+        value = authorization[7:] if authorization.startswith('Bearer ') else request.cookies.get(COOKIE,'')
         session = await run_in_threadpool(self._read_session, value)
         if not value or not session: raise HTTPException(401, 'Connecte-toi avec Discord.')
         request.state.audit_actor=session['user_id']

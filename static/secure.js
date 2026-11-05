@@ -1,11 +1,35 @@
 'use strict';
-(() => {
+(async () => {
  const publicPages=location.hostname.endsWith('.github.io')||document.querySelector('meta[name="heritage-hosting"]')?.content==='github-pages';
+ let apiBase='',bearer='';
  if(publicPages){
-  void window.heritageOpenConnectedSite().then(connected=>{
-   if(connected==='preview')window.heritagePublicDemo();
-  });
-  return;
+  try{
+   const response=await fetch(new URL('site-config.json',document.baseURI),{cache:'no-store'});
+   if(!response.ok)throw Error('Configuration publique indisponible.');
+   const config=await response.json();
+   if(config.mode==='preview'&&!config.backendUrl){window.heritagePublicDemo();return;}
+   const target=new URL(config.backendUrl);
+   if(target.protocol!=='https:'||target.username||target.password||target.pathname!=='/'||target.search||target.hash||target.origin===location.origin)throw Error('Adresse du serveur invalide.');
+   apiBase=target.origin;
+   const probe=await fetch(apiBase+'/api/status',{cache:'no-store',signal:AbortSignal.timeout(5000)});
+   if(!probe.ok)throw Error('Le serveur connecté n’est pas encore prêt.');
+   bearer=sessionStorage.getItem('heritage.backend-token')||'';
+   window.heritageLogin=()=>location.assign(apiBase+'/auth/start');
+   const ticket=/^#auth=([A-Za-z0-9_-]{40,80})$/.exec(location.hash)?.[1];
+   if(ticket){
+    history.replaceState(null,'',location.pathname+location.search);
+    bearer='';sessionStorage.removeItem('heritage.backend-token');
+    const handoff=await fetch(apiBase+'/auth/handoff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket}),cache:'no-store'});
+    if(!handoff.ok)throw Error('Cette connexion a expiré. Recommence depuis l’accueil.');
+    const result=await handoff.json();
+    if(!/^[A-Za-z0-9_-]{40,80}$/.test(result.token)||!['overview','profile'].includes(result.landing))throw Error('Réponse de connexion invalide.');
+    bearer=result.token;sessionStorage.setItem('heritage.backend-token',bearer);
+    location.hash=result.landing;
+   }
+  }catch(error){
+   void window.heritageOpenConnectedSite().then(connected=>{if(connected==='preview')window.heritagePublicDemo();});
+   return;
+  }
  }
  let session=null,navigationVersion=0,navigationAbort=null,filterTimer=null,catalogCache=null,lastVisited=null,sheetsAbort=null,sheetsVersion=0;
  const pendingActions=new Map(),operationKeys=new Map(),requestCooldowns=new Map();
@@ -44,6 +68,16 @@
  const actionPage=action=>action==='company-history'?'stats':['add-sale','sale-detail','finish-sale','sale-waiting','sale-progress','cancel-sale','confirm-sales-reset','archive-sales'].includes(action)?'sales':['add-machine','edit-machine-time','recover','unrecover','cancel-machine'].includes(action)?'machines':['raffle-record','vehicle-buy','vehicle-pay','pay-all','reset-payments','delete-vehicle','delete-tombola-week'].includes(action)?'tombola':null;
  const whenFormatter=new Intl.DateTimeFormat('fr-BE',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Brussels'});
  const when=seconds=>whenFormatter.format(new Date(seconds*1000));
+ const avatarCache=new Map();
+ async function hydrateAvatars(data){
+  if(!bearer||!data||typeof data!=='object')return;
+  const urls=new Set();
+  const collect=value=>{if(!value||typeof value!=='object')return;if(Array.isArray(value)){value.forEach(collect);return;}for(const [key,item] of Object.entries(value)){if(key==='avatar'&&typeof item==='string'&&item.startsWith('/api/'))urls.add(item);else if(item&&typeof item==='object')collect(item);}};
+  collect(data);
+  await Promise.all([...urls].map(async url=>{if(avatarCache.has(url))return;try{const response=await fetch(apiBase+url,{headers:{Authorization:'Bearer '+bearer},cache:'no-store'});if(response.ok)avatarCache.set(url,URL.createObjectURL(await response.blob()));}catch{}}));
+  const replace=value=>{if(!value||typeof value!=='object')return;if(Array.isArray(value)){value.forEach(replace);return;}for(const [key,item] of Object.entries(value)){if(key==='avatar'&&avatarCache.has(item))value[key]=avatarCache.get(item);else if(item&&typeof item==='object')replace(item);}};
+  replace(data);
+ }
  async function api(path,{method='GET',body,form,signal,requestKey,visit=false,exporting=false,cached,pageResponse,background=false}={}){
   const requestScope=sessionScope(session),requestEpoch=cacheEpoch,privateRead=method==='GET'&&(path.startsWith('/api/pages/')||path.split('?')[0]==='/api/bootstrap');
   const currentScope=()=>(!requestScope||requestScope===sessionScope(session))&&(!privateRead||requestEpoch===cacheEpoch);
@@ -64,7 +98,8 @@
   const writing=method!=='GET'&&!path.startsWith('/api/visits/')&&path!=='/api/client-errors';
   try{
    let response;
-   try{response=await fetch(path,{method,headers,body:form||body,credentials:'same-origin',cache:'no-store',keepalive:path.startsWith('/api/visits/'),signal:controller.signal});}
+   if(publicPages&&bearer)headers.Authorization='Bearer '+bearer;
+   try{response=await fetch(apiBase+path,{method,headers,body:form||body,credentials:publicPages?'omit':'same-origin',cache:'no-store',keepalive:path.startsWith('/api/visits/'),signal:controller.signal});}
    catch(cause){
     if(signal?.aborted){const error=new Error('Chargement remplacé.');error.cancelled=true;throw error;}
     const error=new Error(cause.name==='AbortError'?'Le serveur met trop de temps à répondre.':navigator.onLine===false?'La connexion avec le site est interrompue.':'Impossible de joindre le serveur du site. Vérifie qu’il est démarré.');
@@ -88,6 +123,7 @@
     const detail=typeof data?.detail==='string'?data.detail:null;
     const error=new Error(response.status>=500&&!data?.reason?'Le serveur rencontre un problème. Réessaie dans quelques instants.':detail||'La demande a échoué.');
     error.status=response.status;error.reason=data?.reason;error.uncertain=writing&&response.status>=500&&data?.reason!=='api_budget_exhausted';
+    if(publicPages&&response.status===401){bearer='';sessionStorage.removeItem('heritage.backend-token');}
     if(path==='/api/me'&&typeof data?.configured==='boolean')error.configuration={configured:data.configured,localPreview:data.localPreview,preview:data.preview};
     const wait=Number(response.headers.get('Retry-After'));
     if((response.status===429||data?.reason==='api_budget_exhausted')&&Number.isFinite(wait)&&wait>0){
@@ -98,6 +134,7 @@
    if(privateRead&&!currentScope()){const error=new Error('Les données ont changé pendant le chargement. Réessaie.');error.cancelled=true;error.staleRead=true;throw error;}
    if(writing){const routes=affectedPages(path);clearPageCache(routes);if(path!=='/auth/logout')queuePreload(routes);}
    window.heritageFeedback?.recovered(path);
+   if(publicPages)await hydrateAvatars(data);
    return data;
   }catch(error){
    if(!currentScope()){error.cancelled=true;error.staleRead=privateRead&&!signal?.aborted;throw error;}
@@ -127,7 +164,7 @@
    while(session&&errorStorage()===key&&pendingErrors(key).length){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
     try{
-     const response=await fetch('/api/client-errors',{method:'POST',credentials:'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json','X-CSRF-Token':session.csrf},body:JSON.stringify(pendingErrors(key)[0])});
+     const response=await fetch(apiBase+'/api/client-errors',{method:'POST',credentials:publicPages?'omit':'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json','X-CSRF-Token':session.csrf,...(publicPages&&bearer?{Authorization:'Bearer '+bearer}:{})},body:JSON.stringify(pendingErrors(key)[0])});
      if(!response.ok)break;
      pendingErrors(key).shift();persistErrors(key);
     }catch{break;}finally{clearTimeout(timer);}
@@ -398,7 +435,7 @@
    if(focusId){const input=document.getElementById(focusId);input?.focus({preventScroll:true});if(typeof position==='number'&&input?.setSelectionRange)input.setSelectionRange(position,position);}
    if(entry)refreshQuery(route,url,entry);
    return true;
-  }catch(error){if(version!==navigationVersion)return false;if(error.staleRead&&staleRetries<2)return await window.heritageNavigate({preserveFocus,sessionRefreshed,staleRetries:staleRetries+1});if(error.cancelled&&!error.staleRead)return false;if(!error.status&&!error.clientKind)window.heritageReportError?.('script');if(error.status===401){publishSession(null);location.assign('/?login_error='+(error.reason==='employee_required'?'employee_required':error.reason==='site_access_revoked'?'site_access_revoked':'session'));}else failPage(error);return false;}
+  }catch(error){if(version!==navigationVersion)return false;if(error.staleRead&&staleRetries<2)return await window.heritageNavigate({preserveFocus,sessionRefreshed,staleRetries:staleRetries+1});if(error.cancelled&&!error.staleRead)return false;if(!error.status&&!error.clientKind)window.heritageReportError?.('script');if(error.status===401){publishSession(null);location.assign((publicPages?location.pathname:'/')+'?login_error='+(error.reason==='employee_required'?'employee_required':error.reason==='site_access_revoked'?'site_access_revoked':'session'));}else failPage(error);return false;}
   finally{clearTimeout(loading);if(version===navigationVersion){content.setAttribute('aria-busy','false');content.classList.remove('is-refreshing');}}
  };
  // Machines refresh: fetch confirmed snapshots even when all actions originate in Discord.
@@ -468,7 +505,7 @@
   if(!session?.user.supreme||!confirm('Réinitialiser uniquement les données métier de test ? Une sauvegarde sera conservée.'))return;
   try{await api('/api/admin/reset-test-data',{method:'POST',body:{}});machineStatsWeek='current';salesScope='current';tombolaWeek='';for(const key of Object.keys(pageOffsets))pageOffsets[key]=0;await window.heritageNavigate();toast('Données de test réinitialisées.');}catch(error){toast(error.message);}
  };
- async function logout(){if(session?.user.authProvider==='local'){try{await api('/auth/logout',{method:'POST',body:{}});lastVisited=null;location.hash='welcome';}catch(error){toast(error.message);}return;}try{await api('/auth/logout',{method:'POST',body:{}});session=null;window.heritageSession=null;state=seed();location.assign('/');}catch(error){toast(error.message);}}
+ async function logout(){if(session?.user.authProvider==='local'){try{await api('/auth/logout',{method:'POST',body:{}});lastVisited=null;location.hash='welcome';}catch(error){toast(error.message);}return;}try{await api('/auth/logout',{method:'POST',body:{}});session=null;window.heritageSession=null;state=seed();if(publicPages){bearer='';sessionStorage.removeItem('heritage.backend-token');}location.assign(publicPages?location.pathname:'/');}catch(error){toast(error.message);}}
  function hidePanels(){['profile-menu','notifications-panel','search-results'].forEach(id=>$('#'+id).hidden=true);$('#profile-toggle').setAttribute('aria-expanded','false');$('#notifications-toggle').setAttribute('aria-expanded','false');}
  $('#profile-toggle').addEventListener('click',()=>{const opening=$('#profile-menu').hidden;hidePanels();$('#profile-menu').hidden=!opening;$('#profile-toggle').setAttribute('aria-expanded',String(opening));});
  $('#edit-profile').addEventListener('click',()=>{hidePanels();location.hash='profile';});
@@ -480,10 +517,11 @@
   notice.hidden=false;notice.textContent='Vérification de ton accès…';
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
   try{
-   const values=new FormData(form),response=await fetch('/auth/access-code',{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({loginName:values.get('loginName'),accessCode:values.get('accessCode')})});
+   const values=new FormData(form),response=await fetch(apiBase+'/auth/access-code',{method:'POST',credentials:publicPages?'omit':'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({loginName:values.get('loginName'),accessCode:values.get('accessCode')})});
    const result=await response.json();
    if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:'La connexion a échoué. Réessaie.');
-   form.reset();location.assign('/app#'+(result.landing==='overview'?'overview':'profile'));
+   if(publicPages){if(!/^[A-Za-z0-9_-]{40,80}$/.test(result.token||''))throw new Error('Réponse de connexion invalide.');bearer=result.token;sessionStorage.setItem('heritage.backend-token',bearer);}
+   form.reset();location.assign((publicPages?location.pathname:'/app')+'#'+(result.landing==='overview'?'overview':'profile'));
   }catch(error){notice.textContent=error.name==='AbortError'?'Le serveur met trop de temps à répondre. Réessaie.':error instanceof TypeError?'Impossible de joindre le serveur. Vérifie ta connexion.':error.message;}
   finally{clearTimeout(timer);button.disabled=false;delete form.dataset.busy;}
  });
@@ -515,7 +553,7 @@
    await ensurePreloaded();
    if(location.hash==='#welcome'||loginError){visibleDomain(false);return true;}
    else{
-    if(!location.hash)history.replaceState(null,'','/app'+location.search+'#'+landingPage());
+    if(!location.hash)history.replaceState(null,'',(publicPages?location.pathname:'/app')+location.search+'#'+landingPage());
     return await window.heritageNavigate();
    }
   }
@@ -541,7 +579,7 @@
     if(activePage!=='welcome')await window.heritageNavigate({preserveFocus:true});
     toast('Ton accès au domaine a été actualisé.');
    }
-  }catch(error){if(error.cancelled)return;if(error.status===401){publishSession(null);visibleDomain(false);$('.entry-demo-note').textContent=error.message;if(error.reason==='employee_required')location.assign('/?login_error=employee_required');}else backgroundFailure(error);}
+  }catch(error){if(error.cancelled)return;if(error.status===401){publishSession(null);visibleDomain(false);$('.entry-demo-note').textContent=error.message;if(error.reason==='employee_required')location.assign((publicPages?location.pathname:'/')+'?login_error=employee_required');}else backgroundFailure(error);}
   finally{checkingSession=false;}
  }
  setInterval(verifySession,10000);

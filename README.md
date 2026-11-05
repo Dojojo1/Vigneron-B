@@ -12,7 +12,7 @@ Site de gestion du domaine RP : interface web et backend Python du site.
 
 | Emplacement | Contenu |
 | --- | --- |
-| `index.html` | Accueil publié sur GitHub Pages |
+| `index.html` | Accueil et interface publiés sur GitHub Pages |
 | `static/` | Interface, styles, scripts, images et animations |
 | `backend/` | Serveur FastAPI, comptes, permissions et données métier |
 | `scripts/` | Lancement, configuration, export et vérifications |
@@ -25,11 +25,20 @@ Site de gestion du domaine RP : interface web et backend Python du site.
 Publier la branche depuis sa racine (`/`). Conserver `index.html` et le dossier
 `static/` ensemble : l’accueil charge ses ressources depuis `./static/`.
 
-GitHub Pages affiche l’accueil avec « Se connecter avec Discord ». Le clic ouvre
-la connexion OAuth2 sur le backend configuré dans `static/site-config.json`.
-Les pages privées restent cachées avant authentification ; aucune session locale
-n’est créée automatiquement en cas de configuration absente ou de panne réseau.
+GitHub Pages affiche l’accueil et les pages connectées. Le clic sur « Se connecter
+avec Discord » ouvre l’OAuth2 sur le backend configuré dans `static/site-config.json`.
+Après validation, le backend renvoie un ticket à usage unique vers GitHub Pages ;
+le navigateur l’échange contre une session conservée pour cet onglet. Les appels
+aux données passent ensuite directement par l’API Linux, avec autorisations et
+protection CSRF côté serveur. Les pages privées restent cachées avant authentification.
+Avant l’activation du backend compatible, l’accueil conserve l’ancien lien vers
+le site connecté Linux pour éviter une coupure pendant la publication.
 Les secrets restent exclusivement dans le `.env` privé du backend Python.
+
+Pour activer ce retour après publication des fichiers GitHub Pages, configurer
+`HERITAGE_PUBLIC_SITE_URL=https://dojojo1.github.io/Vigneron-B/` dans le `.env`
+privé du Site Linux puis y installer les changements ciblés du backend et
+redémarrer `heritage-site.service`. Ne pas copier les données du dépôt sur Linux.
 
 Les essais locaux restent disponibles uniquement avec le mode explicite
 `python scripts/configure_connection.py --preview`. Ils ne donnent aucun accès
@@ -102,6 +111,5 @@ Le test de l’accueil utilise Node.js et Chrome, sans compte Discord :
 node tests/browser_pages.mjs
 ```
 
-Il vérifie l’accueil sous `/Vigneron-B/`, quatre largeurs d’écran, l’absence
-d’appels aux API privées, et la récupération après des fichiers manquants.
+Le parcours connecté GitHub Pages/API est vérifié par `tests/test_github_handoff.py`.
 Les tests du serveur se lancent avec `python -m pytest tests` dans son environnement.

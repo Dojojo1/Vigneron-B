@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class Settings:
     root: Path = ROOT
     base_url: str = 'http://127.0.0.1:8081'
+    public_site_url: str = ''
     client_id: str = ''
     client_secret: str = ''
     bot_token: str = ''
@@ -58,6 +59,7 @@ class Settings:
     def load(cls):
         load_dotenv(ROOT / '.env', override=False)
         result = cls(base_url=os.getenv('HERITAGE_BASE_URL', cls.base_url).rstrip('/'),
+                     public_site_url=os.getenv('HERITAGE_PUBLIC_SITE_URL', '').strip(),
                      client_id=os.getenv('DISCORD_CLIENT_ID', ''), client_secret=os.getenv('DISCORD_CLIENT_SECRET', ''),
                      bot_token=os.getenv('DISCORD_BOT_TOKEN', ''), guild_id=os.getenv('DISCORD_GUILD_ID', cls.guild_id),
                      connector_secret=os.getenv('HERITAGE_CONNECTOR_SECRET',''),
@@ -79,5 +81,9 @@ class Settings:
             raise ValueError('HERITAGE_BASE_URL doit être une origine HTTP(S).')
         if not result.secure and url.hostname not in ('127.0.0.1', 'localhost', '::1'):
             raise ValueError('HTTPS obligatoire hors localhost.')
+        if result.public_site_url:
+            public = urlparse(result.public_site_url)
+            if public.scheme != 'https' or not public.hostname or public.username or public.password or public.query or public.fragment or not result.public_site_url.endswith('/'):
+                raise ValueError('HERITAGE_PUBLIC_SITE_URL doit être une adresse HTTPS terminée par /.')
         result.validate_local_preview()
         return result

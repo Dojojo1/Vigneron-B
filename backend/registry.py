@@ -8,4 +8,6 @@ def discover_pages(static_dir):
              for match in re.findall(r"([a-zA-Z][\w-]*):\['([^']+)'",declaration.group(1))}
     pages['profile'] = {'id':'profile','label':'Mon Registre','kind':'member'}
     pages['council'] = {'id':'council','label':'Le Conseil des Accès','kind':'supreme'}
+    # GitHub Pages may publish a new client category before the Linux shell is updated.
+    pages.setdefault('logs', {'id':'logs','label':'Logs','kind':'private'})
     return pages

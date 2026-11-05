@@ -24,6 +24,7 @@ les données et la direction artistique existantes. Modifier uniquement le proje
 
 - Serveur dans `backend/`, interface et médias dans `static/`.
 - Les données, sessions et avatars restent dans `data/`, hors du dépôt public.
-- GitHub Pages sert l’accueil statique ; les comptes et données réelles sont
-  fournis par le Site Linux. Le code et le setup du bot restent dans leur projet.
+- GitHub Pages sert l’accueil et l’interface connectée. Le Site Linux assure
+  uniquement OAuth Discord, l’API, les comptes et les données réelles.
+  Le code et le setup du bot restent dans leur projet.
 - Préserver les différences entre les copies du Site Linux et du Site GitHub.

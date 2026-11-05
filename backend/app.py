@@ -18,6 +18,7 @@ from fastapi import FastAPI, Request, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 from .config import Settings
@@ -52,6 +53,7 @@ def create_app(settings=None, provider=None):
     pages = discover_pages(static)
     accounts=AccessAccounts(store,cfg,pages)
     code_login_slots=asyncio.Semaphore(2)
+    public_origin = (urlparse(cfg.public_site_url).scheme + '://' + urlparse(cfg.public_site_url).netloc) if cfg.public_site_url else ''
     def initial_domain():
         initial=domain.seed()
         if not cfg.local_preview and not cfg.seed_demo_data:
@@ -94,7 +96,8 @@ def create_app(settings=None, provider=None):
         if page:security.require_page(user,page,pages)
 
     def csrf(request,session):
-        if request.headers.get('origin')!=cfg.base_url or not hmac.compare_digest(request.headers.get('x-csrf-token','').encode('utf-8'),session['csrf'].encode('utf-8')):
+        expected_origin = public_origin if request.headers.get('authorization','').startswith('Bearer ') and public_origin else cfg.base_url
+        if request.headers.get('origin')!=expected_origin or not hmac.compare_digest(request.headers.get('x-csrf-token','').encode('utf-8'),session['csrf'].encode('utf-8')):
             raise HTTPException(403,'Protection CSRF : recharge la page avant de réessayer.')
 
     async def json_body(request):
@@ -160,7 +163,7 @@ def create_app(settings=None, provider=None):
             if request.method in ('POST','PUT','PATCH'):
                 length=request.headers.get('content-length')
                 if length and (not length.isdigit() or int(length)>request_body_limit(path)): raise HTTPException(413,'Requête trop volumineuse.')
-            public=path in {'/','/api/status','/auth/start','/auth/callback','/auth/access-code','/auth/logout',BOT_PATH+'/events',BOT_PATH+'/commands',BOT_PATH+'/ack',BOT_PATH+'/resolve'} or path in public_files or path.startswith('/assets/')
+            public=path in {'/','/api/status','/auth/start','/auth/callback','/auth/handoff','/auth/access-code','/auth/logout',BOT_PATH+'/events',BOT_PATH+'/commands',BOT_PATH+'/ack',BOT_PATH+'/resolve'} or path in public_files or path.startswith('/assets/')
             if not public:
                 request.state.audit_stage='authentication'
                 user,session=await security.resolve(request)
@@ -201,7 +204,7 @@ def create_app(settings=None, provider=None):
                         return db.execute('UPDATE sessions SET expires=? WHERE hash=? AND expires>?',
                                           (expiry,current_session['hash'],now)).rowcount
                 updated=await run_in_threadpool(renew)
-                if updated: session_cookie(response,request.cookies[COOKIE])
+                if updated and COOKIE in request.cookies and not request.headers.get('authorization','').startswith('Bearer '): session_cookie(response,request.cookies[COOKIE])
         response.headers['X-Content-Type-Options']='nosniff'
         response.headers['Referrer-Policy']='no-referrer'
         response.headers['X-Frame-Options']='DENY'
@@ -231,7 +234,7 @@ def create_app(settings=None, provider=None):
     @app.get('/auth/start')
     def start():
         if cfg.local_preview: return RedirectResponse('/app#overview',status_code=303)
-        if not cfg.configured: return RedirectResponse('/?login_error=configuration',status_code=303)
+        if not cfg.configured: return RedirectResponse((cfg.public_site_url or '/')+'?login_error=configuration',status_code=303)
         state=secrets.token_urlsafe(40)
         with store.connect(True) as db:
             db.execute('DELETE FROM oauth_states WHERE expires<?',(time.time(),))
@@ -246,7 +249,7 @@ def create_app(settings=None, provider=None):
     async def callback(request:Request):
         if cfg.local_preview: return RedirectResponse('/app#overview',status_code=303)
         def failed(reason):
-            response=RedirectResponse('/?login_error='+reason,status_code=303)
+            response=RedirectResponse((cfg.public_site_url or '/')+'?login_error='+reason,status_code=303)
             response.delete_cookie(STATE_COOKIE,path='/auth')
             return response
 
@@ -296,15 +299,35 @@ def create_app(settings=None, provider=None):
             await run_in_threadpool(revoke_previous)
         overview_allowed=await run_in_threadpool(security.allowed,{'id':str(identity['id']),'role_ids':json.dumps(member.get('roles',[]))},'overview')
         landing='overview' if overview_allowed else 'profile'
-        response=RedirectResponse('/app#'+landing,status_code=303)
+        if cfg.public_site_url:
+            ticket=secrets.token_urlsafe(40)
+            with store.connect(True) as db:
+                db.execute('DELETE FROM site_handoffs WHERE expires<?',(time.time(),))
+                db.execute('INSERT INTO site_handoffs VALUES(?,?,?,?)',(hashed(ticket),security.encrypt(token),landing,time.time()+90))
+            response=RedirectResponse(cfg.public_site_url+'#auth='+ticket,status_code=303)
+        else:
+            response=RedirectResponse('/app#'+landing,status_code=303)
         response.delete_cookie(STATE_COOKIE,path='/auth')
-        session_cookie(response,token)
+        if not cfg.public_site_url: session_cookie(response,token)
         return response
+
+    @app.post('/auth/handoff')
+    async def handoff(request:Request):
+        if not public_origin or request.headers.get('origin')!=public_origin or request.headers.get('content-type','').split(';')[0].strip().lower()!='application/json':
+            raise HTTPException(403,'Origine de connexion invalide.')
+        payload=await json_body(request)
+        ticket=payload.get('ticket') if isinstance(payload,dict) else None
+        if not isinstance(ticket,str) or not re.fullmatch(r'[A-Za-z0-9_-]{40,80}',ticket):
+            raise HTTPException(400,'Connexion invalide ou expirée.')
+        with store.connect(True) as db:
+            row=db.execute('DELETE FROM site_handoffs WHERE hash=? AND expires>? RETURNING token,landing',(hashed(ticket),time.time())).fetchone()
+        if not row: raise HTTPException(401,'Connexion expirée ou déjà utilisée.')
+        return JSONResponse({'token':security.decrypt(row['token']),'landing':row['landing']},headers={'Cache-Control':'no-store'})
 
     @app.post('/auth/access-code')
     async def code_login(request:Request):
         # Origin exact + JSON : pas de connexion forcée par un formulaire tiers.
-        if request.headers.get('origin')!=cfg.base_url or request.headers.get('content-type','').split(';')[0].strip().lower()!='application/json':
+        if request.headers.get('origin') not in ({cfg.base_url,public_origin} if public_origin else {cfg.base_url}) or request.headers.get('content-type','').split(';')[0].strip().lower()!='application/json':
             raise HTTPException(403,'Recharge la page de connexion avant de réessayer.')
         data=await json_body(request)
         if code_login_slots.locked():raise HTTPException(429,'Connexions en cours. Réessaie dans quelques secondes.',headers={'Retry-After':'2'})
@@ -319,12 +342,15 @@ def create_app(settings=None, provider=None):
                 with store.connect(True) as db:db.execute('DELETE FROM sessions WHERE hash=?',(hashed(old),))
             await run_in_threadpool(revoke_previous)
         landing='overview' if await run_in_threadpool(security.allowed,request.state.identity,'overview') else 'profile'
-        response=JSONResponse({'ok':True,'landing':landing});session_cookie(response,token)
+        remote=request.headers.get('origin')==public_origin and bool(public_origin)
+        response=JSONResponse({'ok':True,'landing':landing,**({'token':token} if remote else {})})
+        if not remote: session_cookie(response,token)
         return response
 
     @app.post('/auth/logout')
     async def logout(request:Request):
-        token=request.cookies.get(COOKIE,'')
+        authorization=request.headers.get('authorization','')
+        token=authorization[7:] if authorization.startswith('Bearer ') else request.cookies.get(COOKIE,'')
         local_user=None
         if cfg.local_preview:
             local_user,current=await security.resolve(request);csrf(request,current)
@@ -798,4 +824,9 @@ def create_app(settings=None, provider=None):
     app.add_middleware(BodyLimitMiddleware)
     app.add_middleware(VisitorLimitMiddleware, limits=traffic)
     app.add_middleware(AuditHTTPMiddleware, store=store, session_cookie=COOKIE,writer=audit_writer)
+    if public_origin:
+        app.add_middleware(CORSMiddleware,allow_origins=[public_origin],allow_credentials=False,
+                           allow_methods=['GET','POST','PUT','PATCH','DELETE'],
+                           allow_headers=['Authorization','Content-Type','X-CSRF-Token','X-Heritage-Visit','X-Heritage-Export','X-Heritage-Cache','X-Heritage-Background','Idempotency-Key'],
+                           expose_headers=['X-Heritage-Data-Version','X-Heritage-User','X-Heritage-Role','Retry-After'])
     return app

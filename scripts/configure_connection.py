@@ -1,6 +1,7 @@
 """Read private .env settings and publish ONLY the backend origin for GitHub Pages."""
 import json
 import argparse
+import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -34,6 +35,13 @@ def configure(root,*,url=None,preview=False):
         set_key(envfile,'HERITAGE_BASE_URL',url,quote_mode='always')
         set_key(envfile,'HERITAGE_PUBLIC_BACKEND_URL',url,quote_mode='always')
     (root/'static/site-config.json').write_text(json.dumps(config,indent=2)+'\n',encoding='utf-8')
+    for entry in (root/'static/index.html',root/'index.html'):
+        if not entry.is_file():continue
+        source=entry.read_text(encoding='utf-8')
+        updated,count=re.subn(r"connect-src 'self'(?: https://[^;\" ]+)?;",
+                              "connect-src 'self'"+((' '+config['backendUrl']) if config['backendUrl'] else '')+';',source,count=1)
+        if count:
+            entry.write_text(updated,encoding='utf-8',newline='\n')
     return config
 
 
