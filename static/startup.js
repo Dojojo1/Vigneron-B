@@ -19,7 +19,10 @@
   if(target?.tagName==='SCRIPT'&&!target.src.startsWith(assetRoot))return;
   if(target?.tagName==='LINK'&&!target.href.startsWith(assetRoot))return;
   // A failed optional font import still leaves the local stylesheet usable.
-  if(target?.tagName==='LINK'&&target.sheet?.cssRules.length)return;
+  if(target?.tagName==='LINK'){
+   try{if(target.sheet?.cssRules.length)return;}
+   catch{} // Une feuille tierce peut interdire la lecture de ses règles.
+  }
   if(target===window&&event.filename&&!event.filename.startsWith(assetRoot))return;
   if(target?.tagName==='SCRIPT'||target?.tagName==='LINK'&&target.rel==='stylesheet'||target===window&&document.body?.getAttribute('aria-busy')==='true'){
    failure=message;showFailure();

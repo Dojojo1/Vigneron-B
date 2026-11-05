@@ -235,6 +235,7 @@
  function councilPage(data){window.heritageCouncil(data,{api,when});}
  function pageURL(route,defaults=false){
   if(route==='journal')return '/api/pages/journal?'+(defaults?'':window.heritageJournalQuery());
+  if(route==='logs')return '/api/pages/logs?view=screen';
   const params=new URLSearchParams({view:'screen'});
   const offsets={sales:['sales','events'],machines:['machines'],tombola:['tombola'],history:['history'],team:['team']}[route]||[];
   if(!defaults)for(const key of offsets)if(pageOffsets[key])params.set(key+'Offset',pageOffsets[key]);
@@ -390,6 +391,7 @@
    if(route==='profile'){profilePage();displayedPage=route;content.hidden=false;return true;}
    if(route==='council'){councilPage(data);displayedPage=route;content.hidden=false;return true;}
    if(route==='journal'){window.heritageJournal({data,api,signal,when});displayedPage=route;content.hidden=false;return true;}
+   if(route==='logs'){window.heritageLogs({data,api,signal,when});displayedPage=route;content.hidden=false;return true;}
    if(epoch===cacheEpoch&&!entry&&url!==pageURL(route,true))rememberPage(url,route,data,pageResponse?.version);
    if(Object.hasOwn(pages,route)){if(shownJson!==JSON.stringify(data)||!content.hasChildNodes())showData(data,showing&&content.hasChildNodes());}else content.innerHTML='<p class="empty">Cet espace est enregistré ; son interface sera disponible prochainement.</p>';
    content.hidden=false;

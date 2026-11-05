@@ -426,6 +426,7 @@ def create_app(settings=None, provider=None):
     def screen_data(page,request,params,shared_state=None,projected_state=None):
         """Même construction des écrans pour une lecture seule ou groupée."""
         if page=='journal': return query_log(store,params,pages)
+        if page=='logs': return {'page':'logs','entries':[]}
         if page=='profile': return {'page':page}
         if page=='council':
             return {'page':page,'access':access(request),'accounts':users(request)}
@@ -457,7 +458,7 @@ def create_app(settings=None, provider=None):
         else:
             selected=[page for page in pages if security.allowed(user,page)]
         request.state.audit_background=True
-        domain_pages=[page for page in selected if page not in ('profile','council','journal','team')]
+        domain_pages=[page for page in selected if page not in ('profile','council','journal','logs','team')]
         fields=tuple(dict.fromkeys(field for page in domain_pages for field in screen_fields.get(page,())))
         # Un seul décodage des collections utiles, jamais le catalogue, les images
         # No journal details; each screen reads the same projection without mutation.
@@ -481,6 +482,7 @@ def create_app(settings=None, provider=None):
     def page_data(page:str,request:Request):
         user=require(request,page)
         if page=='journal': return query_log(store,request.query_params,pages)
+        if page=='logs': return {'page':'logs','entries':[]}
         if page=='profile': return {'page':page}
         if page=='council':
             if request.query_params.get('view')=='screen':

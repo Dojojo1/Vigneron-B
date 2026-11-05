@@ -1,7 +1,7 @@
 'use strict';
 window.heritagePublicDemo=()=>{
- const routes=[...Object.keys(pages),'profile','council','external-access'];
- const labels={profile:'Mon profil',council:'Droits et grades Discord','external-access':'Accès extérieurs'};
+ const routes=[...Object.keys(pages),'profile','council'];
+ const labels={profile:'Mon profil',council:'Le Conseil des Accès'};
  window.heritageSession={demo:true,user:{id:'preview-visitor',displayName:'Visiteur',supreme:false},pages:routes.map(id=>({id,label:pages[id]?.[0]||labels[id]}))};
  const privatePages=Object.keys(pages).map(id=>({id,label:pages[id][0],kind:'private'}));
  const exampleRoles=['👑 · Patron','👑 · Co Patron','⚜ · DRH','👔 · Ressource Humaine','🤝 · Responsable Commercial','🎉 · Responsable événementiel','🍇 · Ouvrier Viticole','🌱 · Saisonnier','💼 · Partenaire'].map((name,i)=>({id:'example-'+i,name,position:100-i,active:true}));
@@ -26,21 +26,17 @@ window.heritagePublicDemo=()=>{
   }
   throw new Error('Cette opération n’est pas disponible dans l’aperçu local.');
  }
- function accessPanel(route){
-  updatePageHeading(route,labels[route]);$('#page-title').textContent=labels[route];
-  $('#page-subtitle').textContent=route==='council'?'Sélection des rôles et autorisations par rubrique.':'Des accès individuels pour les personnes hors du Discord.';
+ function accessPanel(){
+  updatePageHeading('council',labels.council);$('#page-title').textContent=labels.council;
+  $('#page-subtitle').textContent='Rôles, autorisations et comptes du domaine.';
   const permissions=Object.entries(settings.permissions).flatMap(([role,values])=>Object.entries(values).map(([page,allowed])=>({role_id:role,page_id:page,allowed})));
   window.heritageCouncil({access:{roles:exampleRoles,pages:privatePages,selectedRoles:settings.selectedRoles,permissions},accounts:{users:settings.users}},{api:previewAPI,when});
-  const individual=$('#individual-access');
-  if(route==='external-access')for(const child of [...$('#content').children]){if(child!==individual)child.remove();}
-  else individual.remove();
   const info=document.createElement('p');info.className='panel form-note';info.textContent='Réglages de préparation conservés dans ce navigateur. Grades d’exemple : les vrais rôles Discord seront récupérés lors du raccordement au serveur. Les codes d’aperçu ne permettent aucune connexion réelle.';$('#content').prepend(info);
-  if(route==='external-access'){$('#individual-access > h2').textContent='Accès extérieurs';$('#individual-access > p:not(.eyebrow)').textContent='Choisis les rubriques visibles pour un comptable ou un partenaire. Tu peux essayer la création, les catégories et la révocation ici, sans modifier les accès réels.';}
  }
  state=seed();
  state.members=[{displayName:'Visiteur démo',discordName:'Profil de démonstration'}];
  state.catalog=VEHICLE_CATALOG;
- $('#navigation').innerHTML=window.heritageSession.pages.filter(p=>!['council','external-access'].includes(p.id)).map(p=>`<a href="#${p.id}" data-page="${p.id}">${icon(pages[p.id]?.[3]||'team')}<span>${escapeHTML(p.label)}</span></a>`).join('')+`<details class="management-navigation"><summary>${icon('machines')}<span>Gestion</span><svg class="management-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></summary><div class="management-links" popover="manual" aria-label="Gestion"><a href="#council" data-page="council"><span>Accès</span></a><a href="#external-access" data-page="external-access"><span>Accès extérieurs</span></a></div></details>`;
+ $('#navigation').innerHTML=window.heritageSession.pages.map(p=>`<a href="#${p.id}" data-page="${p.id}">${icon(p.id==='council'?'machines':pages[p.id]?.[3]||'team')}<span>${escapeHTML(p.id==='council'?'Le Conseil des Accès':p.label)}</span></a>`).join('');
  $('#profile-name').textContent='Visiteur';$('#profile-role').textContent='Démonstration';$('#profile-avatar').textContent='VD';
  $('#enter-demo').disabled=false;
  $('#enter-demo .entry-button-label').textContent='ENTRER DANS LE DOMAINE';
@@ -49,23 +45,6 @@ window.heritagePublicDemo=()=>{
  $('#access-code-login-form').addEventListener('submit',event=>event.preventDefault());
  $('footer > span:last-child').firstChild.textContent='Démonstration · données fictives ';
  $('#reset-demo').hidden=true;
- const managementMenu=$('.management-navigation'),managementPopup=$('.management-links'),managementTrigger=managementMenu.querySelector('summary');
- function placeManagement(){
-  if(!managementMenu.open)return;
-  const trigger=managementTrigger.getBoundingClientRect(),sidebar=$('#sidebar').getBoundingClientRect();
-  managementPopup.style.left=Math.max(12,Math.min(sidebar.right+9,innerWidth-managementPopup.offsetWidth-12))+'px';
-  managementPopup.style.top=Math.max(12,Math.min(trigger.top,innerHeight-managementPopup.offsetHeight-12))+'px';
- }
- managementMenu.addEventListener('toggle',()=>{
-  managementTrigger.setAttribute('aria-expanded',String(managementMenu.open));
-  if(managementMenu.open){if(!managementPopup.matches(':popover-open'))managementPopup.showPopover();placeManagement();}
-  else if(managementPopup.matches(':popover-open'))managementPopup.hidePopover();
- });
- managementTrigger.setAttribute('aria-expanded','false');
- document.addEventListener('pointerdown',event=>{if(managementMenu.open&&!managementMenu.contains(event.target))managementMenu.open=false;});
- document.addEventListener('keydown',event=>{if(event.key==='Escape'&&managementMenu.open){managementMenu.open=false;managementTrigger.focus();}});
- managementPopup.addEventListener('click',event=>{if(event.target.closest('a'))managementMenu.open=false;});
- window.addEventListener('resize',placeManagement);$('#navigation').addEventListener('scroll',placeManagement);
  function entry(show){
   $('#entry-screen').hidden=!show;$('main').hidden=show;$('#sidebar').hidden=show;
   $('body').classList.toggle('on-entry',show);
@@ -73,12 +52,12 @@ window.heritagePublicDemo=()=>{
  }
  window.heritageNavigate=async()=>{
   const route=location.hash.slice(1)||'welcome';closeMenu();
-  const management=$('.management-navigation'),managing=['council','external-access'].includes(route);
-  management.classList.toggle('has-active-page',managing);management.open=false;
+  if(route==='external-access'){location.replace('#council');return true;}
   if(route==='welcome'){activePage='welcome';entry(true);return true;}
   activePage=routes.includes(route)?route:'overview';entry(false);
-  if(activePage==='council'||activePage==='external-access')accessPanel(activePage);
+  if(activePage==='council')accessPanel();
   else if(activePage==='journal'){updatePageHeading(activePage);$('#content').innerHTML=historyPage();}
+  else if(activePage==='logs'){updatePageHeading(activePage);window.heritageLogs({data:{entries:[]}});}
   else if(activePage==='profile'){
    updatePageHeading(activePage);
    $('#content').innerHTML=activePage==='journal'?'<section class="panel"><h2>Journal du domaine</h2><p>Les futures opérations apparaîtront ici. Aucune donnée Discord n’est chargée dans cette démonstration.</p></section>':'<section class="panel"><h2>Profil de démonstration</h2><p>Tu explores le domaine en tant que visiteur. La connexion Discord sera raccordée ultérieurement.</p></section>';

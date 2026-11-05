@@ -1,0 +1,123 @@
+/* Après minuit — nuances uniquement.
+   Géométrie, typographie, densité, images et animations des thèmes conservées.
+   La première proposition plus plate est remplacée par cette finition tonale. */
+:root {
+  --ivory: #f0e2ca;
+  --gold: #d0b182;
+  --muted: #b1aa9b;
+  --line: #b9a07840;
+  --nuance-surface:
+    radial-gradient(ellipse at 4% 0%, #b18a5230, transparent 57%),
+    radial-gradient(ellipse at 95% 12%, #416f8130, transparent 66%),
+    linear-gradient(125deg, #152329e8, #0d171dec 56%, #070d12f2);
+}
+
+/* La lumière reste dans la matière, sans transformer les cartes en aplats. */
+.cut-frame {
+  --frame: #b69b6866;
+  background: linear-gradient(125deg, #e0c18c52, #52748520 48%, #b49a6124), var(--frame);
+}
+.night-metrics > .cut-inner {
+  background:
+    radial-gradient(ellipse at 12% 0%, #b4935d29, transparent 60%),
+    linear-gradient(110deg, #172327eb, #0c171ded 58%, #070d12f5);
+}
+.batch-card > .cut-inner {
+  background:
+    radial-gradient(ellipse at 0% 0%, #b18a5633, transparent 57%),
+    radial-gradient(ellipse at 77% 8%, #426c7f26, transparent 66%),
+    linear-gradient(115deg, #182529e8, #0d181eeb 57%, #080e14f0);
+}
+.sale-record > summary.cut-inner { background: var(--nuance-surface); }
+.sale-record:nth-child(3n + 2) > summary.cut-inner {
+  background: radial-gradient(ellipse at 22% 0%, #4a72832d, transparent 66%),
+    linear-gradient(115deg, #142229ed, #091118f2 90%);
+}
+.sale-record-details {
+  background: radial-gradient(ellipse at 0% 0%, #a67f4212, transparent 60%),
+    linear-gradient(125deg, #19282e, #0b141b 85%);
+}
+.batch-footer {
+  background: linear-gradient(100deg, #c6a26809, #35546115 56%, #02070c35);
+}
+.night-metric strong, .batch-total strong, .stats-top strong {
+  color: #f0dfbf;
+  text-shadow: 0 2px 16px #d4ac6510;
+}
+.night-section-heading h2, .panel-header h2 { color: #dec8a3; }
+.batch-wordmark { color: #dcb982; }
+.batch-details dd { color: #e3cba7; }
+
+/* Bronze patiné et verre fumé : mêmes formes, mêmes proportions, mêmes fontes. */
+.button, .button.glass, .record-actions button, .finish-actions button,
+.sale-record-details .finish-actions button, .circle-button {
+  background: linear-gradient(120deg, #26353baf, #142028cf 60%, #0a131bdf);
+  border-color: #c2a16c69;
+  box-shadow: inset 0 1px #f0d5a70e, 0 3px 10px #00000018;
+}
+.button.primary, .raffle-dialog #entry-form > .submit {
+  background: linear-gradient(110deg, #826240b3, #4c4638b8 48%, #1a2b33c9);
+  border-color: #d5b37b80;
+  color: #f2dfbc;
+  box-shadow: inset 0 1px #f6dcad14, 0 4px 14px #00000020;
+}
+.batch-footer-actions > button {
+  background: linear-gradient(120deg, #17212873, #0b141b99);
+  border-color: #b99a6266;
+}
+.batch-footer-actions > .button.primary {
+  background: linear-gradient(110deg, #826240b3, #4c4638b8 48%, #1a2b33c9);
+  border-color: #d5b37b80;
+}
+.finish-actions .danger, .record-actions .danger, .batch-footer-actions > .danger {
+  color: #dc9a8c;
+  border-color: #a76c5b66;
+}
+.button:disabled { box-shadow: inset 0 1px #f0d5a708; }
+
+/* Champs et menus : détails de lumière, sans changement du gabarit. */
+.field input, .field select, .toolbar input, .input, select {
+  background-color: #0b151c;
+  border-color: #8fa4a447;
+}
+.profile-toggle, .global-search label, .account-icon {
+  background: linear-gradient(125deg, #1c2d35df, #091219eb);
+}
+.account-popover, #toast {
+  background: linear-gradient(130deg, #1d3039f7, #0a131bfa);
+  border-color: #c5a57366;
+}
+/* Correction fonctionnelle conservée : le titre ne recouvre pas la fermeture. */
+.dialog-heading { gap: 16px; }
+.dialog-heading > div { min-width: 0; flex: 1; }
+.dialog-heading > .icon-button { position: relative; z-index: 1; flex-shrink: 0; }
+
+/* Rétroéclairage champagne : derrière le cadran, sans déplacer ses éléments. */
+.batch-center .cycle-dial { isolation: isolate; }
+.batch-center .cycle-dial::before {
+  content: '';
+  position: absolute;
+  inset: -36px;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle closest-side,
+    transparent 54%, #efc77f12 65%, #f2cb873d 76%,
+    #dba45b29 87%, #b67e3e0a 96%, transparent 100%);
+  filter: blur(12px);
+}
+
+::selection { background: #b79760; color: #0a1218; }
+input, textarea { caret-color: #dfc28f; }
+a { text-underline-offset: .2em; }
+@media (hover: hover) and (pointer: fine) {
+  .button:hover:not(:disabled), .finish-actions button:hover:not(:disabled),
+  .record-actions button:hover:not(:disabled), .batch-footer-actions > button:hover:not(:disabled) {
+    border-color: #d9ba85b3;
+    color: #f4e1bf;
+  }
+  .button.primary:hover:not(:disabled) {
+    background: linear-gradient(110deg, #94724bbf, #5b5140bf 48%, #233a43d9);
+    box-shadow: inset 0 1px #f6dcad22, 0 5px 16px #00000026;
+  }
+}

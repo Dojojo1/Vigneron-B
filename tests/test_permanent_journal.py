@@ -1,5 +1,5 @@
-import json
 import os
+import json
 import sqlite3
 from datetime import datetime
 
@@ -60,6 +60,18 @@ def test_journal_denied_by_default_and_council_can_grant_read_without_mutation(e
     assert env['client'].delete('/api/pages/journal/entries/1',headers=headers(env)).status_code==405
     assert env['client'].get('/api/admin/audit').status_code==403
     assert env['client'].put('/api/admin/access',json={},headers=headers(env)).status_code==403
+
+
+def test_logs_are_empty_and_have_a_separate_permission(env):
+    login(env)
+    assert env['client'].get('/api/pages/logs').status_code==403
+    grant(env,'100','logs')
+    with env['store'].connect(True) as db:
+        env['store'].audit(db,MEMBER,'business_action',{'action':'add-sale','page':'sales'})
+        env['store'].audit(db,MEMBER,'client_error',{'page':'overview','result':'failure'})
+    assert env['client'].get('/api/pages/logs').json()=={'page':'logs','entries':[]}
+    assert env['client'].get('/api/pages/logs/entries/1').status_code==404
+    assert env['client'].get('/api/pages/journal').status_code==403
 
 
 def test_permanent_entries_cannot_be_updated_deleted_or_lost_in_reset_and_import(env,monkeypatch):
