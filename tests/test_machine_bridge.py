@@ -64,6 +64,12 @@ def test_machine_queue_does_not_change_counter_or_confirmed_state(env):
     assert body['values']=={'amount':1000000}
     page=env['client'].get('/api/pages/machines?view=screen').json()
     assert page['machineCommands'][0]['status']=='pending'
+    assert page['machineCommands'][0]['preview']['id']==response.json()['recordId']
+    assert page['machineCommands'][0]['preview']['amount']==1000000
+    assert page['machineCommands'][0]['preview']['botStatus']=='pending'
+    assert response.json()['preview']['id']==response.json()['recordId']
+    overview=env['client'].get('/api/pages/overview?view=screen').json()
+    assert overview['machineCommands'][0]['preview']['id']==response.json()['recordId']
     assert page['machineSummary']['recovered']==0
     assert not page['machines']
 
@@ -97,6 +103,7 @@ def test_ack_before_confirmation_rejected_and_error_is_visible(env):
     assert signed(env,'POST','/internal/bot/ack',ack).status_code==200
     page=env['client'].get('/api/pages/machines?view=screen').json()
     assert page['machineCommands'][0]['status']=='failed'
+    assert page['machineCommands'][0]['preview'] is None
     assert 'rôle' in page['machineCommands'][0]['error']['message']
     assert signed(env,'GET','/internal/bot/commands').json()['commands']==[]
     assert not any(m.get('botStatus')=='confirmed' for m in state(env)['machines'])

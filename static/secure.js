@@ -51,6 +51,7 @@
  }
  let session=null,navigationVersion=0,navigationAbort=null,filterTimer=null,catalogCache=null,lastVisited=null,sheetsAbort=null,sheetsVersion=0;
  const pendingActions=new Map(),operationKeys=new Map(),requestCooldowns=new Map();
+ let pendingMachineLaunch=null;
  const pageCache=new Map(),bootstrapTasks=new Set(),CACHE_LIMIT=48,CACHE_BYTES=16*1024*1024,LOADING_DELAY=180,SESSION_LEASE=30000,REFRESH_INTERVAL=60000;
  const versionedRoutes=new Set(['overview','sales','machines','tombola','stats','team','history']);
  let cacheEpoch=0,displayedPage=null,accountMarkup='',profileDraft=null,sessionConfirmedAt=0,sessionCheck=null,suspendedForm=null;
@@ -443,6 +444,19 @@
   },LOADING_DELAY);
   function showData(data,incremental=false){
    const selected=document.activeElement,inputId=selected?.id,selection=selected?.selectionStart;
+   if((route==='overview'||route==='machines')&&pendingMachineLaunch){
+    const jobs=data.machineCommands||[];
+    const confirmed=(data.machines||[]).some(machine=>machine.id===pendingMachineLaunch.recordId&&machine.botStatus==='confirmed');
+    const job=jobs.find(item=>item.id===pendingMachineLaunch.id);
+    if(job?.status==='failed'){
+     pendingMachineLaunch=null;
+     toast(job.error?.message||'Le bot a refusé le lancement du lot.');
+    }else if(confirmed||job?.status==='applied'){
+     pendingMachineLaunch=null;
+    }else if(!job){
+     data.machineCommands=[...jobs,pendingMachineLaunch];
+    }
+   }
    state=data;render({incremental});applyAccessUI();displayedPage=route;showing=true;content.hidden=false;
    if(route==='overview')refreshOverviewBotStatus();
    if(inputId){const input=document.getElementById(inputId);if(input&&input!==selected){input.focus({preventScroll:true});if(typeof selection==='number'&&input.setSelectionRange)input.setSelectionRange(selection,selection);}}
@@ -489,7 +503,7 @@
  async function refreshMachineSnapshot(){
   if(!session||!['machines','sales','tombola','overview','stats'].includes(activePage)||document.hidden||refreshingPages||machineRefreshInFlight||pendingActions.size
       ||document.querySelector('dialog[open], #content[aria-busy="true"]')||document.activeElement?.matches('input,select,textarea'))return;
-  const interval=[...(state.machineCommands||[]),...(state.businessCommands||[])].some(job=>job.status==='pending')?15000:30000;
+  const interval=[...(state.machineCommands||[]),...(state.businessCommands||[])].some(job=>job.status==='pending'||job.status==='uncertain')?3000:30000;
   const now=Date.now();if(now-lastMachineRefresh<interval)return;
   machineRefreshInFlight=true;lastMachineRefresh=now;
   try{await window.heritageNavigate({fresh:true,preserveFocus:true});}
@@ -509,9 +523,16 @@
 
   const page=actionPage(action);if(!page)throw Error('Action inconnue.');
   const result=await api('/api/actions/'+page,{method:'POST',requestKey,body:{action,id:id||null,values}});
+  if(action==='add-machine'&&result.pending&&result.preview){
+   pendingMachineLaunch={id:result.commandId,recordId:result.recordId,action,status:'pending',createdAt:result.preview.start/1000,preview:result.preview};
+   if(activePage==='machines'||activePage==='overview'){
+    state.machineCommands=[...(state.machineCommands||[]).filter(job=>job.id!==result.commandId),pendingMachineLaunch];
+    render();
+   }
+  }
   if(action==='add-sale'||action==='confirm-sales-reset'){salesScope='current';search='';pageOffsets.sales=0;pageOffsets.events=0;}
   const refreshed=await window.heritageNavigate({fresh:true,preserveFocus:true});
-  toast(result.pending?(refreshed?'Demande en attente du bot. L’opération sera confirmée après exécution.':'Demande envoyée au bot. Actualise la page pour suivre sa confirmation.'):refreshed?'Opération enregistrée dans la base du site.':'Opération enregistrée, mais l’affichage n’a pas pu être actualisé.');
+  toast(result.pending?(action==='add-machine'?'Lot affiché. Synchronisation avec le bot en cours.':refreshed?'Demande en attente du bot. L’opération sera confirmée après exécution.':'Demande envoyée au bot. Actualise la page pour suivre sa confirmation.'):refreshed?'Opération enregistrée dans la base du site.':'Opération enregistrée, mais l’affichage n’a pas pu être actualisé.');
  }
  window.heritageAction=async(action,id,values)=>{
   const key=JSON.stringify([action,id||null,values]);

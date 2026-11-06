@@ -470,7 +470,7 @@ def create_app(settings=None, provider=None):
                 result.update(bridge.business.status(page))
                 result['botConnection']=bridge.machine_status()['botConnection']
                 result['botConnection']['enabled']=bool(cfg.business_commands_enabled and cfg.connector_secret)
-        if page=='machines':result.update(bridge.machine_status())
+        if page in ('machines','overview'):result.update(bridge.machine_status())
         return result
 
     @app.get('/api/bootstrap')
@@ -548,7 +548,7 @@ def create_app(settings=None, provider=None):
                 result.update(bridge.business.status(page))
                 result['botConnection']=bridge.machine_status()['botConnection']
                 result['botConnection']['enabled']=bool(cfg.business_commands_enabled and cfg.connector_secret)
-        if page=='machines':result.update(bridge.machine_status())
+        if page in ('machines','overview'):result.update(bridge.machine_status())
         return result
 
     @app.post('/api/actions/{page}')

@@ -101,7 +101,17 @@ class BotBridge:
                    (command_id,time.time(),json.dumps(payload,ensure_ascii=False)))
         db.execute('INSERT INTO bot_machine_jobs VALUES(?,?,?,NULL,NULL)',(command_id,'pending',site_record_id))
         self.store.audit(db,actor_id,'machine_command_pending',{'page':'machines','action':action,'commandId':command_id,'recordId':site_record_id})
-        return {'ok':True,'pending':True,'commandId':command_id,'recordId':site_record_id,'status':'pending'}
+        result={'ok':True,'pending':True,'commandId':command_id,'recordId':site_record_id,'status':'pending'}
+        if action=='add-machine':result['preview']=self.machine_preview(site_record_id,time.time(),supplied,actor_name,'pending')
+        return result
+
+    @staticmethod
+    def machine_preview(record_id, created, values, actor_name, status):
+        started=int(created*1000)
+        return {'id':record_id,'start':started,'finishAt':started+domain.RULES['machineDurationMinutes']*60000,
+                'amount':values['amount'],'machineCount':domain.RULES['machineCount'],
+                'launchedBy':actor_name,'lotLabel':'Lot en synchronisation','botStatus':'pending',
+                'pendingStatus':status,'recovered':False,'cancelled':False}
 
     def machine_status(self):
         with self.store.connect() as db:
@@ -111,9 +121,13 @@ class BotBridge:
             commands=[]
             for row in rows:
                 body=json.loads(row['body'])
+                preview=None
+                if body['action']=='add-machine' and row['status'] in ('pending','uncertain'):
+                    preview=self.machine_preview(row['site_record_id'],row['created'],body['values'],body['actor']['name'],row['status'])
                 commands.append({'id':row['id'],'createdAt':row['created'],'action':body['action'],
                                  'recordId':row['site_record_id'],'actor':body['actor'],'status':row['status'],
-                                 'error':json.loads(row['error']) if row['error'] else None})
+                                 'error':json.loads(row['error']) if row['error'] else None,
+                                 'preview':preview})
         enabled=bool(self.settings.bot_commands_enabled and self.settings.connector_secret)
         return {'botConnection':{'enabled':enabled,'online':bool(enabled and last and time.time()-last['at']<90),
                                  'lastSeen':last['at'] if last else None},'machineCommands':commands}

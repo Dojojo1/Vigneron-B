@@ -228,6 +228,8 @@ dialog > .site-error { position: absolute; top: 12px; left: 12px; right: 12px; w
 .machine-command-list li { padding: 12px 0; border-bottom: 1px solid #c5a47126; overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; }
 .machine-command-list strong { color: var(--gold); }
 .machine-command-list p { margin: 5px 0 0; color: #c8bda6; }
+.machine-synchronizing .counter-status { color: #ebd5a0; }
+.machine-sync-note { color: #e4d0aa; font: 13px/1.45 var(--sans); }
 
 /* Proportions communes des lots, sans changement de direction artistique. */
 .night-heading-actions > .launch-lot-button,.launch-lot-button { display:inline-flex; align-items:center; justify-content:center; min-height:46px; min-width:180px; max-width:none; padding:12px 20px; border:1px solid #c5a47170; border-radius:2px; background:linear-gradient(110deg,#a58955,#756140); color:#f7e8c9; font:500 15px var(--serif); letter-spacing:.2px; text-transform:none; white-space:normal; text-align:center; }
