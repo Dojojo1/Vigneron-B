@@ -47,10 +47,14 @@ sale.progressKnown=true;
 sale.treated=5000000;
 set({test:4999999});
 assert.equal(progress().percent,99,'Rounding must not declare an unfinished amount complete.');
-assert.ok(!context.render(sale,0).includes('À restituer'));
+assert.ok(!context.render(sale,0).includes('En attente de récupération'));
 set({test:5000000});
 assert.equal(progress().percent,100);
-assert.ok(context.render(sale,0).includes('À restituer'));
+assert.ok(context.render(sale,0).includes('class="badge recovery">En attente de récupération'));
+assert.ok(context.renderOld(sale).includes('class="badge recovery">En attente de récupération'));
+sale.status='finished';
+assert.ok(context.render(sale,0).includes('class="badge done">Restitué'));
+sale.status='active';
 
 
 

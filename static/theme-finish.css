@@ -281,6 +281,15 @@ body.on-entry .estate-atmosphere { display: none; }
 }
 .sale-record .sale-copy:hover { background: #b89b642a; color: #fff0d2; }
 .sale-record .sale-copy:focus-visible { outline: 2px solid #e2c38d; outline-offset: 3px; }
+.badge.recovery,
+.night-dossier .badge.recovery {
+  color: #ef8c85;
+  border-color: #bf615855;
+  background: #8f343320;
+  white-space: normal;
+  line-height: 1.25;
+}
+.night-dossier .badge.recovery { max-width: 180px; text-align: left; }
 @media (max-width: 760px) {
   .sale-record > summary.cut-inner {
     display: grid;
@@ -297,6 +306,7 @@ body.on-entry .estate-atmosphere { display: none; }
   .sale-contact-text { font-size: 15px; }
   .sale-record .night-dossier-amount { grid-column: 2; margin: 0; min-width: 0; padding: 0; }
   .sale-record > summary > .badge { grid-column: 3; margin: 0; padding: 0; }
+  .sale-record > summary > .badge.recovery { max-width: 115px; }
 }
 
 /* Feuille courante et archives hebdomadaires, dans la même direction visuelle. */
