@@ -1,0 +1,124 @@
+/* Matiere commune aux pages de gestion, sans toucher aux cadres du tableau de bord. */
+html { scrollbar-gutter: stable; }
+
+html body:not(.dashboard-active) #content .batch-card.cut-frame {
+  width: 100%;
+  max-width: none;
+  transform: none;
+  justify-self: stretch;
+}
+
+html body:not(.on-entry) #content .machine-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  text-align: center;
+}
+html body:not(.on-entry) #content .machine-summary > div { padding-inline: 16px; }
+html body:not(.on-entry) #content .stats-top article { text-align: center; }
+
+html body:not(.on-entry) #content .team-grid:has(> :only-child) {
+  display: flex;
+  justify-content: center;
+}
+html body:not(.on-entry) #content .team-grid > :only-child { width: min(100%, 420px); }
+
+html body:not(.on-entry) #content :is(.panel, .register-panel, .council-panel, .sales-week-panel, .machine-summary),
+html body:not(.on-entry) :is(#form-dialog, #profile-dialog, #sales-reset-dialog) {
+  border: 1px solid #d4a96880;
+  border-radius: 22px;
+  background:
+    url('assets/dashboard-glass-drops-wide.svg?v=4') center / 100% 100% no-repeat,
+    radial-gradient(ellipse at 3% 7%, #d9eff130, transparent 36%),
+    radial-gradient(ellipse at 96% 85%, #eeb86324, transparent 43%),
+    linear-gradient(112deg, #e8f7ff1b, transparent 21% 77%, #ffdfaa18),
+    linear-gradient(125deg, #1a2c38df, #0a1720e8 55%, #241e1ae3);
+  backdrop-filter: blur(13px) saturate(1.2);
+  -webkit-backdrop-filter: blur(13px) saturate(1.2);
+  box-shadow: inset 0 1px #f9e9c763, inset 2px 0 6px #daeff320,
+    inset -2px 0 8px #f0c38220, 0 14px 28px #0007;
+}
+
+html body:not(.on-entry) #content :is(.stats-top article, .raffle, .machine-card, .member, .sale-record > summary.cut-inner) {
+  border: 1px solid #cda46a66;
+  border-radius: 16px;
+  background:
+    linear-gradient(115deg, #e8f7ff14, transparent 26% 75%, #ffdfaa12),
+    radial-gradient(ellipse at 5% 5%, #d9eff122, transparent 42%),
+    linear-gradient(125deg, #1a2b35d9, #0b1821e9 60%, #2a211bdc);
+  backdrop-filter: blur(10px) saturate(1.15);
+  -webkit-backdrop-filter: blur(10px) saturate(1.15);
+  box-shadow: inset 0 1px #f9e9c74d, 0 9px 20px #0005;
+}
+
+html body:not(.on-entry) #content :is(.demo-notice, .empty) {
+  border: 1px solid #cda46a52;
+  border-radius: 14px;
+  background: linear-gradient(110deg, #c6dded17, #0c1920d9 55%, #75502e24);
+  color: #ddc9a8;
+  padding: 18px 22px;
+  box-shadow: inset 0 1px #f9e9c735;
+}
+
+html body:not(.on-entry) #content :is(.panel, .register-panel, .council-panel) :is(h2, h3),
+html body:not(.on-entry) :is(#form-dialog, #profile-dialog, #sales-reset-dialog) h2 { color: #f0d7ac; }
+
+html body:not(.on-entry) #content :is(.history-table, .machine-history-table) th {
+  color: #e8c68f;
+  background: #d5ac6814;
+}
+html body:not(.on-entry) #content :is(.history-table, .machine-history-table) tbody tr {
+  border-color: #c49d6252;
+  transition: background-color .24s ease;
+}
+html body:not(.on-entry) #content :is(.history-table, .machine-history-table) tbody tr:hover {
+  background: #e5bb7512;
+}
+
+html body:not(.on-entry) :is(.field input, .field select, .toolbar input, .input, .vehicle-picker-control) {
+  border-color: #c7a26c70;
+  background-color: #09151dbb;
+  color: #f1e1c8;
+}
+html body:not(.on-entry) :is(.field input, .field select, .toolbar input, .input, .vehicle-picker-control):focus-within {
+  border-color: #e4bb78;
+  box-shadow: 0 0 0 3px #e4bb7826;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html body:not(.on-entry) #content :is(.panel, .register-panel, .council-panel, .sales-week-panel, .machine-summary, .stats-top article, .raffle, .member, .sale-record > summary.cut-inner) {
+    transition: backdrop-filter .8s cubic-bezier(.22, 1, .36, 1),
+      box-shadow .8s ease, border-color .8s ease !important;
+  }
+  html body:not(.on-entry) #content :is(.panel, .register-panel, .council-panel, .sales-week-panel, .machine-summary, .stats-top article, .raffle, .member, .sale-record > summary.cut-inner):hover {
+    border-color: #e6be83bd;
+    backdrop-filter: blur(17px) saturate(1.3) brightness(1.04);
+    -webkit-backdrop-filter: blur(17px) saturate(1.3) brightness(1.04);
+    box-shadow: inset 0 1px #fff1d67d, inset 2px 0 8px #e5f7fb2a,
+      inset -2px 0 9px #ffe0af2b, 0 16px 28px #0008;
+  }
+  html body:not(.on-entry) #content :is(.panel, .sales-week-panel, .machine-summary, .stats-top article, .raffle, .member) {
+    position: relative;
+    isolation: isolate;
+  }
+  html body:not(.on-entry) #content :is(.panel, .sales-week-panel, .machine-summary, .stats-top article, .raffle, .member)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(#0b182024, #0b182024), url('assets/midnight-hero.webp') center / cover fixed;
+    filter: url(#heritage-water-refraction);
+    opacity: 0;
+    transition: opacity .85s cubic-bezier(.22, 1, .36, 1) !important;
+  }
+  html body:not(.on-entry) #content :is(.panel, .sales-week-panel, .machine-summary, .stats-top article, .raffle, .member):hover::after { opacity: .28; }
+}
+
+@media (max-width: 760px) {
+  html body:not(.on-entry) #content .machine-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html body:not(.on-entry) #content .machine-summary > div { padding-inline: 8px; }
+  html body:not(.on-entry) #content :is(.panel, .register-panel, .council-panel, .sales-week-panel, .machine-summary) {
+    border-radius: 17px;
+    background-size: auto 100%, auto, auto, auto, auto;
+  }
+}

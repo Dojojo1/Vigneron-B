@@ -1,5 +1,15 @@
 'use strict';
 (async () => {
+ // Aperçu local des cadres : le vrai tableau de bord, sans appel au serveur.
+ if(location.protocol==='file:'&&new URLSearchParams(location.search).has('cadres')){
+  if(location.hash!=='#overview')location.hash='overview';
+  window.heritagePublicDemo();
+  state.summary={gross:159000000,treated:0,company:23850000};
+  state.machines=[{id:'cadres-preview',start:Date.now()-78*60000,amount:1000000,lotLabel:'lot-s45-22',lotYear:2026,launchedBy:'Giovanni Danté'}];
+  state.machinesAvailable=true;
+  void window.heritageNavigate();
+  return;
+ }
  const publicPages=location.hostname.endsWith('.github.io')||document.querySelector('meta[name="heritage-hosting"]')?.content==='github-pages';
  let apiBase='',bearer='',bridgeHeaders={};
  if(publicPages){
