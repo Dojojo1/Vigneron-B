@@ -371,24 +371,29 @@
  }
  window.heritageFilter=key=>{pageOffsets[key]=0;clearTimeout(filterTimer);filterTimer=setTimeout(()=>void window.heritageNavigate({preserveFocus:true}),300);};
  let overviewBotStatus=null,overviewBotCheckedAt=0,overviewBotRequest=null;
+ function paintOverviewBotStatus(label,status){
+  if(!label)return;
+  label.textContent=status;
+  label.dataset.connection=status==='Bot connecté'?'online':status==='Bot déconnecté'?'offline':'unknown';
+ }
  function refreshOverviewBotStatus(){
   const label=document.querySelector('#overview-bot-status');
   if(!label||!session)return;
   const current=Date.now();
-  if(overviewBotStatus&&current-overviewBotCheckedAt<25000){label.textContent=overviewBotStatus;return;}
+  if(overviewBotStatus&&current-overviewBotCheckedAt<25000){paintOverviewBotStatus(label,overviewBotStatus);return;}
   if(overviewBotRequest)return;
   const route=['machines','sales','tombola'].find(can);
-  if(!route){label.textContent='État du bot indisponible';return;}
+  if(!route){paintOverviewBotStatus(label,'État du bot indisponible');return;}
   overviewBotRequest=api(pageURL(route,true),{background:true}).then(data=>{
    const connection=data?.botConnection;
    overviewBotStatus=!connection||connection.enabled===false?'État du bot indisponible':connection.online?'Bot connecté':'Bot déconnecté';
    overviewBotCheckedAt=Date.now();
    const visible=document.querySelector('#overview-bot-status');
-   if(visible)visible.textContent=overviewBotStatus;
+   paintOverviewBotStatus(visible,overviewBotStatus);
   }).catch(()=>{
    overviewBotStatus='État du bot indisponible';overviewBotCheckedAt=Date.now();
    const visible=document.querySelector('#overview-bot-status');
-   if(visible)visible.textContent=overviewBotStatus;
+   paintOverviewBotStatus(visible,overviewBotStatus);
   }).finally(()=>{overviewBotRequest=null;});
  }
  window.heritageNavigate=async({preserveFocus=false,fresh=false,sessionRefreshed=false,staleRetries=0}={})=>{
