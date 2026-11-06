@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 740" preserveAspectRatio="none">
+  <defs>
+    <radialGradient id="lens" cx="30%" cy="23%" r="79%"><stop stop-color="#f8ffff" stop-opacity=".72"/><stop offset=".16" stop-color="#b9d5dc" stop-opacity=".25"/><stop offset=".56" stop-color="#10222b" stop-opacity=".48"/><stop offset=".84" stop-color="#031019" stop-opacity=".73"/><stop offset="1" stop-color="#e7c893" stop-opacity=".42"/></radialGradient>
+    <filter id="shade" x="-100%" y="-100%" width="300%" height="300%"><feDropShadow dx=".4" dy="1.4" stdDeviation="1.1" flood-color="#000" flood-opacity=".63"/></filter>
+    <g id="drop" filter="url(#shade)"><path d="M-3.6-3.2C-1.2-5.2 2-4.9 3.5-2.2 5 1.3 4 4.9 1.5 6.1-1.5 7.2-4.7 4.7-4.5 1.4c.1-1.9.2-3.4.9-4.6Z" fill="url(#lens)" stroke="#dcecf0" stroke-opacity=".31" stroke-width=".55"/><path d="M-2.7-2.5c.7-.8 1.5-1.1 2.3-1.1" fill="none" stroke="#fff" stroke-opacity=".64" stroke-width=".75" stroke-linecap="round"/><path d="M1.3 4.8c1.1-.5 1.7-1.2 1.9-2.3" fill="none" stroke="#f6d8ac" stroke-opacity=".42" stroke-width=".5" stroke-linecap="round"/></g>
+  </defs>
+  <g opacity=".68">
+    <use href="#drop" transform="translate(19 62) scale(.69)"/>
+    <use href="#drop" transform="translate(34 173) scale(.39)"/>
+    <use href="#drop" transform="translate(16 302) scale(.61)"/>
+    <use href="#drop" transform="translate(31 465) scale(.37)"/>
+    <use href="#drop" transform="translate(22 640) scale(.74)"/>
+    <use href="#drop" transform="translate(341 89) scale(.42)"/>
+    <use href="#drop" transform="translate(326 246) scale(.68)"/>
+    <use href="#drop" transform="translate(343 402) scale(.34)"/>
+    <use href="#drop" transform="translate(330 564) scale(.72)"/>
+    <use href="#drop" transform="translate(340 697) scale(.48)"/>
+  </g>
+  <g opacity=".55">
+    <use href="#drop" transform="translate(91 83) scale(.36)"/>
+    <use href="#drop" transform="translate(211 158) scale(.29)"/>
+    <use href="#drop" transform="translate(135 274) scale(.33)"/>
+    <use href="#drop" transform="translate(264 364) scale(.27)"/>
+    <use href="#drop" transform="translate(105 456) scale(.39)"/>
+    <use href="#drop" transform="translate(231 552) scale(.31)"/>
+    <use href="#drop" transform="translate(162 681) scale(.35)"/>
+  </g>
+  <g opacity=".65">
+    <use href="#drop" transform="translate(151 72) scale(.46)"/>
+    <use href="#drop" transform="translate(189 118) scale(.34)"/>
+    <use href="#drop" transform="translate(154 214) scale(.38)"/>
+    <use href="#drop" transform="translate(207 329) scale(.42)"/>
+    <use href="#drop" transform="translate(149 415) scale(.33)"/>
+    <use href="#drop" transform="translate(200 505) scale(.48)"/>
+    <use href="#drop" transform="translate(147 615) scale(.36)"/>
+    <use href="#drop" transform="translate(204 699) scale(.43)"/>
+  </g>
+</svg>

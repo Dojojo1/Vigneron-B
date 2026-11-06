@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" preserveAspectRatio="none">
+  <defs>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="31"/></filter>
+    <radialGradient id="amber"><stop stop-color="#f4c27c" stop-opacity=".55"/><stop offset=".42" stop-color="#ba743d" stop-opacity=".27"/><stop offset="1" stop-color="#a96632" stop-opacity="0"/></radialGradient>
+    <radialGradient id="blue"><stop stop-color="#b5d5e0" stop-opacity=".28"/><stop offset="1" stop-color="#7eafc5" stop-opacity="0"/></radialGradient>
+  </defs>
+  <g filter="url(#soft)">
+    <ellipse cx="77" cy="28" rx="155" ry="87" fill="url(#blue)"/>
+    <ellipse cx="563" cy="307" rx="194" ry="133" fill="url(#amber)"/>
+    <ellipse cx="673" cy="101" rx="82" ry="145" fill="url(#amber)" opacity=".7"/>
+    <ellipse cx="238" cy="382" rx="121" ry="71" fill="url(#blue)" opacity=".55"/>
+  </g>
+</svg>

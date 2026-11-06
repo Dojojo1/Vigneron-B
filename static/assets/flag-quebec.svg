@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20" role="img" aria-label="Drapeau du Québec">
+  <rect width="30" height="20" fill="#003da5"/>
+  <path fill="#fff" d="M13 0h4v20h-4zM0 8h30v4H0z"/>
+  <defs>
+    <path id="fleur" fill="#fff" d="M0-3.4c.8 1 1.2 1.8 1.2 2.5 0 .6-.3 1-.5 1.3 1.1-1 2.4-.6 2.4.5 0 .8-.7 1.1-1.3.9.5-.4.7-.9.4-1.3-.2-.3-.7-.5-1.2-.3.1.8.1 1.4.6 1.9H.5L0 2.9l-.5-1.2h-1.3c.5-.5.5-1.1.6-1.9-.5-.2-1 0-1.2.3-.3.4-.1.9.4 1.3-.6.2-1.3-.1-1.3-.9 0-1.1 1.3-1.5 2.4-.5-.2-.3-.5-.7-.5-1.3 0-.7.4-1.5 1.4-2.5z"/>
+  </defs>
+  <use href="#fleur" transform="translate(6.5 4.2) scale(.72)"/>
+  <use href="#fleur" transform="translate(23.5 4.2) scale(.72)"/>
+  <use href="#fleur" transform="translate(6.5 15.8) scale(.72)"/>
+  <use href="#fleur" transform="translate(23.5 15.8) scale(.72)"/>
+</svg>

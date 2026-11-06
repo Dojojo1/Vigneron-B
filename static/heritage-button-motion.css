@@ -1,0 +1,42 @@
+/* Reflet de verre et onde tactile sur les boutons d'action du site. */
+html .heritage-motion-button {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+html .heritage-motion-button::before {
+  content: '';
+  position: absolute;
+  inset: -25% auto -25% -65%;
+  width: 52%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, #fff1d426 27%, #fffbe695 50%, #cde8ee32 73%, transparent);
+  filter: blur(5px);
+  opacity: 0;
+  transform: translateX(-70%) skewX(-20deg);
+  transition: transform .75s cubic-bezier(.22, 1, .36, 1), opacity .35s ease !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  html .heritage-motion-button:hover::before {
+    opacity: .75;
+    transform: translateX(360%) skewX(-20deg);
+  }
+}
+html .heritage-motion-button .heritage-click-drop {
+  position: absolute;
+  left: var(--drop-x);
+  top: var(--drop-y);
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #fff0cdad;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff5d97d, #efd4a72b 52%, transparent 72%);
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(.2);
+  animation: heritage-click-drop .7s ease-out both;
+}
+@keyframes heritage-click-drop {
+  16% { opacity: .95; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(9); }
+}

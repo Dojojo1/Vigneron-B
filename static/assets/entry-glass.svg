@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="530" viewBox="0 0 720 530" preserveAspectRatio="none" fill="none">
+  <defs>
+    <linearGradient id="edge" x1="25" y1="10" x2="680" y2="530" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffe1b5"/><stop offset=".17" stop-color="#bb8b51"/>
+      <stop offset=".42" stop-color="#d5a16b" stop-opacity=".5"/>
+      <stop offset=".75" stop-color="#c6925b" stop-opacity=".8"/><stop offset="1" stop-color="#ffce8a"/>
+    </linearGradient>
+    <linearGradient id="drop-edge" x1="-4" y1="-7" x2="4" y2="6" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#c5d8e7" stop-opacity=".7"/><stop offset=".4" stop-color="#121e29" stop-opacity=".1"/>
+      <stop offset="1" stop-color="#d5ae76" stop-opacity=".75"/>
+    </linearGradient>
+    <radialGradient id="water" cx=".3" cy=".25" r=".8">
+      <stop stop-color="#dcebf1" stop-opacity=".15"/><stop offset=".5" stop-color="#0b1a27" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#02080d" stop-opacity=".85"/>
+    </radialGradient>
+    <g id="drop">
+      <ellipse rx="3.6" ry="5.7" fill="url(#water)" stroke="url(#drop-edge)" stroke-width=".8"/>
+      <path d="M-1.5-3.6q-1 1-.8 2.4" stroke="#e9f3f6" stroke-opacity=".65" stroke-width=".7" stroke-linecap="round"/>
+      <path d="M.2 4q1.3-.1 1.8-1.5" stroke="#f5c38a" stroke-opacity=".6" stroke-width=".65" stroke-linecap="round"/>
+    </g>
+    <filter id="soft"><feGaussianBlur stdDeviation="2.5"/></filter>
+    <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+    <clipPath id="shape"><path d="M29 1H691Q719 1 719 28V482L676 529H29Q1 529 1 502V28Q1 1 29 1Z"/></clipPath>
+  </defs>
+  <g clip-path="url(#shape)">
+    <rect width="720" height="530" filter="url(#grain)" opacity=".035"/>
+    <g opacity=".85">
+      <use href="#drop" transform="translate(30 31) rotate(-12) scale(1.1)"/>
+      <use href="#drop" transform="translate(58 57) rotate(9) scale(.65)"/>
+      <use href="#drop" transform="translate(44 90) rotate(-5) scale(1.25)"/>
+      <use href="#drop" transform="translate(80 30) rotate(12) scale(.6)"/>
+      <use href="#drop" transform="translate(26 127) rotate(-15) scale(.5)"/>
+      <use href="#drop" transform="translate(67 151) rotate(5) scale(.8)"/>
+      <use href="#drop" transform="translate(42 191) rotate(3) scale(.7)"/>
+      <use href="#drop" transform="translate(24 240) rotate(-13) scale(1.3)"/>
+      <use href="#drop" transform="translate(58 278) rotate(15) scale(.65)"/>
+      <use href="#drop" transform="translate(33 330) scale(.6)"/>
+      <use href="#drop" transform="translate(48 396) rotate(-8) scale(1.1)"/>
+      <use href="#drop" transform="translate(25 448) rotate(10) scale(.7)"/>
+      <use href="#drop" transform="translate(81 475) rotate(5) scale(.65)"/>
+      <use href="#drop" transform="translate(674 35) rotate(10) scale(.8)"/>
+      <use href="#drop" transform="translate(696 74) rotate(-8) scale(1.2)"/>
+      <use href="#drop" transform="translate(658 96) rotate(-7) scale(.5)"/>
+      <use href="#drop" transform="translate(686 137) rotate(5) scale(.65)"/>
+      <use href="#drop" transform="translate(701 191) rotate(8) scale(.9)"/>
+      <use href="#drop" transform="translate(669 236) rotate(-10) scale(1.15)"/>
+      <use href="#drop" transform="translate(691 287) rotate(14) scale(.55)"/>
+      <use href="#drop" transform="translate(674 340) rotate(-3) scale(.8)"/>
+      <use href="#drop" transform="translate(701 393) rotate(5) scale(.6)"/>
+      <use href="#drop" transform="translate(659 439) rotate(-13) scale(1.2)"/>
+      <use href="#drop" transform="translate(625 493) rotate(10) scale(.6)"/>
+    </g>
+    <g stroke="#c9dfeb" stroke-opacity=".1" stroke-width=".5">
+      <path d="M44 103v26M24 249v34M696 84v31M669 250v39M48 407v33"/>
+    </g>
+  </g>
+  <path d="M29 1H691Q719 1 719 28V482L676 529H29Q1 529 1 502V28Q1 1 29 1Z" stroke="url(#edge)" stroke-width="1.3" vector-effect="non-scaling-stroke"/>
+  <path d="M2 62V28Q2 2 29 2H156M563 2H690Q718 2 718 28V92M718 468V482L675 528H577" stroke="#e9b779" stroke-opacity=".65" stroke-width="2" filter="url(#soft)"/>
+</svg>
