@@ -34,7 +34,10 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(#0b182024, #0b182024), url('assets/midnight-hero.webp') center / cover fixed;
+    background:
+      radial-gradient(ellipse at 26% 18%, #e3f6fa1b, transparent 48%),
+      radial-gradient(ellipse at 82% 76%, #f3d6a31a, transparent 52%),
+      linear-gradient(115deg, #0b182014, #e4f6fa0b 48%, #0b182014);
     filter: url(#heritage-water-refraction);
     opacity: .5;
   }

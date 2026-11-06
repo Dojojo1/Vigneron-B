@@ -125,10 +125,11 @@ body.on-entry .estate-atmosphere { display: none; }
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .sale-record:hover, .batch-card:hover {
+  .sale-record:not([open]):hover, .batch-card:hover {
     --frame: #d8b774ba;
     transform: translateY(-3px);
   }
+  .sale-record[open]:hover { --frame: #d8b774ba; transform: none; }
   .sale-record:hover > summary::after { opacity: 1; }
   .sale-record:not([open]):hover .sale-chevron { transform: translateX(3px); }
   .batch-footer-actions > :hover span,
