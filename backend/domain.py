@@ -100,6 +100,24 @@ def financial(state, sales=None):
             'restitute':sum(sale['amount']*.8 for sale in opened if values[sale['id']]>=sale['amount']) if known else None}
 
 
+def overview_metrics(state, now=None):
+    """Current sales ledger and machine cycles launched in the Brussels week."""
+    now = now or datetime.now(TZ)
+    start = now.date() - timedelta(days=now.weekday())
+    selected, coverage = financial_sales(state)
+    received = (sum(s['amount'] for s in selected
+                    if not s.get('archive') and s['status'] != 'cancelled')
+                if coverage['available'] else None)
+    machines_available = state.get('businessSources', {}).get('machines', {}).get('available', True)
+    cycles = [m for m in state['machines']
+              if not m.get('cancelled') and not m.get('historical')
+              and (not state.get('machineBridgeConfirmedOnly') or m.get('botStatus') == 'confirmed')
+              and datetime.fromtimestamp(m['start'] / 1000, TZ).date() >= start
+              and datetime.fromtimestamp(m['start'] / 1000, TZ).date() <= now.date()]
+    return {'received': received, 'processed': sum(m['amount'] for m in cycles) if machines_available else None,
+            'companyGain': sum(m.get('machineCount', RULES['machineCount']) * 150000 for m in cycles) if machines_available else None}
+
+
 def amount(raw,default=None,maximum=9007199254740991,allow_zero=False):
     if isinstance(raw,float):
         if not raw.is_integer(): raise ValueError('Le montant doit être un nombre entier positif.')
@@ -314,6 +332,7 @@ def project(state,page):
     elif page=='history': result['events']=state['events']
     elif page in ('overview','stats'):
         result['summary']=financial(state)
+        if page=='overview': result['overviewMetrics']=overview_metrics(state)
         batch=current_batch(state);result['machines']=[batch] if batch else []
         if page=='stats':
             now=datetime.now(TZ)

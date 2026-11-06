@@ -130,7 +130,7 @@ def screen(state, page, params):
             if report['key']==selected: report['rows']=rows
         result.update(machineReports=reports,employeesTotal=rows)
     elif page=='overview':
-        result.update(summary=domain.financial(state))
+        result.update(summary=domain.financial(state),overviewMetrics=domain.overview_metrics(state))
         batch=domain.current_batch(state)
         result['machines']=[batch] if batch else []
     return result

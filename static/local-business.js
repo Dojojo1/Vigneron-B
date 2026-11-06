@@ -18,6 +18,8 @@ window.heritageLocalBusiness=()=>{
   }
   const gross=state.sales.filter(s=>s.status!=='cancelled').reduce((n,s)=>n+s.amount,0),treated=Object.values(state.allocations).reduce((n,a)=>n+a,0);
   state.summary={gross,treated,pending:gross-treated,company:gross*.15,group:gross*.8,loss:gross*.05};
+  const week=weekKey(),cycles=state.machines.filter(m=>{const p=brusselsParts(m.start);return !m.cancelled&&weekKey(`${p.day}/${p.month}/${p.year}`)===week;});
+  state.overviewMetrics={received:state.sales.filter(s=>!s.archive&&s.status!=='cancelled').reduce((n,s)=>n+s.amount,0),processed:cycles.reduce((n,m)=>n+m.amount,0),companyGain:cycles.reduce((n,m)=>n+(m.machineCount??BOT_RULES.machineCount)*150000,0)};
   const today=brusselsParts(),dayKey=timestamp=>{const p=brusselsParts(timestamp);return `${p.year}-${p.month}-${p.day}`;};
   state.days=Array.from({length:7},(_,i)=>{
    const day=new Date(Date.UTC(Number(today.year),Number(today.month)-1,Number(today.day)-6+i,12)),key=day.toISOString().slice(0,10);
