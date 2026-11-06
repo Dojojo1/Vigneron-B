@@ -6,10 +6,8 @@
   if (!content) return;
 
   const media = window.gsap.matchMedia();
-  const framePreview = new URLSearchParams(location.search).has('cadres');
-  if (framePreview) document.documentElement.classList.add('frame-preview-motion');
-  media.add({ always: 'all', motion: '(prefers-reduced-motion: no-preference)' }, context => {
-    if (!framePreview && !context.conditions.motion) return;
+  document.documentElement.classList.add('heritage-full-motion');
+  media.add('all', () => {
     const seen = new WeakSet();
     const loops = new Set();
     const animatedDrops = new Set();

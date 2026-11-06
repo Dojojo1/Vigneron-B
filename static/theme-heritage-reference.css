@@ -433,9 +433,12 @@ html .button:focus-visible, html .sidebar nav a:focus-visible { outline: 2px sol
   html .batch-card .batch-details { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
-  html .sidebar nav a, html .night-metric, html .button { transition: none; }
-  html .night-metric:hover, html .sidebar nav a:hover:not(.active) { transform: none; }
-  html.frame-preview-motion .cycle-dial .dial-orbit i { animation: dial-spark 3s ease-in-out infinite; }
+  html:not(.heritage-full-motion) .sidebar nav a,
+  html:not(.heritage-full-motion) .night-metric,
+  html:not(.heritage-full-motion) .button { transition: none; }
+  html:not(.heritage-full-motion) .night-metric:hover,
+  html:not(.heritage-full-motion) .sidebar nav a:hover:not(.active) { transform: none; }
+  html.heritage-full-motion .cycle-dial .dial-orbit i { animation: dial-spark 3s ease-in-out infinite; }
 }
 
 /* Le panneau d'accueil devient un verre de pluie, avec un centre lisible. */
