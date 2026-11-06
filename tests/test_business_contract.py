@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import secrets
 import sys
+import pytest
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlsplit, urlparse
 from unittest.mock import AsyncMock, patch
@@ -14,6 +15,8 @@ from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 BOT_ROOT = Path(os.environ.get('BOT_PROJECT_ROOT', str(Path(__file__).resolve().parents[2]/'bot_blanchiment')))
+if not (BOT_ROOT / 'business_operations.py').is_file():
+    pytest.skip('Contrat site/bot : définir BOT_PROJECT_ROOT vers une copie locale du bot.', allow_module_level=True)
 sys.path.insert(0, str(BOT_ROOT))
 sys.path.insert(0, str(BOT_ROOT / 'tests'))
 bot_tests = importlib.import_module('test_business_operations')

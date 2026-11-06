@@ -6,7 +6,7 @@ const source=readFileSync(new URL('../static/secure.js',import.meta.url),'utf8')
 const start=source.indexOf(' let overviewBotStatus=');
 const end=source.indexOf(' window.heritageNavigate=async',start);
 assert.ok(start>=0&&end>start);
-const label={textContent:'Vérification du bot…'};
+const label={textContent:'Vérification du bot…',dataset:{}};
 let now=100000,requests=0,response={botConnection:{enabled:true,online:true}};
 const context=vm.createContext({
   Date:{now:()=>now},session:{},document:{querySelector:()=>label},
