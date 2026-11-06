@@ -12,10 +12,11 @@
 
   const seen = new WeakSet();
   const attach = () => {
-    content.querySelectorAll('.night-metrics .night-metric, .batch-card').forEach(card => {
+    content.querySelectorAll('.night-metrics .night-metric, .batch-card, .sale-record').forEach(card => {
       if (seen.has(card)) return;
       seen.add(card);
-      const surface = card.classList.contains('batch-card') ? card.querySelector('.cut-inner') : card;
+      const surface = card.classList.contains('sale-record') ? card.querySelector('summary.cut-inner')
+        : card.classList.contains('batch-card') ? card.querySelector('.cut-inner') : card;
       if (!surface) return;
       const layer = document.createElement('span');
       layer.className = 'heritage-water-layer';
