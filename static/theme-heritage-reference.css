@@ -12,6 +12,7 @@ html body:not(.on-entry) {
     radial-gradient(ellipse at 88% 78%, #322314 0, transparent 47%), #061018;
 }
 html body:not(.on-entry)::before { opacity: .035; }
+html body.dashboard-active::before { opacity: .34; filter: brightness(.75) saturate(.85); }
 html ::selection { background: #d8a451; color: #071018; }
 html :focus-visible { outline: 2px solid #f4cf83; outline-offset: 3px; }
 html { scrollbar-color: #856437 #09131a; }
@@ -103,11 +104,14 @@ html .night-metric {
   gap: 9px;
   border: 1px solid #dfa8549c;
   border-radius: 25px;
-  background: radial-gradient(ellipse at 88% 100%, #8d522c58, transparent 47%),
-    radial-gradient(ellipse at 12% 0%, #63727a24, transparent 61%),
-    linear-gradient(120deg, #1a2226f0, #14191bf5 63%, #29201af2);
-  box-shadow: inset 0 1px #ffedc557, inset 0 0 31px #dd9b2d12,
-    0 14px 22px #0008, 0 2px 10px #eb9e4657;
+  background: url('assets/dashboard-glass-drops.svg') center / 100% 100% no-repeat,
+    radial-gradient(ellipse at 2% 4%, #d3e9eb31, transparent 47%),
+    radial-gradient(ellipse at 94% 90%, #e4ad6e3a, transparent 46%),
+    linear-gradient(120deg, #1a2d39a8, #08131abd 58%, #59402a9e);
+  backdrop-filter: blur(14px) saturate(1.18);
+  -webkit-backdrop-filter: blur(14px) saturate(1.18);
+  box-shadow: inset 0 1px #ffedc583, inset 2px 0 7px #d6eef047,
+    inset -2px 0 9px #f1c88b35, 0 14px 22px #0008, 0 2px 10px #eb9e463d;
   transition: transform .24s ease, border-color .24s ease, box-shadow .24s ease;
 }
 html .night-metric + article::before { display: none; }
@@ -171,7 +175,7 @@ html #overview-bot-status[data-connection='offline']::before { background: #f25a
 /* Le grand panneau du lot encadre le cadran existant sans modifier celui-ci. */
 html .night-machines { margin-top: 0; }
 html .night-machine-grid { gap: 22px; }
-html .batch-card.cut-frame { padding: 1px; --cut: 0; clip-path: none; border-radius: 28px; }
+html .batch-card.cut-frame { padding: 1px; --cut: 0; clip-path: none; border-radius: 28px; background: transparent; }
 html .batch-card::before {
   content: ''; position: absolute; z-index: 4;
   top: -23px; left: 50%; width: 46px; height: 46px;
@@ -184,14 +188,26 @@ html .batch-card::before {
 html .batch-card > .cut-inner {
   clip-path: none; border-radius: 27px;
   padding: 27px 35px 19px;
-  background: radial-gradient(ellipse at 82% 86%, #95542453, transparent 38%),
-    radial-gradient(ellipse at 22% 0%, #40545e4a, transparent 49%),
-    linear-gradient(120deg, #182127, #121719 65%, #2a211a);
-  box-shadow: inset 0 1px #f3ce8770, inset 0 -1px #e39d4b64, 0 15px 30px #0008;
+  background: url('assets/dashboard-glass-drops.svg') center / 100% 100% no-repeat,
+    radial-gradient(ellipse at 1% 5%, #bedfe634, transparent 42%),
+    radial-gradient(ellipse at 95% 89%, #e8aa6338, transparent 45%),
+    linear-gradient(110deg, #1a2c38ae, #07131bc4 55%, #644329a8);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: inset 0 1px #f3ce879c, inset 2px 0 8px #d7eef03b,
+    inset -2px 0 10px #f1c2813a, 0 15px 30px #0008;
 }
 html .batch-card .batch-main { grid-template-columns: minmax(0, 1fr) minmax(215px, 260px) minmax(0, 1fr); gap: 18px 28px; }
 html .batch-left { grid-column: 1; grid-row: 1; }
 html .batch-center { grid-column: 2; grid-row: 1; display: grid; place-items: center; }
+/* Le fond du cadran reprend la matière du panneau ; son anneau reste intact. */
+html .batch-center .dial-track::after {
+  background: radial-gradient(ellipse at 27% 18%, #bddde631, transparent 53%),
+    radial-gradient(ellipse at 80% 87%, #e6ad6d24, transparent 48%),
+    linear-gradient(135deg, #102531d8, #06131ce0 62%, #503a29c7);
+  backdrop-filter: blur(10px) saturate(1.16);
+  -webkit-backdrop-filter: blur(10px) saturate(1.16);
+}
 html .batch-card .batch-details { grid-column: 3; grid-row: 1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; border: 0; padding: 9px 0 0; }
 html .batch-details > div { padding: 9px 0 0; border-top: 1px solid #cb9c5d55; }
 html .batch-details dt { font-size: 10px; letter-spacing: .08em; color: #d1b58b; }

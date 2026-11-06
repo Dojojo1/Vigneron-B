@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" preserveAspectRatio="none" fill="none">
+  <defs>
+    <radialGradient id="drop" cx=".3" cy=".2" r=".85"><stop stop-color="#f1fbff" stop-opacity=".68"/><stop offset=".38" stop-color="#a8c4d0" stop-opacity=".2"/><stop offset=".72" stop-color="#06141d" stop-opacity=".58"/><stop offset="1" stop-color="#e7bd85" stop-opacity=".7"/></radialGradient>
+    <g id="bead"><ellipse rx="6" ry="9" fill="url(#drop)" stroke="#d9e6e8" stroke-opacity=".45" stroke-width=".7"/><path d="M-2-5q-2 1-2 3" stroke="#fff" stroke-opacity=".72" stroke-linecap="round"/><path d="M1 6q2-1 2-3" stroke="#eec38d" stroke-opacity=".7" stroke-linecap="round"/></g>
+  </defs>
+  <g opacity=".82">
+    <use href="#bead" transform="translate(25 33) scale(1.1)"/><use href="#bead" transform="translate(45 93) scale(.55)"/><use href="#bead" transform="translate(21 155) scale(.82)"/><use href="#bead" transform="translate(34 249) scale(.48)"/><use href="#bead" transform="translate(25 337) scale(.96)"/>
+    <use href="#bead" transform="translate(693 42) scale(.62)"/><use href="#bead" transform="translate(675 115) scale(.95)"/><use href="#bead" transform="translate(699 186) scale(.54)"/><use href="#bead" transform="translate(677 280) scale(1.1)"/><use href="#bead" transform="translate(690 364) scale(.68)"/>
+  </g>
+  <g stroke="#d5e8ee" stroke-opacity=".13" stroke-width=".8"><path d="M25 47v25M21 169v34M677 130v29M690 378v23"/></g>
+</svg>

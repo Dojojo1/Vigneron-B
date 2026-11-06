@@ -1,9 +1,8 @@
 /* Outil de mesure visuelle : Ctrl+Maj+L. Aucun réglage n'est enregistré. */
 (() => {
-  const selector = '.entry-panel-shell, .night-metric, .batch-card, .night-metrics, .night-dossier, .sale-record, .machine-card, .raffle, .stats-top article, .stats-grid > .panel, .panel, .register-panel, .council-panel';
+  const selector = '.night-metric, .batch-card, .night-metrics, .night-dossier, .sale-record, .machine-card, .raffle, .stats-top article, .stats-grid > .panel, .panel, .register-panel, .council-panel';
   const styles = document.createElement('style');
   styles.textContent = `
-    .entry-panel-shell > .entry-panel { height:100% }
     #frame-tuner { position:fixed;top:16px;right:16px;z-index:2147483647;width:min(310px,calc(100vw - 32px));padding:16px;border:1px solid #d5ad70;border-radius:14px;background:#0b1419f2;color:#f1dfc0;box-shadow:0 12px 42px #0009;font:13px/1.4 system-ui,sans-serif;backdrop-filter:blur(16px) }
     #frame-tuner * { box-sizing:border-box }
     #frame-tuner strong { display:block;margin-bottom:5px;font:600 17px Georgia,serif }
@@ -23,8 +22,7 @@
   const changes = new Map();
 
   function labelFor(el) {
-    const type = el.classList.contains('entry-panel-shell') ? 'Cadre d’accueil'
-      : el.classList.contains('night-metric') ? 'Bulle indicateur'
+    const type = el.classList.contains('night-metric') ? 'Bulle indicateur'
       : el.classList.contains('batch-card') ? 'Cadre du lot'
       : el.classList.contains('night-metrics') ? 'Groupe des indicateurs'
       : el.classList.contains('night-dossier') ? 'Cadre dossier'
@@ -89,7 +87,7 @@
   }
 
   function open() {
-    if (active) return;
+    if (active || document.body.classList.contains('on-entry') || document.querySelector('main')?.hidden) return;
     active = true;
     document.head.append(styles);
     panel = document.createElement('aside');
@@ -135,7 +133,13 @@
     if (e.ctrlKey && e.shiftKey && e.code === 'KeyL') { e.preventDefault(); active ? close() : open(); }
   });
   if (new URLSearchParams(location.search).has('cadres')) {
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', open, {once:true});
-    else open();
+    const waitForDashboard = () => {
+      if (document.body.classList.contains('on-entry') || document.querySelector('main')?.hidden) return;
+      watcher.disconnect(); open();
+    };
+    const watcher = new MutationObserver(waitForDashboard);
+    const start = () => { watcher.observe(document.body, {subtree:true,attributes:true,attributeFilter:['class','hidden']}); waitForDashboard(); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once:true});
+    else start();
   }
 })();
