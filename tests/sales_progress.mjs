@@ -53,7 +53,7 @@ assert.equal(progress().percent,100);
 assert.ok(context.render(sale,0).includes('class="badge recovery">En attente de récupération'));
 assert.ok(context.renderOld(sale).includes('class="badge recovery">En attente de récupération'));
 sale.status='finished';
-assert.ok(context.render(sale,0).includes('class="badge done">Restitué'));
+assert.ok(context.render(sale,0).includes('class="badge done">Terminé'));
 sale.status='active';
 
 

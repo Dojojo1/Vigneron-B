@@ -289,6 +289,12 @@ body.on-entry .estate-atmosphere { display: none; }
   white-space: normal;
   line-height: 1.25;
 }
+.badge.done,
+.night-dossier .badge.done {
+  color: #a8cfa7;
+  border-color: #75a97555;
+  background: #4f814b20;
+}
 .night-dossier .badge.recovery { max-width: 180px; text-align: left; }
 @media (max-width: 760px) {
   .sale-record > summary.cut-inner {
