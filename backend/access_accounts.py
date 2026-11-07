@@ -131,6 +131,19 @@ class AccessAccounts:
             account=self.snapshot(db,user_id)
         return {'account':account,'accessCode':code}
 
+    def delete(self,actor,user_id):
+        if self.protected(user_id):raise HTTPException(400,'Ce compte est protégé.')
+        with self.store.connect(True) as db:
+            before=self.snapshot(db,user_id)
+            if not before or before['provider']!='access_code':raise HTTPException(404,'Accès individuel introuvable.')
+            db.execute('DELETE FROM sessions WHERE user_id=?',(user_id,))
+            db.execute('DELETE FROM operation_keys WHERE user_id=?',(user_id,))
+            db.execute('DELETE FROM site_access_blocks WHERE user_id=?',(user_id,))
+            db.execute('DELETE FROM access_accounts WHERE user_id=?',(user_id,))
+            db.execute('DELETE FROM users WHERE id=?',(user_id,))
+            self.store.audit(db,actor,'access_account_deleted',{'page':'council','before':before,'after':None})
+        return {'deleted':True}
+
     def login(self,data):
         denied=HTTPException(401,'Pseudo ou code d’accès incorrect, expiré ou révoqué.')
         if not isinstance(data,dict) or set(data)!={'loginName','accessCode'}:raise denied

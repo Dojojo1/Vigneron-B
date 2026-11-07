@@ -246,8 +246,13 @@ window.addEventListener('unhandledrejection',event=>window.__chromiumAuditErrors
             driver.command('POST', '/url', {'url': origin + '/'})
             driver.wait("return !!document.querySelector('.night-metrics') && document.querySelector('#content').getAttribute('aria-busy')==='false' && document.querySelector('#initial-loading').hidden;")
             initial_ms = round((time.monotonic() - started) * 1000, 1)
-            assert len(bootstrap_payloads) == 1, 'Un seul préchargement initial est attendu.'
-            assert set(bootstrap_payloads[0]['pages']) == set(ROUTES)
+            assert len(bootstrap_payloads) == 1, 'Le premier écran doit charger seul.'
+            assert set(bootstrap_payloads[0]['pages']) == {'overview'}
+            preload_deadline = time.monotonic() + 15
+            while len(bootstrap_payloads) < 2 and time.monotonic() < preload_deadline:
+                time.sleep(.05)
+            assert len(bootstrap_payloads) == 2, 'Les autres écrans doivent être préchargés après le premier affichage.'
+            assert set(bootstrap_payloads[1]['pages']) == set(ROUTES) - {'overview'}
             assert not any(item['path'].startswith('/api/pages/') for item in requests)
 
             def screenshot(name):
@@ -336,7 +341,7 @@ return {mask:style.maskImage,webkitMask:style.getPropertyValue('-webkit-mask-ima
             assert not errors and not javascript_logs, {'events': errors, 'logs': javascript_logs}
             result = {'ok': True, 'browser': capabilities.get('browserName'),
                       'version': capabilities.get('browserVersion'), 'isolated_fixture': True,
-                      'initial_loading_ms': initial_ms, 'initial_preloaded_pages': len(ROUTES),
+                      'initial_loading_ms': initial_ms, 'initial_preloaded_pages': 1,
                       'cached_navigation_ms': desktop, 'cached_page_data_gets': len(data_reads),
                       'cached_navigation_spinners': False, 'sidebar_gradient_css': fade,
                       'profile_menu_and_tombola_modal': True, 'mobile_menu': True,

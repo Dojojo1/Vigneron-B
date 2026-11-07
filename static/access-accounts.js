@@ -19,7 +19,7 @@ window.heritageAccessAccounts=function({root,accounts,pages,api,esc,when,toast})
  function table(){
   container.innerHTML=`<div class="table-wrap"><table class="individual-table"><thead><tr><th>Identité</th><th>Connexion et rôles</th><th>Accès au site</th><th>Dernière connexion</th><th>Gestion</th></tr></thead><tbody>${users.map(u=>{
    const a=u.siteAccess,guest=a.provider==='access_code';
-   return `<tr data-account-id="${esc(u.id)}"><td><strong>${esc(u.display_name||u.username)}</strong><small>${esc(guest?a.loginName:u.id)}</small></td><td>${guest?'Pseudo et code':u.id==='local-preview'?'Aperçu local':`Discord<small>${JSON.parse(u.role_ids).map(id=>esc(accounts.roles?.find(r=>r.id===id)?.name||id)).join(', ')||'@everyone'}</small>`}</td><td><span class="individual-status ${a.blocked?'is-blocked':''}">${a.blocked?'Révoqué':u.protected?'Propriétaire protégé':!guest&&!u.member?'Hors du serveur':'Actif'}</span>${a.expiresAt?`<small>Expire le ${when(a.expiresAt)}</small>`:''}</td><td>${when(u.last_login)}</td><td>${u.protected?'<span class="form-note">Compte protégé</span>':`<button class="button glass" type="button" data-site-block="${!a.blocked}">${a.blocked?'Réactiver l’accès':'Révoquer l’accès'}</button>`}${guest?`<details class="individual-edit"><summary>Catégories et code</summary><form class="individual-edit-form"><fieldset class="individual-pages"><legend>Catégories autorisées</legend>${choices(a.pages)}</fieldset><button class="button primary" type="submit">Enregistrer</button><button class="button glass" type="button" data-rotate-code>Générer un nouveau code</button></form></details>`:''}</td></tr>`;
+   return `<tr data-account-id="${esc(u.id)}"><td><strong>${esc(u.display_name||u.username)}</strong><small>${esc(guest?a.loginName:u.id)}</small></td><td>${guest?'Pseudo et code':u.id==='local-preview'?'Aperçu local':`Discord<small>${JSON.parse(u.role_ids).map(id=>esc(accounts.roles?.find(r=>r.id===id)?.name||id)).join(', ')||'@everyone'}</small>`}</td><td><span class="individual-status ${a.blocked?'is-blocked':''}">${a.blocked?'Révoqué':u.protected?'Propriétaire protégé':!guest&&!u.member?'Hors du serveur':'Actif'}</span>${a.expiresAt?`<small>Expire le ${when(a.expiresAt)}</small>`:''}</td><td>${when(u.last_login)}</td><td>${u.protected?'<span class="form-note">Compte protégé</span>':`<button class="button glass" type="button" data-site-block="${!a.blocked}">${a.blocked?'Réactiver l’accès':'Révoquer l’accès'}</button>`}${guest?`<details class="individual-edit"><summary>Catégories et code</summary><form class="individual-edit-form"><fieldset class="individual-pages"><legend>Catégories autorisées</legend>${choices(a.pages)}</fieldset><button class="button primary" type="submit">Enregistrer</button><button class="button glass" type="button" data-rotate-code>Générer un nouveau code</button></form></details><button class="button glass danger" type="button" data-delete-access>Supprimer ce compte</button>`:''}</td></tr>`;
   }).join('')||'<tr><td colspan="5" class="empty">Aucun compte à afficher.</td></tr>'}</tbody></table></div>`;
  }
  async function refresh(){const result=await api('/api/admin/users');if(root.isConnected){users=result.users;table();}}
@@ -40,12 +40,15 @@ window.heritageAccessAccounts=function({root,accounts,pages,api,esc,when,toast})
   finally{delete container.dataset.busy;container.querySelectorAll('button').forEach(el=>el.disabled=false);}
  }
  container.addEventListener('click',event=>{
-  const button=event.target.closest('[data-site-block],[data-rotate-code]');if(!button||button.disabled||container.dataset.busy)return;
+  const button=event.target.closest('[data-site-block],[data-rotate-code],[data-delete-access]');if(!button||button.disabled||container.dataset.busy)return;
   const row=button.closest('[data-account-id]'),id=row.dataset.accountId,user=users.find(u=>u.id===id);
   if(button.hasAttribute('data-site-block')){
    const blocked=button.dataset.siteBlock==='true';
    if(!confirm(`${blocked?'Révoquer':'Réactiver'} l’accès au site de ${user.display_name||user.username} ?${blocked?' Ses sessions seront coupées. Ses rôles Discord restent conservés.':''}`))return;
    void act(row,button,()=>api('/api/admin/accounts/'+encodeURIComponent(id)+'/site-access',{method:'POST',body:{blocked}}));
+  }else if(button.hasAttribute('data-delete-access')){
+   if(!confirm(`Supprimer définitivement le compte de ${user.display_name||user.username} ? Son code et ses sessions seront invalidés. Cette action ne peut pas être annulée.`))return;
+   hideCode();void act(row,button,()=>api('/api/admin/access-accounts/'+encodeURIComponent(id),{method:'DELETE'}));
   }else{
    if(!confirm('Générer un nouveau code ? L’ancien code et toutes les sessions de cette personne seront invalidés.'))return;
    hideCode();void act(row,button,()=>api('/api/admin/access-accounts/'+encodeURIComponent(id)+'/rotate-code',{method:'POST',body:{}}));

@@ -641,11 +641,19 @@
   try{
    publishSession(account);
    const loadingLabel=$('#initial-loading p');if(loadingLabel)loadingLabel.textContent='Préparation de tes espaces…';
-   await ensurePreloaded();
+   // The first screen should not wait for every private page on a remote API.
+   // Navigation already loads each other page when it is opened.
+   if(location.hash!=='#welcome'&&!loginError)await ensurePreloaded([location.hash.slice(1)||landingPage()]);
    if(location.hash==='#welcome'||loginError){visibleDomain(false);return true;}
    else{
     if(!location.hash)history.replaceState(null,'',(publicPages?location.pathname:'/app')+location.search+'#'+landingPage());
-    return await window.heritageNavigate();
+    const opened=await window.heritageNavigate();
+    if(opened){
+     const firstRoute=location.hash.slice(1);
+     const remaining=session.pages.map(page=>page.id).filter(route=>route!==firstRoute);
+     if(remaining.length)setTimeout(()=>queuePreload(remaining),1200);
+    }
+    return opened;
    }
   }
   catch(error){if(error.status!==401||error.reason==='employee_required'){$('.entry-demo-note').textContent=error.message;window.heritageFeedback?.show({title:'Chargement impossible',message:error.message,key:'/api/bootstrap'});}else publishSession(null);visibleDomain(false);return error.status===401&&error.reason!=='employee_required';}

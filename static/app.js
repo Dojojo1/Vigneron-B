@@ -243,12 +243,33 @@ function tombolaPage(){
 function historyPage(){return`<section class="panel"><div class="panel-header"><div><h2>Le registre du domaine</h2><p>${state.pagination?.history?.total??state.events.length} mouvements</p></div><button class="text-link" data-action="export">Exporter en CSV ↗</button></div><div class="table-wrap"><table class="history-table"><thead><tr><th>Date</th><th>Opération</th><th>Détails</th><th>Auteur</th></tr></thead><tbody>${state.events.map(e=>`<tr><td>${date(e.created)}</td><td>${escapeHTML(e.title)}</td><td>${escapeHTML(e.detail)}</td><td>${escapeHTML(e.author)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">Aucun mouvement pour le moment. Les prochaines opérations apparaîtront ici.</td></tr>'}</tbody></table></div>${pagination('history')}</section>`;}
 function teamPage(){return `<div class="team-grid">${(state.members||[]).map(m=>`<article class="panel member"><span class="avatar member-avatar"><span ${m.avatar?'aria-hidden="true"':''}>${escapeHTML(m.displayName.slice(0,2))}</span>${m.avatar?`<img src="${escapeHTML(m.avatar)}" alt="Photo de profil de ${escapeHTML(m.displayName)}" loading="lazy" decoding="async">`:''}</span><h3>${escapeHTML(m.displayName)}</h3><p>${escapeHTML(m.discordName)}</p></article>`).join('')||'<p class="empty">Aucun compte à afficher.</p>'}</div>${pagination('team')}`;}
 $('#content').addEventListener('error',e=>{const image=e.target;if(!image.matches?.('.member-avatar img'))return;const initials=image.parentElement.querySelector('span');initials?.removeAttribute('aria-hidden');image.remove();},true);
+function updateOverviewNode(previous,next){
+ if(previous.nodeType!==next.nodeType||previous.nodeType===1&&previous.tagName!==next.tagName){previous.replaceWith(next);return;}
+ if(previous.nodeType===3){if(previous.nodeValue!==next.nodeValue)previous.nodeValue=next.nodeValue;return;}
+ if(previous.nodeType!==1)return;
+ // The bot indicator and the glass animations have their own live state.
+ if(previous.id==='overview-bot-status')return;
+ const transient=new Set(['water-hover','heritage-motion-button']);
+ const classes=new Set([...next.classList,...[...previous.classList].filter(name=>transient.has(name))]);
+ const nextChildren=[...next.childNodes];
+ const oldChildren=[...previous.childNodes].filter(node=>node.nodeType!==1||!node.matches('.glass-drop,.heritage-water-layer,.heritage-click-drop'));
+ if(oldChildren.length!==nextChildren.length){previous.replaceWith(next);return;}
+ for(const name of previous.getAttributeNames())if(name!=='class'&&!next.hasAttribute(name))previous.removeAttribute(name);
+ for(const name of next.getAttributeNames())if(name!=='class'&&previous.getAttribute(name)!==next.getAttribute(name))previous.setAttribute(name,next.getAttribute(name));
+ const className=[...classes].join(' ');
+ if(className!==previous.getAttribute('class')){
+  if(className)previous.setAttribute('class',className);
+  else previous.removeAttribute('class');
+ }
+ oldChildren.forEach((child,index)=>updateOverviewNode(child,nextChildren[index]));
+}
 function updatePageContent(markup){
  const content=$('#content'),template=document.createElement('template');template.innerHTML=markup;
  const existing=[...content.childNodes],incoming=[...template.content.childNodes];
  incoming.forEach((node,index)=>{
   const previous=existing[index];
   if(previous?.isEqualNode(node))return;
+  if(activePage==='overview'&&previous?.nodeType===1&&node.nodeType===1&&previous.tagName===node.tagName){updateOverviewNode(previous,node);return;}
   if(previous)previous.replaceWith(node);else content.append(node);
  });
  existing.slice(incoming.length).forEach(node=>node.remove());

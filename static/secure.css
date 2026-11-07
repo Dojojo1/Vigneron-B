@@ -15,6 +15,7 @@
 .individual-table small { display: block; margin-top: 7px; overflow-wrap: anywhere; }
 .individual-table .button { font-size: 11px; padding: 10px 14px; white-space: nowrap; }
 .individual-edit { min-width: 240px; }
+.individual-table [data-delete-access] { margin-top: 12px; }
 .individual-status { color: #b8d4b7; }
 .individual-status.is-blocked { color: #e4a5ac; }
 .access-code-entry { text-align: left; }

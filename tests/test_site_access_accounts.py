@@ -112,6 +112,26 @@ def test_revoke_rotate_restore_and_permission_change(env):
     assert env['client'].get('/api/me').json()['user']['supreme'] is False
 
 
+def test_delete_individual_account_invalidates_session_and_preserves_audit(env):
+    account=create(env,['machines']);uid=account['account']['id']
+    assert code_login(env,account).status_code==200
+    old=env['client'].cookies.get(COOKIE)
+    env['client'].cookies.clear()
+    login(env,SUPREME)
+    assert env['client'].delete(f'/api/admin/access-accounts/{MEMBER}',headers=headers(env)).status_code==404
+    result=env['client'].delete(f'/api/admin/access-accounts/{uid}',headers=headers(env))
+    assert result.status_code==200 and result.json()=={'deleted':True}
+    with env['store'].connect() as db:
+        assert not db.execute('SELECT 1 FROM users WHERE id=?',(uid,)).fetchone()
+        assert not db.execute('SELECT 1 FROM access_accounts WHERE user_id=?',(uid,)).fetchone()
+        assert not db.execute('SELECT 1 FROM sessions WHERE user_id=?',(uid,)).fetchone()
+        assert db.execute("SELECT 1 FROM audit WHERE kind='access_account_deleted'").fetchone()
+    with TestClient(create_app(env['cfg'],env['provider']),base_url=env['cfg'].base_url) as former:
+        former.cookies.set(COOKIE,old)
+        assert former.get('/api/me').status_code==401
+    assert code_login(env,account).status_code==401
+
+
 def test_code_survives_restart_expiry_is_enforced_and_does_not_roll_past_deadline(env):
     account=create(env);uid=account['account']['id'];deadline=time.time()+600
     with env['store'].connect(True) as db:db.execute('UPDATE access_accounts SET expires_at=? WHERE user_id=?',(deadline,uid))

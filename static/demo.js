@@ -20,6 +20,7 @@ window.heritagePublicDemo=()=>{
   }
   const match=path.match(/^\/api\/admin\/(?:access-accounts|accounts)\/([^/]+)(?:\/(site-access|rotate-code))?$/);
   if(match){const user=settings.users.find(u=>u.id===decodeURIComponent(match[1]));if(!user)throw new Error('Compte introuvable.');
+   if(method==='DELETE'&&user.siteAccess.provider==='access_code'&&match[2]===undefined){settings.users=settings.users.filter(u=>u!==user);persist();return {deleted:true};}
    if(match[2]==='rotate-code')return {account:{loginName:user.siteAccess.loginName},accessCode:code()};
    if(match[2]==='site-access')user.siteAccess.blocked=body.blocked;else if(method==='PATCH')user.siteAccess.pages=body.pages;else throw new Error('Action indisponible.');
    persist();return {};
