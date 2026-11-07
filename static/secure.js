@@ -512,6 +512,27 @@
  }
  setInterval(()=>void refreshMachineSnapshot(),15000);
  // End Machines refresh.
+ async function followBusinessCommand(page,commandId,scope){
+  for(let attempt=0;attempt<15;attempt++){
+   await new Promise(resolve=>setTimeout(resolve,2000));
+   if(!session||sessionScope(session)!==scope)return;
+   let data;
+   try{data=await api(pageURL(page,true),{background:true});}
+   catch(error){if(error.status===401)return;continue;}
+   const job=data.businessCommands?.find(item=>item.id===commandId);
+   if(!job||job.status==='pending')continue;
+   if(job.status==='uncertain'){
+    toast(job.error?.message||'Le bot vérifie encore cette opération. Consulte la liaison Discord.');
+    return;
+   }
+   clearPageCache(affectedPages('/api/actions/'+page));
+   if(activePage===page||activePage==='overview'||activePage==='stats')
+    await window.heritageNavigate({fresh:true,preserveFocus:true});
+   toast(job.status==='applied'?'Opération confirmée par le bot.':job.error?.message||'Le bot a refusé l’opération. La page a été actualisée.');
+   return;
+  }
+  toast('Le bot n’a pas encore confirmé cette opération. Son état reste visible dans la liaison Discord.');
+ }
  async function performAction(action,id,values,requestKey){
   if(action==='company-history'){
    if(!session?.user.supreme||!can('stats'))throw Error('Cet accès est réservé à l’administrateur suprême.');
@@ -532,7 +553,10 @@
   }
   if(action==='add-sale'||action==='confirm-sales-reset'){salesScope='current';search='';pageOffsets.sales=0;pageOffsets.events=0;}
   const refreshed=await window.heritageNavigate({fresh:true,preserveFocus:true});
-  toast(result.pending?(action==='add-machine'?'Lot affiché. Synchronisation avec le bot en cours.':refreshed?'Demande en attente du bot. L’opération sera confirmée après exécution.':'Demande envoyée au bot. Actualise la page pour suivre sa confirmation.'):refreshed?'Opération enregistrée dans la base du site.':'Opération enregistrée, mais l’affichage n’a pas pu être actualisé.');
+  if(result.pending&&page!=='machines'&&result.commandId){
+   toast('Demande envoyée. Le résultat du bot s’affichera automatiquement.');
+   void followBusinessCommand(page,result.commandId,sessionScope(session));
+  }else toast(result.pending?'Lot affiché. Synchronisation avec le bot en cours.':refreshed?'Opération enregistrée dans la base du site.':'Opération enregistrée, mais l’affichage n’a pas pu être actualisé.');
  }
  window.heritageAction=async(action,id,values)=>{
   const key=JSON.stringify([action,id||null,values]);
