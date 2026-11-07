@@ -107,9 +107,8 @@ html body:not(.on-entry) :is(.field input, .field select, .toolbar input, .input
     border-radius: inherit;
     pointer-events: none;
     background:
-      radial-gradient(ellipse at 26% 18%, #e3f6fa1b, transparent 48%),
-      radial-gradient(ellipse at 82% 76%, #f3d6a31a, transparent 52%),
-      linear-gradient(115deg, #0b182014, #e4f6fa0b 48%, #0b182014);
+      linear-gradient(#0b182024, #0b182024),
+      url('assets/midnight-hero.webp') center / cover no-repeat;
     filter: url(#heritage-water-refraction);
     opacity: 0;
     transition: opacity .85s cubic-bezier(.22, 1, .36, 1) !important;
