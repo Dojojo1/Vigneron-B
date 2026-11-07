@@ -170,23 +170,26 @@
  function publishSession(data){
   if(sessionScope(data)!==sessionScope(session)){clearPageCache();lastVisited=null;if(session)concealPrivateUI();}
   if(session&&(!data||data.user.id!==session.user.id)){profileDraft=null;state=seed();$('#content').replaceChildren();displayedPage=null;accountMarkup='';}
-  session=data;sessionConfirmedAt=data?performance.now():0;window.heritageSession=data;refreshAccount();void flushErrors();
+  session=data;sessionConfirmedAt=data?performance.now():0;window.heritageSession=data;refreshAccount();
+  if(data?.botConnection)updateOverviewBotStatus(data.botConnection);
+  void flushErrors();
  }
  const reportedErrors=new Map();
- let errorFlush=false;
+ let errorFlush=false,errorReportRefusedScope=null;
  const errorStorage=()=>session?'heritage.pending-errors.'+session.user.id:null;
  function readErrors(key){try{const data=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(data)?data:[];}catch{return [];}}
  let memoryErrors=new Map();
  function pendingErrors(key){if(!memoryErrors.has(key))memoryErrors.set(key,readErrors(key));return memoryErrors.get(key);}
  function persistErrors(key){try{localStorage.setItem(key,JSON.stringify(pendingErrors(key)));}catch{}}
  async function flushErrors(){
-  const key=errorStorage();if(!key||errorFlush||navigator.onLine===false)return;
+  const key=errorStorage();if(!key||errorFlush||navigator.onLine===false||errorReportRefusedScope===sessionScope(session))return;
   errorFlush=true;
   try{
    while(session&&errorStorage()===key&&pendingErrors(key).length){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
     try{
      const response=await fetch(apiBase+'/api/client-errors',{method:'POST',credentials:publicPages?'omit':'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json','X-CSRF-Token':session.cs,...(publicPages&&bearer?{Authorization:'Bearer '+bearer}:{}),...bridgeHeaders},body:JSON.stringify(pendingErrors(key)[0])});
+     if(response.status===403){errorReportRefusedScope=sessionScope(session);break;}
      if(!response.ok)break;
      pendingErrors(key).shift();persistErrors(key);
     }catch{break;}finally{clearTimeout(timer);}
@@ -195,7 +198,7 @@
  }
  window.addEventListener('online',()=>void flushErrors());
  window.heritageReportError=kind=>{
-  if(!session||!['script','network','timeout','unexpected','offline'].includes(kind))return;
+  if(!session||errorReportRefusedScope===sessionScope(session)||!['script','network','timeout','unexpected','offline'].includes(kind))return;
   const route=location.hash.slice(1)||landingPage(),page=route==='welcome'||session.pages.some(p=>p.id===route)?route:'profile',key=kind+':'+page;
   if(Date.now()-(reportedErrors.get(key)||0)<30000)return;reportedErrors.set(key,Date.now());
   const storage=errorStorage();pendingErrors(storage).push({kind,page,key:'client-error-'+crypto.randomUUID(),occurredAt:Date.now()});persistErrors(storage);void flushErrors();
@@ -384,32 +387,19 @@
   try{return await sessionCheck;}finally{sessionCheck=null;}
  }
  window.heritageFilter=key=>{pageOffsets[key]=0;clearTimeout(filterTimer);filterTimer=setTimeout(()=>void window.heritageNavigate({preserveFocus:true}),300);};
- let overviewBotStatus=null,overviewBotCheckedAt=0,overviewBotRequest=null;
+ let overviewBotStatus=null;
  function paintOverviewBotStatus(label,status){
   if(!label)return;
   label.textContent=status;
   label.dataset.connection=status==='Bot connecté'?'online':status==='Bot déconnecté'?'offline':'unknown';
  }
- function refreshOverviewBotStatus(){
-  const label=document.querySelector('#overview-bot-status');
-  if(!label||!session||document.hidden)return;
-  const current=Date.now();
-  if(overviewBotStatus&&current-overviewBotCheckedAt<30000){paintOverviewBotStatus(label,overviewBotStatus);return;}
-  if(overviewBotRequest)return;
-  overviewBotRequest=api('/api/bot-status',{background:true}).then(data=>{
-   const connection=data?.botConnection;
-   overviewBotStatus=!connection||connection.enabled===false?'État du bot indisponible':connection.online?'Bot connecté':'Bot déconnecté';
-   overviewBotCheckedAt=Date.now();
-   const visible=document.querySelector('#overview-bot-status');
-   paintOverviewBotStatus(visible,overviewBotStatus);
-  }).catch(()=>{
-   overviewBotStatus='État du bot indisponible';overviewBotCheckedAt=Date.now();
-   const visible=document.querySelector('#overview-bot-status');
-   paintOverviewBotStatus(visible,overviewBotStatus);
-  }).finally(()=>{overviewBotRequest=null;});
+ function updateOverviewBotStatus(connection){
+  overviewBotStatus=connection.enabled===false?'État du bot indisponible':connection.online?'Bot connecté':'Bot déconnecté';
+  paintOverviewBotStatus(document.querySelector('#overview-bot-status'),overviewBotStatus);
  }
- setInterval(refreshOverviewBotStatus,30000);
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshOverviewBotStatus();});
+ function refreshOverviewBotStatus(){
+  if(overviewBotStatus)paintOverviewBotStatus(document.querySelector('#overview-bot-status'),overviewBotStatus);
+ }
  window.heritageNavigate=async({preserveFocus=false,fresh=false,sessionRefreshed=false,staleRetries=0}={})=>{
   clearTimeout(filterTimer);
   const version=++navigationVersion;
@@ -461,11 +451,7 @@
     }
    }
    state=data;render({incremental});applyAccessUI();displayedPage=route;showing=true;content.hidden=false;
-   if(data.botConnection){
-    const connection=data.botConnection;
-    overviewBotStatus=connection.enabled===false?'État du bot indisponible':connection.online?'Bot connecté':'Bot déconnecté';
-    overviewBotCheckedAt=Date.now();paintOverviewBotStatus(document.querySelector('#overview-bot-status'),overviewBotStatus);
-   }
+   if(data.botConnection)updateOverviewBotStatus(data.botConnection);
    if(inputId){const input=document.getElementById(inputId);if(input&&input!==selected){input.focus({preventScroll:true});if(typeof selection==='number'&&input.setSelectionRange)input.setSelectionRange(selection,selection);}}
   }
   try{
@@ -690,10 +676,10 @@
  }
  setInterval(verifySession,10000);
  setInterval(async()=>{
-  if(!session||document.hidden||activePage==='welcome'||refreshingPages||machineRefreshInFlight)return;
+  if(!session||document.hidden||activePage==='welcome'||['machines','sales','tombola','overview','stats'].includes(activePage)||refreshingPages||machineRefreshInFlight)return;
   refreshingPages=true;
   try{
-   await checkSession();await ensurePreloaded();
+   await ensurePreloaded([activePage]);
    if(versionedRoutes.has(activePage)&&pageURL(activePage)===pageURL(activePage,true)&&!document.querySelector('dialog[open]')&&!document.activeElement?.matches('input,select,textarea'))await window.heritageNavigate({preserveFocus:true});
   }catch(error){backgroundFailure(error);}
   finally{refreshingPages=false;}

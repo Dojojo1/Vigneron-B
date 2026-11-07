@@ -97,7 +97,11 @@ def create_app(settings=None, provider=None):
 
     def csrf(request,session):
         expected_origin = public_origin if request.headers.get('authorization','').startswith('Bearer ') and public_origin else cfg.base_url
-        if request.headers.get('origin')!=expected_origin or not hmac.compare_digest(request.headers.get('x-csrf-token','').encode('utf-8'),session['csrf'].encode('utf-8')):
+        if request.headers.get('origin')!=expected_origin:
+            request.state.audit_csrf_reason='origin'
+            raise HTTPException(403,'Protection CSRF : recharge la page avant de réessayer.')
+        if not hmac.compare_digest(request.headers.get('x-csrf-token','').encode('utf-8'),session['csrf'].encode('utf-8')):
+            request.state.audit_csrf_reason='token'
             raise HTTPException(403,'Protection CSRF : recharge la page avant de réessayer.')
 
     async def json_body(request):
@@ -372,7 +376,8 @@ def create_app(settings=None, provider=None):
     def me(request:Request):
         user=auth(request)
         return {'user':profile(user),'csrf':request.state.session['csrf'],
-                'pages':[value for key,value in pages.items() if security.allowed(user,key)],**configuration()}
+                'pages':[value for key,value in pages.items() if security.allowed(user,key)],
+                'botConnection':bridge.connection_status(),**configuration()}
 
     @app.post('/api/client-errors')
     async def client_error(request:Request):

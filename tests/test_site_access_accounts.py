@@ -140,6 +140,7 @@ def test_bot_status_available_to_individual_account_without_discord_request(env)
     response=env['client'].get('/api/bot-status')
     assert response.status_code==200
     assert set(response.json()['botConnection'])=={'enabled','online','lastSeen'}
+    assert env['client'].get('/api/me').json()['botConnection']==response.json()['botConnection']
     with env['store'].connect(True) as db:
         db.execute("INSERT OR REPLACE INTO metadata(key,value) VALUES('bot_last_seen',?)",(json.dumps({'at':time.time(),'kind':'heartbeat'}),))
     refreshed=env['client'].get('/api/bot-status').json()['botConnection']

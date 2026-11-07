@@ -184,6 +184,7 @@ class AuditHTTPMiddleware:
             if state.get('audit_log_entry'): detail['record']=str(state['audit_log_entry'])
             if state.get('audit_exception'): detail['errorType']=state['audit_exception']
             if status>=400 and state.get('audit_stage'): detail['stage']=state['audit_stage']
+            if state.get('audit_csrf_reason'): detail['csrfReason']=state['audit_csrf_reason']
             # Capturer le contexte propre à CETTE requête avant le regroupement des écritures.
             await self.writer.append(actor,kind,{**(context.get() or {}),**detail},session_hash)
         async def audited_send(message):
