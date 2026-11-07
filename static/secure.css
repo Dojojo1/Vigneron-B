@@ -68,6 +68,12 @@ button:disabled { cursor: wait; opacity: .55; }
 .list-pagination button:disabled { cursor: default; }
 [data-cycle-recover]:disabled, [data-action="add-machine"]:disabled { cursor: not-allowed; }
 .journal-panel > h2 { font: 36px var(--serif); margin: 8px 0 14px; }
+.history-register { min-width: 650px; }
+.history-register td { line-height: 1.5; vertical-align: middle; overflow-wrap: anywhere; }
+.history-register td:nth-child(2) { width: 30%; }
+.history-register td:nth-child(3) { width: 30%; color: var(--muted); }
+.history-register strong { font: 500 17px/1.35 var(--serif); color: var(--ivory); }
+.history-register time { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .journal-filters { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; margin: 26px 0; }
 .journal-filters .field { margin: 0; min-width: 0; }
 .journal-filters .register-actions { align-self: end; flex-wrap: wrap; }
