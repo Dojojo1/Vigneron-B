@@ -10,14 +10,42 @@
 .individual-code { margin: 24px 0; padding: 24px; border: 1px solid #c9a46e99; background: linear-gradient(120deg,#1b2933,#101820); }
 .individual-code h3 { font: 25px var(--serif); margin: 0 0 12px; }
 .individual-code input { font-family: monospace; font-size: 16px; user-select: text; }
-.individual-table { margin-top: 24px; }
-.individual-table td { vertical-align: top; }
-.individual-table small { display: block; margin-top: 7px; overflow-wrap: anywhere; }
-.individual-table .button { font-size: 11px; padding: 10px 14px; white-space: nowrap; }
-.individual-edit { min-width: 240px; }
-.individual-table [data-delete-access] { margin-top: 12px; }
-.individual-status { color: #b8d4b7; }
+.individual-list-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin: 28px 0 14px; }
+.individual-list-heading h3 { margin: 0; font: 500 23px/1.25 var(--serif); color: #eddbba; }
+.individual-list-heading > span { color: #bda98a; font: 11px/1.5 var(--sans); white-space: nowrap; }
+.individual-list { display: grid; gap: 12px; }
+.individual-account { display: grid; grid-template-columns: minmax(180px,1.15fr) minmax(220px,1.5fr) minmax(170px,.8fr); gap: 22px; align-items: start; padding: 21px 24px; border: 1px solid #cda46a66; border-radius: 16px; background: linear-gradient(115deg,#e8f7ff14,transparent 26% 75%,#ffdfaa12),radial-gradient(ellipse at 5% 5%,#d9eff122,transparent 42%),linear-gradient(125deg,#1a2b35e8,#0b1821ef 60%,#2a211be8); box-shadow: inset 0 1px #f9e9c74d,0 9px 20px #0005; backdrop-filter: blur(10px) saturate(1.15); -webkit-backdrop-filter: blur(10px) saturate(1.15); transition: border-color .35s ease,box-shadow .35s ease; }
+.individual-account:hover { border-color: #e6be83bd; box-shadow: inset 0 1px #fff1d67d,0 14px 26px #0007; }
+.individual-account.is-revoked { border-color: #a7846966; }
+.individual-identity { display: flex; gap: 14px; align-items: flex-start; min-width: 0; }
+.individual-identity > div { min-width: 0; }
+.individual-monogram { display: grid; place-items: center; width: 42px; height: 42px; flex: none; border: 1px solid #d0ab7299; border-radius: 50%; background: #0a151d; color: #e5c58f; font: 25px/1 var(--serif); box-shadow: inset 0 1px #f6dfac40; }
+.individual-identity h4 { margin: 0 0 4px; color: #f0dfc0; font: 500 21px/1.25 var(--serif); overflow-wrap: anywhere; }
+.individual-handle { display: block; color: #c1b298; font: 11px/1.5 var(--sans); overflow-wrap: anywhere; }
+.individual-provider { display: inline-block; margin-top: 9px; padding: 3px 8px; border: 1px solid #bc9b644e; border-radius: 20px; color: #d6bb8b; font: 10px/1.5 var(--sans); }
+.individual-account-info { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(120px,.8fr); gap: 13px 20px; min-width: 0; }
+.individual-account-info > div { min-width: 0; }
+.individual-field-label { display: block; margin-bottom: 6px; color: #c1ad87; font: 10px/1.3 var(--sans); letter-spacing: .04em; }
+.individual-account-info p { margin: 0; color: #eadcc4; font: 12px/1.55 var(--sans); overflow-wrap: anywhere; }
+.individual-account-manage { display: grid; justify-items: start; gap: 8px; min-width: 0; }
+.individual-account-manage .button { width: 100%; min-height: 36px; padding: 9px 12px; font-size: 11px; text-align: center; }
+.individual-status { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 3px; color: #b8d4b7; font: 11px/1.5 var(--sans); }
+.individual-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #70ca91; box-shadow: 0 0 8px #70ca9166; }
 .individual-status.is-blocked { color: #e4a5ac; }
+.individual-status.is-blocked::before { background: #d97780; box-shadow: 0 0 8px #d9778066; }
+.individual-protected { color: #baa889; font: 11px/1.5 var(--sans); }
+.individual-edit { width: 100%; min-width: 0; margin: 2px 0; padding: 8px 0 0; }
+.individual-edit > summary { display: inline-flex; align-items: center; min-height: 30px; }
+.individual-edit[open] { padding-bottom: 12px; }
+.individual-edit-form { display: grid; gap: 9px; }
+.individual-edit .individual-pages { margin: 10px 0; }
+.individual-account:has(.individual-edit[open]) { grid-template-columns: minmax(180px,1fr) minmax(220px,1.5fr); }
+.individual-account:has(.individual-edit[open]) .individual-account-manage { grid-column: 1 / -1; justify-items: start; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.individual-account:has(.individual-edit[open]) .individual-account-manage .individual-edit { grid-column: 1 / -1; grid-row: 2; }
+.individual-account:has(.individual-edit[open]) .individual-account-manage [data-delete-access] { grid-column: 2; grid-row: 1; }
+@media(max-width:1050px) { .individual-account { grid-template-columns: minmax(170px,1fr) minmax(220px,1.2fr); } .individual-account-manage { grid-column: 1 / -1; grid-template-columns: repeat(3,minmax(0,1fr)); align-items: center; } .individual-account-manage .individual-edit { margin: 0; padding: 0; } }
+@media(max-width:700px) { .individual-account,.individual-account:has(.individual-edit[open]) { grid-template-columns: minmax(0,1fr); gap: 18px; padding: 17px; } .individual-account-info { grid-template-columns: minmax(0,1fr) minmax(115px,.8fr); } .individual-account-manage,.individual-account:has(.individual-edit[open]) .individual-account-manage { grid-column: 1; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); } .individual-account-manage .individual-status { grid-column: 1 / -1; } .individual-account-manage .individual-edit { grid-column: 1 / -1 !important; grid-row: auto !important; } .individual-account-manage [data-delete-access] { grid-column: auto !important; grid-row: auto !important; } }
+@media(max-width:430px) { .individual-list-heading { align-items: flex-start; flex-direction: column; gap: 4px; } .individual-account-info { grid-template-columns: minmax(0,1fr); } .individual-account-manage,.individual-account:has(.individual-edit[open]) .individual-account-manage { grid-template-columns: minmax(0,1fr); } }
 .access-code-entry { text-align: left; }
 .access-code-entry form { margin-top: 18px; }
 .access-code-entry .field { font: 12px/1.6 var(--sans); }
