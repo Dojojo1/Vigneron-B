@@ -1,5 +1,6 @@
 'use strict';
 window.heritagePublicDemo=()=>{
+ const botLabel=document.querySelector('#overview-bot-status');if(botLabel)botLabel.textContent='Aperçu local';
  const routes=[...Object.keys(pages),'profile','council'];
  const labels={profile:'Mon profil',council:'Le Conseil des Accès'};
  window.heritageSession={demo:true,user:{id:'preview-visitor',displayName:'Visiteur',supreme:false},pages:routes.map(id=>({id,label:pages[id]?.[0]||labels[id]}))};

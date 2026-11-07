@@ -172,7 +172,7 @@ def create_app(settings=None, provider=None):
                 if path.startswith(('/api/pages/','/api/actions/','/api/visits/','/spaces/')):
                     page=path.split('/')[3 if path.startswith('/api/') else 2]
                     await run_in_threadpool(security.require_page,user,page,pages)
-                elif path.startswith('/api/admin/') or path not in {'/app','/api/me','/api/me/profile','/api/me/avatar','/api/client-errors','/api/bootstrap'}:
+                elif path.startswith('/api/admin/') or path not in {'/app','/api/me','/api/me/profile','/api/me/avatar','/api/client-errors','/api/bootstrap','/api/bot-status'}:
                     if not security.is_supreme(user): raise HTTPException(403,'Cet espace n’a pas encore d’autorisation configurée.')
                 if request.method not in ('GET','HEAD','OPTIONS'):
                     request.state.audit_stage='csrf';csrf(request,session)
@@ -792,6 +792,12 @@ def create_app(settings=None, provider=None):
         return {'discordConfigured':cfg.configured,'connectorConfigured':bool(cfg.connector_secret),
                 'commandsEnabled':cfg.bot_commands_enabled,'pendingCommands':pending,
                 'lastEvent':json.loads(seen['value']) if seen else None}
+
+    @app.get('/api/bot-status')
+    def bot_status(request:Request):
+        auth(request)
+        request.state.audit_background=True
+        return {'botConnection':bridge.connection_status()}
 
     @app.post('/api/admin/reset-test-data')
     def reset_test_data(request:Request):

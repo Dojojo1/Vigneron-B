@@ -1,9 +1,11 @@
 'use strict';
 (async () => {
+ document.querySelector('.hero')?.insertAdjacentHTML('beforeend','<span id="overview-bot-status" role="status">Vérification du bot…</span>');
  // Aperçu local des cadres : le vrai tableau de bord, sans appel au serveur.
  if(location.protocol==='file:'&&new URLSearchParams(location.search).has('cadres')){
   if(location.hash!=='#overview')location.hash='overview';
   window.heritagePublicDemo();
+  document.querySelector('#overview-bot-status').textContent='Aperçu local';
   state.summary={gross:159000000,treated:0,company:23850000};
   state.overviewMetrics={received:159000000,processed:1000000,companyGain:750000};
   state.machines=[{id:'cadres-preview',start:Date.now()-78*60000,amount:1000000,lotLabel:'lot-s45-22',lotYear:2026,launchedBy:'Giovanni Danté'}];
@@ -390,13 +392,11 @@
  }
  function refreshOverviewBotStatus(){
   const label=document.querySelector('#overview-bot-status');
-  if(!label||!session)return;
+  if(!label||!session||document.hidden)return;
   const current=Date.now();
-  if(overviewBotStatus&&current-overviewBotCheckedAt<25000){paintOverviewBotStatus(label,overviewBotStatus);return;}
+  if(overviewBotStatus&&current-overviewBotCheckedAt<30000){paintOverviewBotStatus(label,overviewBotStatus);return;}
   if(overviewBotRequest)return;
-  const route=['machines','sales','tombola'].find(can);
-  if(!route){paintOverviewBotStatus(label,'État du bot indisponible');return;}
-  overviewBotRequest=api(pageURL(route,true),{background:true}).then(data=>{
+  overviewBotRequest=api('/api/bot-status',{background:true}).then(data=>{
    const connection=data?.botConnection;
    overviewBotStatus=!connection||connection.enabled===false?'État du bot indisponible':connection.online?'Bot connecté':'Bot déconnecté';
    overviewBotCheckedAt=Date.now();
@@ -408,6 +408,8 @@
    paintOverviewBotStatus(visible,overviewBotStatus);
   }).finally(()=>{overviewBotRequest=null;});
  }
+ setInterval(refreshOverviewBotStatus,30000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshOverviewBotStatus();});
  window.heritageNavigate=async({preserveFocus=false,fresh=false,sessionRefreshed=false,staleRetries=0}={})=>{
   clearTimeout(filterTimer);
   const version=++navigationVersion;
@@ -429,6 +431,7 @@
    if(version!==navigationVersion)return false;
   }
   visibleDomain(true);activePage=route;
+  refreshOverviewBotStatus();
   const descriptor=session.pages.find(p=>p.id===route);
   updatePageHeading(route,descriptor?.label||'Accès réservé');
   const content=$('#content'),samePage=displayedPage===route;
@@ -458,7 +461,11 @@
     }
    }
    state=data;render({incremental});applyAccessUI();displayedPage=route;showing=true;content.hidden=false;
-   if(route==='overview')refreshOverviewBotStatus();
+   if(data.botConnection){
+    const connection=data.botConnection;
+    overviewBotStatus=connection.enabled===false?'État du bot indisponible':connection.online?'Bot connecté':'Bot déconnecté';
+    overviewBotCheckedAt=Date.now();paintOverviewBotStatus(document.querySelector('#overview-bot-status'),overviewBotStatus);
+   }
    if(inputId){const input=document.getElementById(inputId);if(input&&input!==selected){input.focus({preventScroll:true});if(typeof selection==='number'&&input.setSelectionRange)input.setSelectionRange(selection,selection);}}
   }
   try{
@@ -522,7 +529,7 @@
    const job=data.businessCommands?.find(item=>item.id===commandId);
    if(!job||job.status==='pending')continue;
    if(job.status==='uncertain'){
-    toast(job.error?.message||'Le bot vérifie encore cette opération. Consulte la liaison Discord.');
+    toast(job.error?.message||'Le bot vérifie encore cette opération. Son état reste visible en haut de page.');
     return;
    }
    clearPageCache(affectedPages('/api/actions/'+page));
@@ -531,7 +538,7 @@
    toast(job.status==='applied'?'Opération confirmée par le bot.':job.error?.message||'Le bot a refusé l’opération. La page a été actualisée.');
    return;
   }
-  toast('Le bot n’a pas encore confirmé cette opération. Son état reste visible dans la liaison Discord.');
+  toast('Le bot n’a pas encore confirmé cette opération. Son état reste visible en haut de page.');
  }
  async function performAction(action,id,values,requestKey){
   if(action==='company-history'){

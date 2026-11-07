@@ -261,11 +261,10 @@ html .night-section-heading h2 > span { display: none; }
     position: absolute; width: 1px; height: 1px; overflow: hidden;
     clip-path: inset(50%); white-space: nowrap;
   }
-  html body.dashboard-active #overview-bot-status {
-    position: absolute; top: -47px; right: 0; z-index: 3;
-  }
+  html body.dashboard-active #overview-bot-status { z-index: 3; }
 }
 html #overview-bot-status {
+  position: absolute; right: 27px; bottom: 16px; z-index: 3;
   display: inline-flex; align-items: center; gap: 9px;
   padding: 8px 12px;
   border: 1px solid #c3985861; border-radius: 18px;
@@ -275,6 +274,7 @@ html #overview-bot-status {
 html #overview-bot-status::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: #b6a37d; box-shadow: 0 0 8px #b6a37d80; }
 html #overview-bot-status[data-connection='online']::before { background: #49d782; box-shadow: 0 0 9px #49d782a8; }
 html #overview-bot-status[data-connection='offline']::before { background: #f25a54; box-shadow: 0 0 9px #f25a54a8; }
+@media (max-width: 760px) { html #overview-bot-status { right: 15px; bottom: 12px; } }
 
 /* Le grand panneau du lot encadre le cadran existant sans modifier celui-ci. */
 html .night-machines { margin-top: 0; }

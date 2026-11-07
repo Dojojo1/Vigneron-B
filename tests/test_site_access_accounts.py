@@ -132,6 +132,21 @@ def test_delete_individual_account_invalidates_session_and_preserves_audit(env):
     assert code_login(env,account).status_code==401
 
 
+def test_bot_status_available_to_individual_account_without_discord_request(env):
+    assert env['client'].get('/api/bot-status').status_code==401
+    account=create(env);env['client'].cookies.clear()
+    assert code_login(env,account).status_code==200
+    env['provider'].unavailable=True
+    response=env['client'].get('/api/bot-status')
+    assert response.status_code==200
+    assert set(response.json()['botConnection'])=={'enabled','online','lastSeen'}
+    with env['store'].connect(True) as db:
+        db.execute("INSERT OR REPLACE INTO metadata(key,value) VALUES('bot_last_seen',?)",(json.dumps({'at':time.time(),'kind':'heartbeat'}),))
+    refreshed=env['client'].get('/api/bot-status').json()['botConnection']
+    assert refreshed['lastSeen'] is not None
+    assert refreshed['online']==refreshed['enabled']
+
+
 def test_code_survives_restart_expiry_is_enforced_and_does_not_roll_past_deadline(env):
     account=create(env);uid=account['account']['id'];deadline=time.time()+600
     with env['store'].connect(True) as db:db.execute('UPDATE access_accounts SET expires_at=? WHERE user_id=?',(deadline,uid))

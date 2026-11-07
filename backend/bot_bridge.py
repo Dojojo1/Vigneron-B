@@ -132,6 +132,14 @@ class BotBridge:
         return {'botConnection':{'enabled':enabled,'online':bool(enabled and last and time.time()-last['at']<90),
                                  'lastSeen':last['at'] if last else None},'machineCommands':commands}
 
+    def connection_status(self):
+        with self.store.connect() as db:
+            seen=db.execute("SELECT value FROM metadata WHERE key='bot_last_seen'").fetchone()
+        last=json.loads(seen['value']) if seen else None
+        enabled=bool(self.settings.connector_secret)
+        return {'enabled':enabled,'online':bool(enabled and last and time.time()-last['at']<90),
+                'lastSeen':last['at'] if last else None}
+
     def handle(self, operation, nonce, payload=None):
         with self.store.connect(True) as db:
             now=time.time()
