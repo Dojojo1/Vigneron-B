@@ -14,7 +14,7 @@ const context=vm.createContext({
  document,navigator:{onLine:true},session:{user:{id:'member'},csrf:'test-csrf'},
  sessionScope:()=> 'same-session',apiBase:'https://api.example',publicPages:true,bearer:'test-bearer',bridgeHeaders:{},
  localStorage:{getItem:name=>saved.get(name),setItem:(name,value)=>saved.set(name,value)},
- window:{addEventListener(){}},fetch:async()=>{requests++;return {status:403,ok:false};},
+ window:{addEventListener(){}},fetch:async(_url,options)=>{requests++;assert.equal(options.headers['X-CSRF-Token'],'test-csrf');return {status:403,ok:false};},
  AbortController,setTimeout,clearTimeout,
 });
 vm.runInContext(source.slice(start,end)+'\nglobalThis.flush=flushErrors;',context);
@@ -25,4 +25,9 @@ await context.flush();
 assert.equal(requests,1);
 await context.flush();
 assert.equal(requests,1,'A refused report must not be retried in the same session.');
+context.sessionScope=()=> 'new-session';
+context.fetch=async(_url,options)=>{requests++;assert.equal(options.headers['X-CSRF-Token'],'test-csrf');return {status:200,ok:true};};
+await context.flush();
+assert.equal(requests,2);
+assert.deepEqual(JSON.parse(saved.get(key)),[],'A successful report must leave the queue.');
 console.log('OK: hidden tabs defer telemetry and CSRF refusals do not loop.');

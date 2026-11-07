@@ -142,12 +142,14 @@ def test_journal_shows_human_actions_and_command_outcomes_without_connector_nois
                    (command,1,json.dumps({'actor':{'id':SUPREME,'name':'Le Fondateur'},
                                           'page':'machines','action':'add-machine','recordId':'lot-test'})))
         env['store'].audit(db,None,'bot_connection_event',{'kind':'heartbeat'})
+        env['store'].audit(db,None,'bot_command_applied',{'commandId':'missing-command'})
         env['store'].audit(db,SUPREME,'machine_command_pending',{'page':'machines','action':'add-machine','commandId':command})
         env['store'].audit(db,None,'bot_command_failed',{'commandId':command,'error':{'message':'Lot déjà actif'}})
         env['store'].audit(db,SUPREME,'permissions_changed',{'page':'council','roleId':'100'})
     data=env['client'].get('/api/pages/journal').json()
     kinds=[row['kind'] for row in data['audit']]
     assert 'bot_connection_event' not in kinds
+    assert not any(row['kind']=='bot_command_applied' and row['action'] is None for row in data['audit'])
     assert 'machine_command_pending' not in kinds
     failure=next(row for row in data['audit'] if row['kind']=='bot_command_failed')
     assert failure['actor']==SUPREME and failure['actorName']=='Le Fondateur'

@@ -224,6 +224,7 @@ def query_log(store,params,pages,legacy=False):
     if not legacy and not params.get('kind'):
         conditions.append('(a.kind IN ('+','.join('?' for _ in visible_kinds)+") OR (a.kind IN ('request_refused','request_failed') AND json_extract(a.detail,'$.action') IS NOT NULL))")
         values.extend(visible_kinds)
+        conditions.append("(a.kind NOT IN ('bot_command_applied','bot_command_failed','business_command_applied','business_command_failed','bot_business_action') OR "+action+' IS NOT NULL)')
     for key,expr in expressions.items():
         value=params.get(key,'').strip()
         if value:

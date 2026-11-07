@@ -188,7 +188,7 @@
    while(session&&errorStorage()===key&&pendingErrors(key).length){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
     try{
-     const response=await fetch(apiBase+'/api/client-errors',{method:'POST',credentials:publicPages?'omit':'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json','X-CSRF-Token':session.cs,...(publicPages&&bearer?{Authorization:'Bearer '+bearer}:{}),...bridgeHeaders},body:JSON.stringify(pendingErrors(key)[0])});
+     const response=await fetch(apiBase+'/api/client-errors',{method:'POST',credentials:publicPages?'omit':'same-origin',signal:controller.signal,headers:{'Content-Type':'application/json','X-CSRF-Token':session.csrf,...(publicPages&&bearer?{Authorization:'Bearer '+bearer}:{}),...bridgeHeaders},body:JSON.stringify(pendingErrors(key)[0])});
      if(response.status===403){errorReportRefusedScope=sessionScope(session);break;}
      if(!response.ok)break;
      pendingErrors(key).shift();persistErrors(key);
