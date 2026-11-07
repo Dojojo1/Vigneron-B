@@ -155,20 +155,20 @@ body.on-entry .estate-atmosphere { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sale-record, .sale-record::details-content, .batch-card,
+  html:not(.heritage-full-motion) :is(.sale-record, .sale-record::details-content, .batch-card,
   .sale-record .sale-chevron, .batch-footer-actions span,
   .night-heading-actions > a > span, .button > span:last-child,
   .sidebar nav a, .sidebar nav a svg, .night-metric,
   .button, .batch-footer-actions > button, .finish-actions button,
-  .sale-record > summary::after {
+  .sale-record > summary::after) {
     transition: none;
   }
-  .sale-record[open] .sale-record-details { animation: none; }
-  .sale-record:hover, .batch-card:hover,
+  html:not(.heritage-full-motion) .sale-record[open] .sale-record-details { animation: none; }
+  html:not(.heritage-full-motion) :is(.sale-record:hover, .batch-card:hover,
   .sale-record:not([open]):hover .sale-chevron,
   .batch-footer-actions > :hover span,
   .night-heading-actions > a:hover > span,
-  .button:hover > span:last-child, .sidebar nav a:hover svg {
+  .button:hover > span:last-child, .sidebar nav a:hover svg) {
     transform: none;
   }
 }
@@ -247,7 +247,7 @@ body.on-entry .estate-atmosphere { display: none; }
   .night-metric::after { transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .night-metric::after { transition: none; }
+  html:not(.heritage-full-motion) .night-metric::after { transition: none; }
 }
 
 /* Monogramme de L’Héritage : une initiale centrée. */

@@ -196,7 +196,7 @@ body.on-entry { margin: 0; overflow-x: clip; }
   .entry-screen .entry-signature blockquote { font-size: 18px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .entry-screen .entry-panel #enter-demo { transition: none; }
+  html:not(.heritage-full-motion) .entry-screen .entry-panel #enter-demo { transition: none; }
 }
 .connected-access-code { display: block; margin-top: 12px; color: var(--gold); font: 11px/1.5 var(--sans); text-align: center; text-decoration: none; }
 .connected-access-code:hover { text-decoration: underline; }

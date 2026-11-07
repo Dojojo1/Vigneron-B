@@ -65,7 +65,7 @@ button:disabled { cursor: wait; opacity: .55; }
 @media(max-width:1000px) { .journal-filters { grid-template-columns: repeat(2,minmax(0,1fr)); } .journal-entry > summary { grid-template-columns: 1fr auto; gap: 10px; } .journal-entry > summary > span:nth-child(2) { grid-column: 1 / -1; grid-row: 2; } }
 @media(max-width:600px) { .journal-filters,.journal-values,.journal-metadata { grid-template-columns: minmax(0,1fr); } .journal-entry > summary { padding: 14px; } .journal-detail { padding: 0 12px 16px; } .journal-entry strong { font-size: 20px; } }
 @keyframes loading-turn { to { transform: rotate(360deg); } }
-@media(prefers-reduced-motion:reduce) { .loading-spinner { animation: none; } }
+@media(prefers-reduced-motion:reduce) { html:not(.heritage-full-motion) .loading-spinner { animation: none; } }
 .site-error { position: fixed; top: 16px; right: 16px; z-index: 100; width: min(500px,calc(100vw - 32px)); padding: 22px 48px 20px 24px; border: 1px solid #d2a67499; border-left: 3px solid #d2a674; background: linear-gradient(120deg,#293039fa,#101a23fc); color: #f1e8da; box-shadow: 0 12px 45px #0009; }
 .site-error h2 { margin: 0 0 9px; color: #edd0a2; font: 500 25px var(--serif); }
 .site-error p { margin: 0 0 16px; font: 12px/1.7 var(--sans); }
@@ -199,7 +199,7 @@ dialog > .site-error { position: absolute; top: 12px; left: 12px; right: 12px; w
  .raffle-dialog #entry-form > .form-note { padding: 12px 20px 8px; font-size: 8px; }
  .raffle-dialog #entry-form > .submit { min-height: 51px; margin: 0 20px 16px; border: 1px solid #c5a47155; }
 }
-@media(prefers-reduced-motion:reduce) { .raffle-dialog *, .raffle-dialog *::before, .raffle-dialog *::after { transition: none !important; } }
+@media(prefers-reduced-motion:reduce) { html:not(.heritage-full-motion) .raffle-dialog *, html:not(.heritage-full-motion) .raffle-dialog *::before, html:not(.heritage-full-motion) .raffle-dialog *::after { transition: none !important; } }
 .council-audit { padding: 0; list-style: none; }
 .council-audit li { display: flex; flex-wrap: wrap; gap: 12px; padding: 15px 0; border-bottom: 1px solid #c9a46e22; }
 .council-audit time { color: #c9a46e; }

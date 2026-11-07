@@ -326,8 +326,8 @@ html .cycle-dial .dial-orbit i {
   50% { opacity: .62; transform: scale(1.2); }
 }
 @media (prefers-reduced-motion:reduce) {
-  html body:not(.on-entry)::after { animation: none; }
-  html .cycle-dial .dial-progress circle,
-  html .cycle-dial .dial-orbit { transition: none; }
-  :root .cycle-dial .dial-orbit i::after { animation: none; }
+  html:not(.heritage-full-motion) body:not(.on-entry)::after { animation: none; }
+  html:not(.heritage-full-motion) .cycle-dial .dial-progress circle,
+  html:not(.heritage-full-motion) .cycle-dial .dial-orbit { transition: none; }
+  :root:not(.heritage-full-motion) .cycle-dial .dial-orbit i::after { animation: none; }
 }

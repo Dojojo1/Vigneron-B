@@ -45,6 +45,17 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(125deg, #eafaff12, transparent 35% 67%, #f5dca814);
+    background: linear-gradient(105deg, transparent 8%, #eafaff08 30%, #eafaff20 48%, #f5dca813 58%, transparent 80%);
+    background-size: 190% 100%;
+    background-position: 100% 0;
   }
+  .water-hover > .heritage-water-layer::after,
+  .water-hover > .cut-inner > .heritage-water-layer::after {
+    animation: heritage-water-reflection 5.2s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes heritage-water-reflection {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
 }

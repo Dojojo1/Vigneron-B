@@ -184,10 +184,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   .entry-screen .entry-panel::before { animation: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  body:not(.on-entry)::after, .entry-screen .entry-panel::before { animation: none; transform: none; }
-  .panel, .machine-card, .raffle, .sales-week-panel, .raffle-dialog .raffle-vehicle,
+  html:not(.heritage-full-motion) body:not(.on-entry)::after, html:not(.heritage-full-motion) .entry-screen .entry-panel::before { animation: none; transform: none; }
+  html:not(.heritage-full-motion) :is(.panel, .machine-card, .raffle, .sales-week-panel, .raffle-dialog .raffle-vehicle,
   .field input, .field select, .toolbar input, .input, select, .vehicle-price-input,
-  .history-table tbody tr, .employee-ranking > div, .council-audit li { transition: none; }
+  .history-table tbody tr, .employee-ranking > div, .council-audit li) { transition: none; }
 }
 .sidebar nav a { font-size: 19px; gap: 15px; }
 .sidebar nav a span { line-height: 1.25; }
