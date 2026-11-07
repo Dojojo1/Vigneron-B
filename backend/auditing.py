@@ -246,7 +246,7 @@ def query_log(store,params,pages,legacy=False):
         escaped=search.replace('\\','\\\\').replace('%','\\%').replace('_','\\_')
         conditions.append("(coalesce("+actor+",'')||' '||a.kind||' '||coalesce(json_extract(a.detail,'$.actorName'),json_extract(a.detail,'$.sourceActor.name'),json_extract(c.body,'$.actor.name'),'')||' '||coalesce("+action+",'')||' '||coalesce(json_extract(a.detail,'$.record'),json_extract(a.detail,'$.recordId'),json_extract(c.body,'$.recordId'),'')) LIKE ? ESCAPE '\\'" if not legacy else "(coalesce(a.actor,'')||' '||a.kind||' '||coalesce(json_extract(a.detail,'$.actorName'),'')||' '||coalesce(json_extract(a.detail,'$.action'),'')||' '||coalesce(json_extract(a.detail,'$.record'),'')) LIKE ? ESCAPE '\\'")
         values.append('%'+escaped+'%')
-    size=number(params,'limit',200 if legacy else 50,200 if legacy else 100)
+    size=number(params,'limit',200 if legacy else 10,200 if legacy else 100)
     if not size: raise HTTPException(400,'Taille de page invalide.')
     columns="a.id,a.at,a.actor,a.kind,a.detail" if legacy else ("a.id,a.at,"+actor+" actor,a.kind,coalesce(json_extract(a.detail,'$.actorName'),json_extract(a.detail,'$.sourceActor.name'),json_extract(c.body,'$.actor.name')) actorName,"+page+" page,"+action+" action,"+result+" result,coalesce(json_extract(a.detail,'$.record'),json_extract(a.detail,'$.recordId'),json_extract(c.body,'$.recordId')) record,json_extract(a.detail,'$.error') error")
     with store.connect() as db:

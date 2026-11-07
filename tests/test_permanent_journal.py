@@ -102,6 +102,21 @@ def test_pagination_can_retrieve_older_than_1000_without_loading_details(env):
     assert oldest['detail']['record']=='fiche-0000'
 
 
+def test_journal_defaults_to_ten_and_accepts_page_sizes(env):
+    login(env,SUPREME)
+    with env['store'].connect(True) as db:
+        for i in range(55):
+            env['store'].audit(db,SUPREME,'business_action',{'action':'add-sale','record':f'fiche-{i:02}'})
+    first=env['client'].get('/api/pages/journal').json()
+    assert first['limit']==10 and len(first['audit'])==10 and first['nextBefore']
+    for size in (20,50):
+        page=env['client'].get('/api/pages/journal',params={'limit':size}).json()
+        assert page['limit']==size and len(page['audit'])==size and page['nextBefore']
+    second=env['client'].get('/api/pages/journal',params={'limit':10,'before':first['nextBefore']}).json()
+    assert len(second['audit'])==10
+    assert set(row['id'] for row in first['audit']).isdisjoint(row['id'] for row in second['audit'])
+
+
 def test_filters_dates_cursor_literal_search_and_old_events(env):
     login(env,SUPREME)
     with env['store'].connect(True) as db:
