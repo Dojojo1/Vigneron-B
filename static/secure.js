@@ -401,6 +401,30 @@
  function refreshOverviewBotStatus(){
   if(overviewBotStatus)paintOverviewBotStatus(document.querySelector('#overview-bot-status'),overviewBotStatus);
  }
+ let botStatusChecking=false;
+ async function refreshBotStatus(){
+  if(!session||document.hidden||botStatusChecking||!apiBase&&publicPages)return;
+  botStatusChecking=true;
+  const scope=sessionScope(session);
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),10000);
+  try{
+   const headers={...bridgeHeaders};
+   if(publicPages&&bearer)headers.Authorization='Bearer '+bearer;
+   const response=await fetch(apiBase+'/api/bot-status',{headers,credentials:publicPages?'omit':'same-origin',cache:'no-store',signal:controller.signal});
+   if(!response.ok)throw Error('État du bot indisponible');
+   const data=await response.json();
+   if(scope===sessionScope(session)){
+    if(data.botConnection)updateOverviewBotStatus(data.botConnection);
+    else throw Error('État du bot indisponible');
+   }
+  }catch{
+   if(scope===sessionScope(session)){
+    overviewBotStatus='État du bot indisponible';
+    refreshOverviewBotStatus();
+   }
+  }finally{clearTimeout(timeout);botStatusChecking=false;}
+ }
  window.heritageNavigate=async({preserveFocus=false,fresh=false,sessionRefreshed=false,staleRetries=0}={})=>{
   clearTimeout(filterTimer);
   const version=++navigationVersion;
@@ -659,7 +683,7 @@
   if(location.hash==='#welcome'){window.heritageFeedback?.clear();return;}
   if(await window.heritageNavigate()){restoreFormDraft();window.heritageFeedback?.clear();}
  };
- boot().catch(()=>{$('.entry-demo-note').textContent='Impossible de joindre le site. Utilise « Réessayer » pour vérifier la connexion.';visibleDomain(false);}).finally(()=>window.heritageFinishLoading());
+ boot().catch(()=>{$('.entry-demo-note').textContent='Impossible de joindre le site. Utilise « Réessayer » pour vérifier la connexion.';visibleDomain(false);}).finally(()=>{window.heritageFinishLoading();void refreshBotStatus();});
  let checkingSession=false,refreshingPages=false;
  async function verifySession(){
   if(!session||document.hidden||checkingSession)return;
@@ -676,6 +700,8 @@
   finally{checkingSession=false;}
  }
  setInterval(verifySession,10000);
+ setInterval(()=>void refreshBotStatus(),30000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshBotStatus();});
  setInterval(async()=>{
   if(!session||document.hidden||activePage==='welcome'||['machines','sales','tombola','overview','stats'].includes(activePage)||refreshingPages||machineRefreshInFlight)return;
   refreshingPages=true;

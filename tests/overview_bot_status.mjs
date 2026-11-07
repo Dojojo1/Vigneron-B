@@ -7,8 +7,15 @@ const start=source.indexOf(' let overviewBotStatus=');
 const end=source.indexOf(' window.heritageNavigate=async',start);
 assert.ok(start>=0&&end>start);
 const label={textContent:'Vérification du bot…',dataset:{}};
-const context=vm.createContext({document:{querySelector:()=>label}});
-vm.runInContext(source.slice(start,end)+'\nglobalThis.update=updateOverviewBotStatus;',context);
+let checks=0;
+const context=vm.createContext({
+ document:{hidden:false,querySelector:()=>label},
+ session:{user:{id:'test'}},sessionScope:()=> 'test',
+ apiBase:'https://example.test',publicPages:true,bearer:'token',bridgeHeaders:{},
+ AbortController,setTimeout,clearTimeout,
+ fetch:async(url,options)=>{checks++;assert.equal(url,'https://example.test/api/bot-status');assert.equal(options.headers.Authorization,'Bearer token');return {ok:true,json:async()=>({botConnection:{enabled:true,online:true}})};}
+});
+vm.runInContext(source.slice(start,end)+'\nglobalThis.update=updateOverviewBotStatus;globalThis.refresh=refreshBotStatus;',context);
 context.update({enabled:true,online:true});
 assert.equal(label.textContent,'Bot connecté');
 assert.equal(label.dataset.connection,'online');
@@ -18,5 +25,12 @@ assert.equal(label.dataset.connection,'offline');
 context.update({enabled:false,online:false});
 assert.equal(label.textContent,'État du bot indisponible');
 assert.equal(label.dataset.connection,'unknown');
-assert.ok(!source.includes("api('/api/bot-status'"),'The session response supplies the status without a second poll.');
-console.log('OK: overview bot status follows the session response without an extra request.');
+await context.refresh();
+assert.equal(checks,1);
+assert.equal(label.textContent,'Bot connecté');
+assert.equal(label.dataset.connection,'online');
+context.fetch=async()=>{throw Error('Tunnel unavailable');};
+await context.refresh();
+assert.equal(label.textContent,'État du bot indisponible');
+assert.equal(label.dataset.connection,'unknown');
+console.log('OK: bot status refreshes while the page stays visible and reports unavailable on failure.');
