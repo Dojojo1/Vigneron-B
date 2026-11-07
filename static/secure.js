@@ -182,7 +182,7 @@
  function pendingErrors(key){if(!memoryErrors.has(key))memoryErrors.set(key,readErrors(key));return memoryErrors.get(key);}
  function persistErrors(key){try{localStorage.setItem(key,JSON.stringify(pendingErrors(key)));}catch{}}
  async function flushErrors(){
-  const key=errorStorage();if(!key||errorFlush||navigator.onLine===false||errorReportRefusedScope===sessionScope(session))return;
+  const key=errorStorage();if(!key||errorFlush||document.hidden||navigator.onLine===false||errorReportRefusedScope===sessionScope(session))return;
   errorFlush=true;
   try{
    while(session&&errorStorage()===key&&pendingErrors(key).length){
@@ -197,6 +197,7 @@
   }finally{errorFlush=false;}
  }
  window.addEventListener('online',()=>void flushErrors());
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)void flushErrors();});
  window.heritageReportError=kind=>{
   if(!session||errorReportRefusedScope===sessionScope(session)||!['script','network','timeout','unexpected','offline'].includes(kind))return;
   const route=location.hash.slice(1)||landingPage(),page=route==='welcome'||session.pages.some(p=>p.id===route)?route:'profile',key=kind+':'+page;

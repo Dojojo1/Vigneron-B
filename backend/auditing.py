@@ -210,7 +210,20 @@ class AuditHTTPMiddleware:
 def query_log(store,params,pages,legacy=False):
     from .views import number
     conditions=[];values=[]
-    expressions={'actor':'actor','kind':'kind','page':"json_extract(detail,'$.page')",'result':"json_extract(detail,'$.result')"}
+    visible_kinds=('business_action','bot_business_action','bot_command_applied','bot_command_failed',
+                   'business_command_applied','business_command_failed','permissions_changed',
+                   'access_matrix_changed','access_account_created','access_account_permissions_changed',
+                   'access_account_deleted','site_access_revoked','site_access_restored',
+                   'machine_resolution_completed')
+    source='audit a LEFT JOIN bot_commands c ON c.id=json_extract(a.detail,\'$.commandId\')' if not legacy else 'audit a'
+    actor="coalesce(a.actor,json_extract(a.detail,'$.sourceActor.id'),json_extract(c.body,'$.actor.id'))" if not legacy else 'a.actor'
+    action="coalesce(json_extract(a.detail,'$.action'),json_extract(c.body,'$.action'))" if not legacy else "json_extract(a.detail,'$.action')"
+    page="coalesce(json_extract(a.detail,'$.page'),json_extract(c.body,'$.page'))" if not legacy else "json_extract(a.detail,'$.page')"
+    result="CASE WHEN a.kind IN ('bot_command_failed','business_command_failed') THEN 'failure' WHEN a.kind IN ('bot_command_applied','business_command_applied') THEN 'success' ELSE coalesce(json_extract(a.detail,'$.result'),'success') END" if not legacy else "json_extract(a.detail,'$.result')"
+    expressions={'actor':actor,'kind':'a.kind','page':page,'result':result}
+    if not legacy and not params.get('kind'):
+        conditions.append('(a.kind IN ('+','.join('?' for _ in visible_kinds)+") OR (a.kind IN ('request_refused','request_failed') AND json_extract(a.detail,'$.action') IS NOT NULL))")
+        values.extend(visible_kinds)
     for key,expr in expressions.items():
         value=params.get(key,'').strip()
         if value:
@@ -219,26 +232,26 @@ def query_log(store,params,pages,legacy=False):
             if key=='result' and value not in ('success','failure','refused','duplicate'): raise HTTPException(400,'Résultat inconnu.')
             conditions.append(expr+'=?');values.append(value)
     if params.get('before'):
-        conditions.append('id<?');values.append(number(params,'before',maximum=9223372036854775807))
+        conditions.append('a.id<?');values.append(number(params,'before',maximum=9223372036854775807))
     for key,operator in (('from','>='),('to','<')):
         if params.get(key):
             try:
                 day=datetime.strptime(params[key],'%Y-%m-%d').replace(tzinfo=ZoneInfo('Europe/Brussels'))
                 if key=='to': day+=timedelta(days=1)
             except (ValueError,OverflowError): raise HTTPException(400,'Date de filtre invalide.') from None
-            conditions.append('at'+operator+'?');values.append(day.timestamp())
+            conditions.append('a.at'+operator+'?');values.append(day.timestamp())
     search=params.get('q','').strip()
     if len(search)>100: raise HTTPException(400,'Recherche trop longue.')
     if search:
         escaped=search.replace('\\','\\\\').replace('%','\\%').replace('_','\\_')
-        conditions.append("(coalesce(actor,'')||' '||kind||' '||coalesce(json_extract(detail,'$.actorName'),'')||' '||coalesce(json_extract(detail,'$.action'),'')||' '||coalesce(json_extract(detail,'$.record'),'')) LIKE ? ESCAPE '\\'")
+        conditions.append("(coalesce("+actor+",'')||' '||a.kind||' '||coalesce(json_extract(a.detail,'$.actorName'),json_extract(a.detail,'$.sourceActor.name'),json_extract(c.body,'$.actor.name'),'')||' '||coalesce("+action+",'')||' '||coalesce(json_extract(a.detail,'$.record'),json_extract(a.detail,'$.recordId'),json_extract(c.body,'$.recordId'),'')) LIKE ? ESCAPE '\\'" if not legacy else "(coalesce(a.actor,'')||' '||a.kind||' '||coalesce(json_extract(a.detail,'$.actorName'),'')||' '||coalesce(json_extract(a.detail,'$.action'),'')||' '||coalesce(json_extract(a.detail,'$.record'),'')) LIKE ? ESCAPE '\\'")
         values.append('%'+escaped+'%')
     size=number(params,'limit',200 if legacy else 50,200 if legacy else 100)
     if not size: raise HTTPException(400,'Taille de page invalide.')
-    columns="id,at,actor,kind,detail" if legacy else "id,at,actor,kind,json_extract(detail,'$.actorName') actorName,json_extract(detail,'$.page') page,json_extract(detail,'$.action') action,json_extract(detail,'$.result') result,json_extract(detail,'$.record') record,json_array_length(json_extract(detail,'$.changes')) changeCount"
+    columns="a.id,a.at,a.actor,a.kind,a.detail" if legacy else ("a.id,a.at,"+actor+" actor,a.kind,coalesce(json_extract(a.detail,'$.actorName'),json_extract(a.detail,'$.sourceActor.name'),json_extract(c.body,'$.actor.name')) actorName,"+page+" page,"+action+" action,"+result+" result,coalesce(json_extract(a.detail,'$.record'),json_extract(a.detail,'$.recordId'),json_extract(c.body,'$.recordId')) record,json_extract(a.detail,'$.error') error")
     with store.connect() as db:
-        rows=[dict(row) for row in db.execute('SELECT '+columns+' FROM audit'+(' WHERE '+' AND '.join(conditions) if conditions else '')+' ORDER BY id DESC LIMIT ?',[*values,size+1])]
-        kinds=[row[0] for row in db.execute('SELECT DISTINCT kind FROM audit ORDER BY kind')]
+        rows=[dict(row) for row in db.execute('SELECT '+columns+' FROM '+source+(' WHERE '+' AND '.join(conditions) if conditions else '')+' ORDER BY a.id DESC LIMIT ?',[*values,size+1])]
+        kinds=[row[0] for row in db.execute('SELECT DISTINCT kind FROM audit ORDER BY kind' if legacy else 'SELECT DISTINCT kind FROM audit WHERE kind IN ('+','.join('?' for _ in visible_kinds)+') ORDER BY kind',[] if legacy else visible_kinds)]
     more=len(rows)>size;rows=rows[:size]
     return {'audit':rows,'nextBefore':rows[-1]['id'] if more else None,'kinds':kinds,'limit':size,
             'pages':[{'id':p['id'],'label':p['label']} for p in pages.values()]}

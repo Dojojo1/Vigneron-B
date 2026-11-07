@@ -119,6 +119,29 @@ def test_filters_dates_cursor_literal_search_and_old_events(env):
     assert env['client'].get('/api/pages/journal?limit=0').status_code==400
 
 
+def test_journal_shows_human_actions_and_command_outcomes_without_connector_noise(env):
+    login(env,SUPREME)
+    command='journal-machine-command-1234'
+    with env['store'].connect(True) as db:
+        db.execute('INSERT INTO bot_commands VALUES(?,?,?,NULL)',
+                   (command,1,json.dumps({'actor':{'id':SUPREME,'name':'Le Fondateur'},
+                                          'page':'machines','action':'add-machine','recordId':'lot-test'})))
+        env['store'].audit(db,None,'bot_connection_event',{'kind':'heartbeat'})
+        env['store'].audit(db,SUPREME,'machine_command_pending',{'page':'machines','action':'add-machine','commandId':command})
+        env['store'].audit(db,None,'bot_command_failed',{'commandId':command,'error':{'message':'Lot déjà actif'}})
+        env['store'].audit(db,SUPREME,'permissions_changed',{'page':'council','roleId':'100'})
+    data=env['client'].get('/api/pages/journal').json()
+    kinds=[row['kind'] for row in data['audit']]
+    assert 'bot_connection_event' not in kinds
+    assert 'machine_command_pending' not in kinds
+    failure=next(row for row in data['audit'] if row['kind']=='bot_command_failed')
+    assert failure['actor']==SUPREME and failure['actorName']=='Le Fondateur'
+    assert failure['action']=='add-machine' and failure['record']=='lot-test'
+    assert failure['result']=='failure' and json.loads(failure['error'])['message']=='Lot déjà actif'
+    assert 'permissions_changed' in kinds
+    assert env['client'].get('/api/pages/journal',params={'q':'Le Fondateur','result':'failure'}).json()['audit']
+
+
 def test_denials_failed_writes_limits_and_human_visits_logged_without_polling_noise(env):
     login(env)
     assert env['client'].get('/api/pages/sales').status_code==403
