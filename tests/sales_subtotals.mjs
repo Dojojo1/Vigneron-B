@@ -35,6 +35,7 @@ html=ctx.stats();
 assert.ok(html.includes('Blanchiment traité vérifié')&&html.includes('400 $'));
 assert.ok(html.includes('1 dossier sur 2')&&html.includes('1 sans progression vérifiée'));
 assert.ok(html.includes('Ce mois-ci')&&html.includes('novembre 2026'));
+assert.ok(html.includes('semaines commencées ce mois'));
 assert.ok(html.includes('10000000 $')&&html.includes('1500000 $')&&html.includes('8000000 $')&&html.includes('4000000 $'));
 assert.ok(html.includes('<span>0 $</span>'),'A confirmed zero remains zero.');
 assert.ok(html.includes('<span>Indisponible</span>'),'Missing daily information is not zero.');

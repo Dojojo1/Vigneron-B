@@ -113,7 +113,7 @@ def verified_treated_progress(state):
 
 
 def monthly_sales_summary(state, now=None):
-    """Verified dossiers received in the current Brussels calendar month."""
+    """Verified dossiers in weeks whose Monday falls in the current month."""
     now = now or datetime.now(TZ)
     selected, coverage = financial_sales(state)
     result = {'month': now.strftime('%Y-%m'), 'available': coverage['available'],
@@ -133,8 +133,10 @@ def monthly_sales_summary(state, now=None):
             received_day = None
         if received_day is None:
             result['undatedCount'] += 1
-        elif (received_day.year, received_day.month) == (now.year, now.month):
-            rows.append(sale)
+        else:
+            week_start = received_day - timedelta(days=received_day.weekday())
+            if (week_start.year, week_start.month) == (now.year, now.month):
+                rows.append(sale)
     gross = sum(sale['amount'] for sale in rows)
     values = allocations(state)
     known = [sale for sale in rows if values.get(sale['id']) is not None]
