@@ -100,6 +100,18 @@ def financial(state, sales=None):
             'restitute':sum(sale['amount']*.8 for sale in opened if values[sale['id']]>=sale['amount']) if known else None}
 
 
+def verified_treated_progress(state):
+    """Known progress only; keep its coverage separate from the complete total."""
+    selected, coverage = financial_sales(state)
+    if not coverage['available']:
+        return {'amount': None, 'knownCount': 0, 'totalCount': 0}
+    sales = [sale for sale in selected if sale['status'] != 'cancelled']
+    values = allocations(state)
+    known = [sale for sale in sales if values.get(sale['id']) is not None]
+    return {'amount': sum(values[sale['id']] for sale in known) if known or not sales else None,
+            'knownCount': len(known), 'totalCount': len(sales)}
+
+
 def overview_metrics(state, now=None):
     """Current sales progress and this week's confirmed machine activity."""
     now = now or datetime.now(TZ)

@@ -39,6 +39,18 @@ def test_unknown_progress_keeps_received_verified_but_treated_pending_unknown(en
     assert domain.allocations(state)['1001'] is None
 
 
+def test_stats_show_only_verified_progress_when_some_dossiers_are_unknown(env):
+    setup(env)
+    records=[sale(id='1001',treated=4000000,progressKnown=True),
+             sale(id='1003',treated=None,progressKnown=False)]
+    response=sync(env,partial(records=records))
+    assert response.status_code==200, response.text
+    screen=env['client'].get('/api/pages/stats?view=screen').json()
+    assert screen['summary']['gross']==10000000
+    assert screen['summary']['treated'] is None
+    assert screen['verifiedTreated']=={'amount':4000000,'knownCount':1,'totalCount':2}
+
+
 def test_verified_zero_progress_is_distinct_from_missing_progress(env):
     setup(env)
     assert sync(env,partial(records=[sale(treated=0)])).status_code==200
