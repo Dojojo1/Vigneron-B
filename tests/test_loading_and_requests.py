@@ -49,9 +49,9 @@ def test_machine_history_is_paged_but_current_batch_and_summary_remain_correct(e
     state['machineSheetHistory']=[{'sheet':'s42','row':i,'amount':1000,'launchedBy':'Employé','date':'','time':''} for i in range(682)]
     save_state(env,state)
     data=env['client'].get('/api/pages/machines?view=screen').json()
-    assert len(data['machineHistory'])==10 and data['pagination']['machines']['total']==140
-    next_page=env['client'].get('/api/pages/machines?view=screen&machinesOffset=10').json()
-    assert len(next_page['machineHistory'])==10
+    assert len(data['machineHistory'])==5 and data['pagination']['machines']['total']==140
+    next_page=env['client'].get('/api/pages/machines?view=screen&machinesOffset=5').json()
+    assert len(next_page['machineHistory'])==5
     assert not {m['id'] for m in data['machineHistory']} & {m['id'] for m in next_page['machineHistory']}
     assert [m['id'] for m in data['machines']]==['0']
     assert data['machineSummary']=={'recovered':139,'amount':139*example['amount']}

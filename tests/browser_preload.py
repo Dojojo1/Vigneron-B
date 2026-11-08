@@ -125,7 +125,7 @@ try:
     assert sum(path=='/api/me' for method,path,q in requests)==1
     assert not any(path.startswith('/api/pages/') for method,path,q in requests)
     assert len(initial['pages']['sales']['sales'])==50
-    assert len(initial['pages']['machines']['machineHistory'])==10
+    assert len(initial['pages']['machines']['machineHistory'])==5
     assert 'machineSheetHistory' not in initial['pages']['machines']
     assert len(initial['pages']['history']['events'])==50
     assert len(initial['pages']['journal']['audit'])==50
