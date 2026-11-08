@@ -455,11 +455,16 @@ $('#enter-demo').addEventListener('click',()=>{if(window.heritageLogin){window.h
 // One visual clock; stored timestamps remain authoritative while the tab sleeps.
 let lastMachineHistoryRefresh=0;
 function refreshMachineDisplay(){
+ const setMachineDisplayText=(el,value)=>{
+  if(el.textContent===value)return;
+  if(el.childNodes?.length===1&&el.firstChild?.nodeType===3)el.firstChild.nodeValue=value;
+  else el.textContent=value;
+ };
  if(document.hidden||document.body.classList.contains('on-entry')||!['overview','machines'].includes(activePage))return;
  const machineById=new Map([...state.machines,...(state.machineHistory||[])].map(machine=>[machine.id,machine]));
- document.querySelectorAll('[data-countdown]').forEach(el=>{const m=machineById.get(el.dataset.countdown);if(!m)return;el.textContent=countdown(m);const gaugeEl=el.closest('[data-gauge]');if(gaugeEl){const p=m.recovered?100:cyclePercent(m);gaugeEl.style.setProperty('--percent',`${p}%`);gaugeEl.style.setProperty('--cycle-progress',String(p));gaugeEl.style.setProperty('--cycle-angle',`${p*3.6}deg`);}});
+ document.querySelectorAll('[data-countdown]').forEach(el=>{const m=machineById.get(el.dataset.countdown);if(!m)return;setMachineDisplayText(el,countdown(m));const gaugeEl=el.closest('[data-gauge]');if(gaugeEl){const p=m.recovered?100:cyclePercent(m);gaugeEl.style.setProperty('--percent',`${p}%`);gaugeEl.style.setProperty('--cycle-progress',String(p));gaugeEl.style.setProperty('--cycle-angle',`${p*3.6}deg`);}});
  document.querySelectorAll('[data-cycle-progress]').forEach(el=>{const m=machineById.get(el.dataset.cycleProgress);if(!m)return;el.style.width=`${cyclePercent(m)}%`;el.parentElement.setAttribute('aria-valuenow',String(Math.round(cyclePercent(m))));});
- document.querySelectorAll('[data-cycle-state]').forEach(el=>{const m=machineById.get(el.dataset.cycleState);if(m){el.textContent=cycleStateLabel(m);el.classList.toggle('is-ready',remaining(m)===0);}});document.querySelectorAll('[data-cycle-percent]').forEach(el=>{const m=machineById.get(el.dataset.cyclePercent);if(m)el.textContent=`${Math.floor(cyclePercent(m))} %`;});
+ document.querySelectorAll('[data-cycle-state]').forEach(el=>{const m=machineById.get(el.dataset.cycleState);if(m){setMachineDisplayText(el,cycleStateLabel(m));el.classList.toggle('is-ready',remaining(m)===0);}});document.querySelectorAll('[data-cycle-percent]').forEach(el=>{const m=machineById.get(el.dataset.cyclePercent);if(m)setMachineDisplayText(el,`${Math.floor(cyclePercent(m))} %`);});
  const now=Date.now();
  if(activePage==='machines'&&now-lastMachineHistoryRefresh>=10000
      &&!document.querySelector('dialog[open]')

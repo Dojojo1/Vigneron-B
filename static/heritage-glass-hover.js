@@ -30,6 +30,10 @@
       card.addEventListener('pointerleave', () => card.classList.remove('water-hover'));
     });
   };
-  new MutationObserver(attach).observe(content, {childList: true, subtree: true});
+  const selector = '.night-metrics .night-metric, .batch-card, .sale-record';
+  new MutationObserver(records => {
+    if (records.some(record => [...record.addedNodes].some(node =>
+      node.nodeType === Node.ELEMENT_NODE && (node.matches(selector) || node.querySelector(selector))))) attach();
+  }).observe(content, {childList: true, subtree: true});
   attach();
 })();

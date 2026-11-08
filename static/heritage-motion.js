@@ -11,14 +11,34 @@
     const seen = new WeakSet();
     const loops = new Set();
     const animatedDrops = new Set();
-    const visible = () => loops.forEach(tween => document.hidden ? tween.pause() : tween.resume());
+    const cardsInView = new WeakSet();
+    const cardObserver = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (entry.isIntersecting) cardsInView.add(entry.target);
+      else cardsInView.delete(entry.target);
+      for (const tween of loops) {
+        if (tween.data?.closest('.night-metric, .batch-card') === entry.target) {
+          if (!document.hidden && entry.isIntersecting) tween.resume();
+          else tween.pause();
+        }
+      }
+    }), {rootMargin: '80px'});
+    const visible = () => loops.forEach(tween => {
+      const card = tween.data?.closest('.night-metric, .batch-card');
+      if (!document.hidden && card && cardsInView.has(card)) tween.resume();
+      else tween.pause();
+    });
 
     const update = () => {
+      const removedCards = new Set();
       for (const tween of loops) {
         if (!tween.data?.isConnected) {
+          const card = tween.data?.closest('.night-metric, .batch-card');
+          if (card) removedCards.add(card);
+          animatedDrops.delete(tween.data);
           tween.kill(); loops.delete(tween);
         }
       }
+      removedCards.forEach(card => cardObserver.unobserve(card));
       if (!document.body.classList.contains('dashboard-active')) return;
       const cards = [...content.querySelectorAll('.night-metric, .batch-card')].filter(card => !seen.has(card));
       if (!cards.length) return;
@@ -26,6 +46,7 @@
         seen.add(card);
         const surface = card.classList.contains('batch-card') ? card.querySelector('.cut-inner') : card;
         if (!surface) return;
+        cardObserver.observe(card);
         const isLot = card.classList.contains('batch-card');
         const positions = isLot ? [4, 95, 8, 97, 91, 3] : [7, 93, 14, 88];
         const drops = positions.map((left, i) => {
@@ -60,7 +81,7 @@
             y: () => travel() + 14, opacity: 0, scale: .8,
             duration: .28, ease: 'power2.in'
           });
-          if (document.hidden) timeline.pause();
+          timeline.pause();
           loops.add(timeline);
         });
       });
@@ -69,12 +90,17 @@
         {y: 0, opacity: 1, duration: .55, stagger: .07, ease: 'power3.out', clearProps: 'transform,opacity'});
     };
 
-    const observer = new MutationObserver(update);
+    const relevantCard = node => node.nodeType === Node.ELEMENT_NODE &&
+      (node.matches('.night-metric, .batch-card') || node.querySelector('.night-metric, .batch-card'));
+    const observer = new MutationObserver(records => {
+      if (records.some(record => [...record.addedNodes, ...record.removedNodes].some(relevantCard))) update();
+    });
     observer.observe(content, {childList: true, subtree: true});
     document.addEventListener('visibilitychange', visible);
     update();
     return () => {
       observer.disconnect();
+      cardObserver.disconnect();
       document.removeEventListener('visibilitychange', visible);
       loops.forEach(tween => tween.kill());
       animatedDrops.forEach(drop => drop.remove());

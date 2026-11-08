@@ -11,7 +11,10 @@
   });
   attach();
   const content = document.querySelector('#content');
-  if (content) new MutationObserver(attach).observe(content, { childList: true, subtree: true });
+  if (content) new MutationObserver(records => {
+    if (records.some(record => [...record.addedNodes].some(node =>
+      node.nodeType === Node.ELEMENT_NODE && (node.matches(selector) || node.querySelector(selector))))) attach();
+  }).observe(content, { childList: true, subtree: true });
 
   document.addEventListener('pointerover', event => {
     const button = eligible(event.target);
