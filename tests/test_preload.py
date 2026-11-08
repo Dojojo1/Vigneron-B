@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timedelta
 
 from backend import domain
+from backend.bot_bridge import BotBridge
 from conftest import EMPLOYEE, MEMBER, OTHER, SUPREME, grant, headers, login
 
 
@@ -106,6 +107,29 @@ def test_bootstrap_does_not_call_discord_for_each_screen_or_read_each_collection
     assert reads[0][1] == ('machineSheetHistory',)
 
 
+def test_bootstrap_reads_machine_status_once_without_sharing_connection_flags(env,monkeypatch):
+    login(env,SUPREME)
+    env['cfg'].bot_commands_enabled=True
+    env['cfg'].connector_secret='test-connector-secret-with-at-least-32-characters'
+    original=BotBridge.machine_status
+    calls=[]
+    def counted(bridge):
+        calls.append(bridge)
+        return original(bridge)
+    with monkeypatch.context() as patch:
+        patch.setattr(BotBridge,'machine_status',counted)
+        response=env['client'].get('/api/bootstrap',params=[('pages',page) for page in ('sales','tombola','machines','overview')])
+    assert response.status_code==200
+    assert len(calls)==1
+    screens=response.json()['pages']
+    assert screens['sales']['botConnection']['enabled'] is False
+    assert screens['tombola']['botConnection']['enabled'] is False
+    assert screens['machines']['botConnection']['enabled'] is True
+    assert screens['overview']['botConnection']['enabled'] is True
+    for page,screen in screens.items():
+        assert screen==env['client'].get('/api/pages/'+page+'?view=screen').json()
+
+
 def test_profile_only_bootstrap_never_reads_business_json(env,monkeypatch):
     login(env)
     def no_domain(*args,**kwargs): raise AssertionError('Le profil ne lit aucune donnée métier.')
@@ -130,7 +154,7 @@ def test_preload_is_bounded_and_does_not_embed_catalogue_sheet_rows_or_audit_det
         for i in range(75):
             db.execute('INSERT INTO users(id,username,discord_avatar,created,last_login,access_token,refresh_token,token_expires) VALUES(?,?,?,?,?,?,?,?)',
                        (str(700000+i),'Membre '+str(i),'https://cdn.discordapp.com/a.png',time.time(),time.time(),'private-access','private-refresh',0))
-            env['store'].audit(db,SUPREME,'test_preload',{'changes':[{'path':'/amount','before':'ON-DEMAND-AUDIT-DETAIL','after':i}]})
+            env['store'].audit(db,SUPREME,'business_action',{'action':'add-sale','page':'sales','changes':[{'path':'/amount','before':'ON-DEMAND-AUDIT-DETAIL','after':i}]})
     response = env['client'].get('/api/bootstrap')
     assert response.status_code == 200
     screens = response.json()['pages']
@@ -139,7 +163,7 @@ def test_preload_is_bounded_and_does_not_embed_catalogue_sheet_rows_or_audit_det
     assert len(screens['tombola']['tombolaRecords']) == 50
     assert len(screens['history']['events']) == 50
     assert len(screens['team']['members']) == 50
-    assert len(screens['journal']['audit']) == 50
+    assert len(screens['journal']['audit']) == 10
     assert screens['journal']['nextBefore'] and all('detail' not in row for row in screens['journal']['audit'])
     assert screens['machines']['sheetCount'] == 682
     for marker in ('ON-DEMAND-SHEET-ROW','ON-DEMAND-CATALOGUE','ON-DEMAND-AUDIT-DETAIL','private-access','private-refresh'):

@@ -429,7 +429,7 @@ $('#enter-demo').addEventListener('click',()=>{if(window.heritageLogin){window.h
 // One visual clock; stored timestamps remain authoritative while the tab sleeps.
 let lastMachineHistoryRefresh=0;
 function refreshMachineDisplay(){
- if(document.hidden||document.body.classList.contains('on-entry'))return;
+ if(document.hidden||document.body.classList.contains('on-entry')||!['overview','machines'].includes(activePage))return;
  const machineById=new Map([...state.machines,...(state.machineHistory||[])].map(machine=>[machine.id,machine]));
  document.querySelectorAll('[data-countdown]').forEach(el=>{const m=machineById.get(el.dataset.countdown);if(!m)return;el.textContent=countdown(m);const gaugeEl=el.closest('[data-gauge]');if(gaugeEl){const p=m.recovered?100:cyclePercent(m);gaugeEl.style.setProperty('--percent',`${p}%`);gaugeEl.style.setProperty('--cycle-progress',String(p));gaugeEl.style.setProperty('--cycle-angle',`${p*3.6}deg`);}});
  document.querySelectorAll('[data-cycle-progress]').forEach(el=>{const m=machineById.get(el.dataset.cycleProgress);if(!m)return;el.style.width=`${cyclePercent(m)}%`;el.parentElement.setAttribute('aria-valuenow',String(Math.round(cyclePercent(m))));});

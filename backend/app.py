@@ -454,7 +454,7 @@ def create_app(settings=None, provider=None):
                 machine.update(botStatus='unconfirmed',historical=True,trackingDisabled=True)
         return state
 
-    def screen_data(page,request,params,shared_state=None,projected_state=None):
+    def screen_data(page,request,params,shared_state=None,projected_state=None,bridge_status=None):
         """Même construction des écrans pour une lecture seule ou groupée."""
         if page=='journal': return query_log(store,params,pages)
         if page=='logs': return {'page':'logs','entries':[]}
@@ -473,9 +473,11 @@ def create_app(settings=None, provider=None):
             result.update(businessSources=sources,salesAvailable=sales_source.get('available',not cfg.business_commands_enabled),businessChoices=state.get('businessChoices',{}))
             if page in ('sales','tombola'):
                 result.update(bridge.business.status(page))
-                result['botConnection']=bridge.machine_status()['botConnection']
-                result['botConnection']['enabled']=bool(cfg.business_commands_enabled and cfg.connector_secret)
-        if page in ('machines','overview'):result.update(bridge.machine_status())
+                status=bridge_status if bridge_status is not None else bridge.machine_status()
+                result['botConnection']={**status['botConnection'],
+                                         'enabled':bool(cfg.business_commands_enabled and cfg.connector_secret)}
+        if page in ('machines','overview'):
+            result.update(bridge_status if bridge_status is not None else bridge.machine_status())
         return result
 
     @app.get('/api/bootstrap')
@@ -497,7 +499,9 @@ def create_app(settings=None, provider=None):
         role_id=security.highest_role(user)['id']
         projected=machine_projection(shared) if shared is not None and any(
             page in ('sales','machines','tombola','overview','stats') for page in domain_pages) else None
-        screens={page:screen_data(page,request,{},shared,projected) for page in selected}
+        bridge_status=bridge.machine_status() if any(page in ('sales','tombola','machines','overview')
+                                                   for page in selected) else None
+        screens={page:screen_data(page,request,{},shared,projected,bridge_status) for page in selected}
         versions={page:data_version(JSONResponse(data).body,user,role_id) for page,data in screens.items()}
         return {'pages':screens,'versions':versions,'identity':{'userId':user['id'],'roleId':role_id}}
 

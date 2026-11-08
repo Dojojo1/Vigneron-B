@@ -91,8 +91,12 @@ class BusinessBridge:
     def status(self, page):
         with self.store.connect() as db:
             rows = db.execute('SELECT c.id,c.created,c.body,j.status,j.error FROM bot_commands c JOIN bot_business_jobs j ON j.id=c.id WHERE j.page=? ORDER BY c.created DESC LIMIT 30', (page,))
-            jobs = [{'id': row['id'], 'createdAt': row['created'], 'action': json.loads(row['body'])['action'],
-                     'actor': json.loads(row['body']).get('actor'), 'status': row['status'], 'error': json.loads(row['error']) if row['error'] else None} for row in rows]
+            jobs = []
+            for row in rows:
+                body = json.loads(row['body'])
+                jobs.append({'id': row['id'], 'createdAt': row['created'], 'action': body['action'],
+                             'actor': body.get('actor'), 'status': row['status'],
+                             'error': json.loads(row['error']) if row['error'] else None})
         return {'businessCommands': jobs}
 
     @staticmethod

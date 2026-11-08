@@ -667,9 +667,15 @@
     if(!location.hash)history.replaceState(null,'',(publicPages?location.pathname:'/app')+location.search+'#'+landingPage());
     const opened=await window.heritageNavigate();
     if(opened){
-     const firstRoute=location.hash.slice(1);
+     const firstRoute=location.hash.slice(1),scope=sessionScope(session);
      const remaining=session.pages.map(page=>page.id).filter(route=>route!==firstRoute);
-     if(remaining.length)setTimeout(()=>queuePreload(remaining),1200);
+     if(remaining.length){
+      const preload=()=>{if(!document.hidden&&scope===sessionScope(session))queuePreload(remaining);};
+      setTimeout(()=>{
+       if('requestIdleCallback' in window)window.requestIdleCallback(preload,{timeout:8000});
+       else setTimeout(preload,3800);
+      },1200);
+     }
     }
     return opened;
    }

@@ -48,7 +48,7 @@ context.activePage='overview';await context.pollMachines();assert.equal(calls,4,
 context.activePage='machines';context.session=null;await context.pollMachines();assert.equal(calls,4);
 
 const app=readFileSync(new URL('../static/app.js',import.meta.url),'utf8');
-const history=app.slice(app.indexOf('function machineHistoryRows(){'),app.indexOf('function machineConnectionPanel(){'));
+const history=app.slice(app.indexOf('function machineHistoryRows(){'),app.indexOf('function machinesPage(){'));
 context.state={machines:[{id:'machine',start:0,amount:1000000,launchedBy:'Paul',storage:{warning:'<script>historical reference</script>'}}]};
 Object.assign(context,{lotName:m=>m.lotLabel||m.id,finishTimes:()=>'',machineSearch:'',machineFilter:'all',machineStatus:()=> 'running',money:String,date:String,DURATION:17100000,
  escapeHTML:value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))});
