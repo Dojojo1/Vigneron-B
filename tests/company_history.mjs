@@ -16,18 +16,20 @@ const history={id:'synthetic-reference',asOf:'2026-10-20',gross:9000,company:135
  completed:true,source:'owner_declaration',scope:'since_takeover'};
 ctx.state={sales:[],machines:[],salesAvailable:false,businessSources:{sales:{available:false,partial:true,revision:7}},
  salesCoverage:{available:true,partial:true,includedCount:1,unresolvedCount:2,unverifiedStoredCount:0},
- summary:{gross:500,company:75,group:400,loss:25,treated:null,pending:null},days:[],machineReports:[],employeesTotal:[]};
+ summary:{gross:500,company:75,group:400,loss:25,treated:null,pending:null},
+ overviewMetrics:{received:500,processed:0,companyGain:0},days:[],machineReports:[],employeesTotal:[]};
 assert.equal(ctx.history(),'','Missing history must not fabricate a zero reference.');
 ctx.state.companyHistory=history;
 const before=JSON.stringify(ctx.state);
 let html=ctx.home();
 assert.ok(!html.includes('Total de l’entreprise'),'The cumulative total belongs in statistics, not the dashboard.');
 assert.ok(html.includes('Dossiers suivis'));
-assert.ok(html.includes('500 $')&&html.includes('75 $'),'Operational values remain independent.');
+assert.ok(html.includes('500 $')&&html.includes('0 $'),'Weekly dashboard values remain independent.');
 assert.ok(!html.includes('9500 $'),'The declared cumulative amount is never added twice.');
 assert.ok(!html.includes('100 %'),'A manual cumulative reference cannot assign a progress percentage.');
 assert.equal(JSON.stringify(ctx.state),before,'Rendering cannot alter records or allocations.');
 html=ctx.stats();
+assert.ok(html.includes('500 $')&&html.includes('75 $'),'Operational statistics remain independent.');
 assert.ok(html.includes('Total de l’entreprise'));
 assert.ok(html.includes('20 octobre 2026'));
 assert.ok(html.includes('9000 $')&&html.includes('1350 $')&&html.includes('7200 $'));

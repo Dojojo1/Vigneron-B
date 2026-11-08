@@ -401,6 +401,9 @@
  function refreshOverviewBotStatus(){
   if(overviewBotStatus)paintOverviewBotStatus(document.querySelector('#overview-bot-status'),overviewBotStatus);
  }
+ function pageRenderSignature(data){
+  return JSON.stringify(data,(key,value)=>key==='botConnection'&&value?{...value,lastSeen:null}:value);
+ }
  let botStatusChecking=false;
  async function refreshBotStatus(){
   if(!session||document.hidden||botStatusChecking||!apiBase&&publicPages)return;
@@ -452,7 +455,7 @@
   const content=$('#content'),samePage=displayedPage===route;
   const url=pageURL(route),entry=!fresh?cachedPage(url):null;
   const epoch=cacheEpoch;
-  let showing=samePage,shownJson=samePage?JSON.stringify(state):null;
+  let showing=samePage,shownJson=samePage?pageRenderSignature(state):null;
   content.setAttribute('aria-busy',entry?'false':'true');content.classList.remove('is-refreshing');
   if(!samePage){content.replaceChildren();displayedPage=null;}
   let loading=entry?null:setTimeout(()=>{
@@ -508,7 +511,7 @@
    if(route==='journal'){window.heritageJournal({data,api,signal,when});displayedPage=route;content.hidden=false;return true;}
    if(route==='logs'){window.heritageLogs({data,api,signal,when});displayedPage=route;content.hidden=false;return true;}
    if(epoch===cacheEpoch&&!entry&&url!==pageURL(route,true))rememberPage(url,route,data,pageResponse?.version);
-   if(Object.hasOwn(pages,route)){if(shownJson!==JSON.stringify(data)||!content.hasChildNodes())showData(data,showing&&content.hasChildNodes());}else content.innerHTML='<p class="empty">Cet espace est enregistré ; son interface sera disponible prochainement.</p>';
+   if(Object.hasOwn(pages,route)){if(shownJson!==pageRenderSignature(data)||!content.hasChildNodes())showData(data,showing&&content.hasChildNodes());}else content.innerHTML='<p class="empty">Cet espace est enregistré ; son interface sera disponible prochainement.</p>';
    content.hidden=false;
    if(focusId){const input=document.getElementById(focusId);input?.focus({preventScroll:true});if(typeof position==='number'&&input?.setSelectionRange)input.setSelectionRange(position,position);}
    if(entry)refreshQuery(route,url,entry);

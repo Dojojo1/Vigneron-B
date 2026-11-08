@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 import json
 import math
 from pathlib import Path
+import shutil
 import socket
 import statistics
 import sys
@@ -55,10 +56,11 @@ def seed_fixture(store):
                      for i in range(1000)]
     with store.connect(True) as db:
         db.execute('UPDATE domain_store SET body=? WHERE id=1',(json.dumps(state),))
-        detail=json.dumps({'page':'sales','result':'success','actorName':'Aperçu local',
+        detail=json.dumps({'page':'sales','result':'success','action':'add-sale','actorName':'Aperçu local',
                            'changes':[{'path':'/amount','before':'load-fixture-detail-only','after':2}]})
         db.executemany('INSERT INTO audit(at,actor,kind,detail) VALUES(?,?,?,?)',
-                       [(time.time()-i,LOCAL_USER,'load_fixture',detail) for i in range(10000)])
+                       [(time.time()-i,LOCAL_USER,'business_action' if i%10==0 else 'load_fixture',detail)
+                        for i in range(10000)])
         baseline=db.execute('SELECT max(id),count(*) FROM audit').fetchone()
     return baseline[0],baseline[1]
 
@@ -92,8 +94,8 @@ async def exercise(base_url,store,baseline_id):
                 if label=='bootstrap':
                     screens=response.json()['pages']
                     check(len(screens['sales']['sales'])==50,'Préchargement des dossiers non borné.')
-                    check(len(screens['machines']['machineHistory'])==50,'Préchargement des lots non borné.')
-                    check(len(screens['journal']['audit'])==50,'Préchargement du journal non borné.')
+                    check(len(screens['machines']['machineHistory'])==10,'Préchargement des lots non borné.')
+                    check(len(screens['journal']['audit'])==10,'Préchargement du journal non borné.')
                     check(all('detail' not in row for row in screens['journal']['audit']),'Le préchargement expose des détails du journal.')
                     check('load-fixture-detail-only' not in response.text,'Détail confidentiel de fixture dans le préchargement.')
                 return response
@@ -190,7 +192,10 @@ def main():
     options=parser.parse_args()
     with tempfile.TemporaryDirectory(prefix='heritage-load-') as directory:
         root=Path(directory)
-        (root/'static').symlink_to(PROJECT/'static',target_is_directory=True)
+        try:
+            (root/'static').symlink_to(PROJECT/'static',target_is_directory=True)
+        except OSError:
+            shutil.copytree(PROJECT/'static',root/'static')
         cfg=Settings(root=root,local_preview=True,visitor_per_minute=100000,
                      visitor_writes_per_minute=100000,visitor_auth_per_ten_minutes=100000,
                      discord_per_minute=100000,discord_per_day=100000,

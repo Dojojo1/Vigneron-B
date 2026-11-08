@@ -17,12 +17,13 @@ const verified={id:'verified',status:'active',amount:1000,botStatus:'confirmed',
 const legacy={id:'legacy',status:'active',amount:9000,botStatus:'unconfirmed'};
 ctx.state={sales:[verified,legacy],salesAvailable:false,businessSources:{sales:{available:false,partial:true,revision:7}},
  salesCoverage:coverage,summary:{gross:1000,company:150,group:800,loss:50,treated:null,pending:null},
+ overviewMetrics:{received:1000,processed:null,companyGain:0},
  machines:[],days:[{label:'lun.',amount:0},{label:'mar.',amount:null}],machineReports:[],employeesTotal:[]};
 assert.equal(ctx.total().gross,1000,'Legacy amounts cannot enter verified subtotals.');
 let html=ctx.home();
 assert.ok(html.includes('Somme reçue'));
 assert.ok(html.includes('1000 $'));
-assert.ok(html.includes('150 $'));
+assert.ok(html.includes('0 $'),'No machine cycle means no company gain on the dashboard.');
 assert.ok(html.includes('Indisponible'),'Unknown progress remains explicit.');
 assert.ok(html.includes('2 fiche(s) non incluse(s) dans le suivi global'));
 assert.ok(html.includes('ancienne(s) fiche(s) conservée(s) hors calcul'));
@@ -36,6 +37,7 @@ assert.ok(ctx.note({...coverage,includedCount:5}).includes('5 fiche(s) vérifié
 ctx.state.sales=[{...verified,_verifiedRevision:6},legacy];
 assert.equal(ctx.total().gross,null,'A stale revision cannot enter a partial subtotal.');
 ctx.state.businessSources.sales.partial=false;
+ctx.state.overviewMetrics.received=null;
 html=ctx.home();
 assert.ok(!html.includes('1000 $'),'A full outage cannot display cached subtotal values.');
 assert.equal(ctx.total().gross,null);

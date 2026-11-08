@@ -159,7 +159,7 @@ def test_preload_is_bounded_and_does_not_embed_catalogue_sheet_rows_or_audit_det
     assert response.status_code == 200
     screens = response.json()['pages']
     assert len(screens['sales']['sales']) == 50
-    assert len(screens['machines']['machineHistory']) == 50
+    assert len(screens['machines']['machineHistory']) == 10
     assert len(screens['tombola']['tombolaRecords']) == 50
     assert len(screens['history']['events']) == 50
     assert len(screens['team']['members']) == 50

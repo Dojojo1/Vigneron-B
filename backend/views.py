@@ -91,7 +91,7 @@ def screen(state, page, params):
         rows=[m for m in state['machines'] if query in ' '.join(str(m.get(k,'')) for k in ('id','launchedBy','recoveredBy')).casefold()
               and (status=='all' or status==machine_status(m))]
         rows.sort(key=lambda m:m['start'],reverse=True)
-        history=take(rows,'machines')
+        history=take(rows,'machines',10)
         recovered=[m for m in state['machines'] if m.get('recovered') and not m.get('cancelled') and (not state.get('machineBridgeConfirmedOnly') or m.get('botStatus')=='confirmed')]
         result.update(machines=[batch] if batch else [],machineHistory=history,
                       machineSummary={'recovered':len(recovered),'amount':sum(m['amount'] for m in recovered)},
