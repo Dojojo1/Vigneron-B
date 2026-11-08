@@ -89,19 +89,37 @@ function activeBatch(){
   .sort((a,b)=>b.createdAt-a.createdAt)[0]?.preview;
  return pending&&(!confirmed||pending.start>=confirmed.start)?pending:confirmed;
 }
+function recoveryJob(machine){
+ if(!machine)return null;
+ return (state.machineCommands||[]).find(job=>job.recordId===machine.id&&job.action==='recover');
+}
+function recoveryFailure(machine){
+ const job=recoveryJob(machine);
+ return job?.status==='failed'?(job.error?.message||'Le bot n’a pas confirmé la récupération.') : null;
+}
+function cycleStateLabel(machine){
+ if(machine.botStatus==='pending')return machine.pendingStatus==='uncertain'?'Vérification du lot…':'Synchronisation avec le bot…';
+ const job=recoveryJob(machine);
+ if(job?.status==='pending'||job?.status==='uncertain')return 'Récupération en attente du bot…';
+ if(job?.status==='failed')return 'Récupération refusée';
+ return remaining(machine)?'En cours':'À récupérer';
+}
 function refreshMachineControls(){
  const records=[...state.machines,...(state.machineHistory||[])],active=activeBatch();
  document.querySelectorAll('[data-cycle-recover]').forEach(button=>{
   const machine=records.find(m=>m.id===button.dataset.cycleRecover);
   const pending=state.machineCommands?.some(job=>job.recordId===machine?.id&&['pending','uncertain'].includes(job.status));
+  const failure=recoveryFailure(machine);
   const blocked=!machine||machine.cancelled||machine.recovered||remaining(machine)>0||pending;
   button.disabled=blocked||button.getAttribute('aria-busy')==='true';
-  button.title=blocked?'Disponible à la fin du compteur de 4 h 45.':'';
+  button.title=pending?'Récupération en attente de confirmation du bot.':failure?'Récupération refusée : '+failure:blocked?'Disponible à la fin du compteur de 4 h 45.':'';
  });
  document.querySelectorAll('[data-action="add-machine"]').forEach(button=>{
   const pending=state.machineCommands?.some(job=>job.action==='add-machine'&&['pending','uncertain'].includes(job.status));
+  const recovering=active&&['pending','uncertain'].includes(recoveryJob(active)?.status);
+  const failure=recoveryFailure(active);
   button.disabled=Boolean(active||pending||state.botConnection&&!state.botConnection.enabled)||button.getAttribute('aria-busy')==='true';
-  button.title=pending?'Une demande de lancement attend déjà le bot.':active?'Récupère le lot précédent avant d’en lancer un nouveau.':'';
+  button.title=pending?'Une demande de lancement attend déjà le bot.':recovering?'La récupération du lot attend la confirmation du bot.':failure?'La récupération a été refusée : '+failure:active?'Récupère le lot précédent avant d’en lancer un nouveau.':'';
  });
  document.querySelectorAll('[data-action="edit-machine-time"],[data-action="cancel-machine"],[data-action="unrecover"]').forEach(button=>{
   const machine=records.find(m=>m.id===button.dataset.id),pending=state.machineCommands?.some(job=>job.recordId===button.dataset.id&&['pending','uncertain'].includes(job.status));
@@ -110,10 +128,10 @@ function refreshMachineControls(){
  });
  document.querySelectorAll('[data-cycle-state]').forEach(label=>{
   const machine=records.find(m=>m.id===label.dataset.cycleState);
-  if(machine)label.textContent=remaining(machine)>0?'En cours':'À récupérer';
+  if(machine)label.textContent=cycleStateLabel(machine);
  });
 }
-function midnightMachine(m,index=0){const pending=m.botStatus==='pending';return `<article class="night-machine counter-machine batch-card cut-frame${pending?' machine-synchronizing':''}"><div class="cut-inner"><div class="batch-main"><div class="batch-left"><div class="batch-wordmark">L’HÉRITAGE${grapeMark()}<span>LES AFFAIRES DE LA FAMILLE</span></div><div class="batch-identity"><h3>${escapeHTML(lotName(m))}</h3>${m.lotYear?`<small class="lot-year">Année ${escapeHTML(m.lotYear)}</small>`:''}<span class="counter-status" data-cycle-state="${escapeHTML(m.id)}">${pending?(m.pendingStatus==='uncertain'?'Vérification du lot…':'Synchronisation avec le bot…'):remaining(m)?'En cours':'À récupérer'}</span></div><div class="batch-total"><small>MONTANT TOTAL DU LOT</small><strong>${money(m.amount)}</strong><span>${BOT_RULES.machineCount} machines · un seul cycle</span></div></div><div class="batch-center">${gauge(m)}</div><dl class="batch-details"><div><dt>CHARGE HABITUELLE</dt><dd>${BOT_RULES.machineCount} × ${money(BOT_RULES.machineUnitAmount)}</dd></div><div><dt>LANCÉ PAR</dt><dd>${escapeHTML(m.launchedBy||'Non renseigné')}</dd></div><div><dt>FIN PRÉVUE</dt><dd class="machine-finish-times">${finishTimes(m)}</dd></div></dl></div><div class="batch-footer"><a class="batch-details-link" href="#machines">Voir les lots →</a>${pending?'<span class="machine-sync-note" role="status">Le lancement sera conservé dès confirmation Discord.</span>':`<div class="batch-footer-actions"><button data-action="edit-machine-time" data-id="${escapeHTML(m.id)}">Modifier l’heure</button><button class="danger" data-action="cancel-machine" data-id="${escapeHTML(m.id)}">Annuler le lot</button><button class="button primary" data-action="recover" data-id="${escapeHTML(m.id)}" data-cycle-recover="${escapeHTML(m.id)}">Tout récupérer <span>→</span></button></div>`}</div></div></article>`;}
+function midnightMachine(m,index=0){const pending=m.botStatus==='pending',failure=recoveryFailure(m);return `<article class="night-machine counter-machine batch-card cut-frame${pending?' machine-synchronizing':''}"><div class="cut-inner"><div class="batch-main"><div class="batch-left"><div class="batch-wordmark">L’HÉRITAGE${grapeMark()}<span>LES AFFAIRES DE LA FAMILLE</span></div><div class="batch-identity"><h3>${escapeHTML(lotName(m))}</h3>${m.lotYear?`<small class="lot-year">Année ${escapeHTML(m.lotYear)}</small>`:''}<span class="counter-status" data-cycle-state="${escapeHTML(m.id)}">${cycleStateLabel(m)}</span></div><div class="batch-total"><small>MONTANT TOTAL DU LOT</small><strong>${money(m.amount)}</strong><span>${BOT_RULES.machineCount} machines · un seul cycle</span></div></div><div class="batch-center">${gauge(m)}</div><dl class="batch-details"><div><dt>CHARGE HABITUELLE</dt><dd>${BOT_RULES.machineCount} × ${money(BOT_RULES.machineUnitAmount)}</dd></div><div><dt>LANCÉ PAR</dt><dd>${escapeHTML(m.launchedBy||'Non renseigné')}</dd></div><div><dt>FIN PRÉVUE</dt><dd class="machine-finish-times">${finishTimes(m)}</dd></div></dl></div><div class="batch-footer"><a class="batch-details-link" href="#machines">Voir les lots →</a>${pending?'<span class="machine-sync-note" role="status">Le lancement sera conservé dès confirmation Discord.</span>':`<div class="batch-footer-actions"><button data-action="edit-machine-time" data-id="${escapeHTML(m.id)}">Modifier l’heure</button><button class="danger" data-action="cancel-machine" data-id="${escapeHTML(m.id)}">Annuler le lot</button><button class="button primary" data-action="recover" data-id="${escapeHTML(m.id)}" data-cycle-recover="${escapeHTML(m.id)}">Tout récupérer <span>→</span></button></div>`}</div>${failure?`<p class="machine-sync-note" role="alert">Récupération refusée : ${escapeHTML(failure)} Réessaie après avoir vérifié le lot.</p>`:''}</div></article>`;}
 
 function saleContactText(s){return `Donneur : ${s.giver||'Non renseigné'} · Date reçue : ${s.receivedDate||'Non renseignée'}`;}
 async function copySaleContact(s){
@@ -433,7 +451,7 @@ function refreshMachineDisplay(){
  const machineById=new Map([...state.machines,...(state.machineHistory||[])].map(machine=>[machine.id,machine]));
  document.querySelectorAll('[data-countdown]').forEach(el=>{const m=machineById.get(el.dataset.countdown);if(!m)return;el.textContent=countdown(m);const gaugeEl=el.closest('[data-gauge]');if(gaugeEl){const p=m.recovered?100:cyclePercent(m);gaugeEl.style.setProperty('--percent',`${p}%`);gaugeEl.style.setProperty('--cycle-progress',String(p));gaugeEl.style.setProperty('--cycle-angle',`${p*3.6}deg`);}});
  document.querySelectorAll('[data-cycle-progress]').forEach(el=>{const m=machineById.get(el.dataset.cycleProgress);if(!m)return;el.style.width=`${cyclePercent(m)}%`;el.parentElement.setAttribute('aria-valuenow',String(Math.round(cyclePercent(m))));});
- document.querySelectorAll('[data-cycle-state]').forEach(el=>{const m=machineById.get(el.dataset.cycleState);if(m){el.textContent=remaining(m)?'En cours':'À récupérer';el.classList.toggle('is-ready',remaining(m)===0);}});document.querySelectorAll('[data-cycle-percent]').forEach(el=>{const m=machineById.get(el.dataset.cyclePercent);if(m)el.textContent=`${Math.floor(cyclePercent(m))} %`;});
+ document.querySelectorAll('[data-cycle-state]').forEach(el=>{const m=machineById.get(el.dataset.cycleState);if(m){el.textContent=cycleStateLabel(m);el.classList.toggle('is-ready',remaining(m)===0);}});document.querySelectorAll('[data-cycle-percent]').forEach(el=>{const m=machineById.get(el.dataset.cyclePercent);if(m)el.textContent=`${Math.floor(cyclePercent(m))} %`;});
  const now=Date.now();
  if(activePage==='machines'&&now-lastMachineHistoryRefresh>=10000
      &&!document.querySelector('dialog[open]')

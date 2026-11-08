@@ -522,16 +522,17 @@
  // Machines refresh: fetch confirmed snapshots even when all actions originate in Discord.
  let machineRefreshInFlight=false,lastMachineRefresh=0;
  async function refreshMachineSnapshot(){
-  if(!session||!['machines','sales','tombola','overview','stats'].includes(activePage)||document.hidden||refreshingPages||machineRefreshInFlight||pendingActions.size
-      ||document.querySelector('dialog[open], #content[aria-busy="true"]')||document.activeElement?.matches('input,select,textarea'))return;
+  if(!session||!['machines','sales','tombola','overview','stats'].includes(activePage)||document.hidden||refreshingPages||machineRefreshInFlight||pendingActions.size)return;
   const interval=[...(state.machineCommands||[]),...(state.businessCommands||[])].some(job=>job.status==='pending'||job.status==='uncertain')?3000:30000;
   const now=Date.now();if(now-lastMachineRefresh<interval)return;
+  if(document.querySelector('dialog[open], #content[aria-busy="true"]')||document.activeElement?.matches('input,select,textarea'))return;
   machineRefreshInFlight=true;lastMachineRefresh=now;
   try{await window.heritageNavigate({fresh:true,preserveFocus:true});}
   catch(error){backgroundFailure(error);}
   finally{machineRefreshInFlight=false;}
  }
- setInterval(()=>void refreshMachineSnapshot(),15000);
+ setInterval(()=>void refreshMachineSnapshot(),3000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshMachineSnapshot();});
  // End Machines refresh.
  async function followBusinessCommand(page,commandId,scope){
   for(let attempt=0;attempt<15;attempt++){

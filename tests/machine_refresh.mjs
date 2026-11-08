@@ -7,13 +7,14 @@ const source=readFileSync(new URL('../static/secure.js',import.meta.url),'utf8')
 const start=source.indexOf(' // Machines refresh:');
 const end=source.indexOf(' // End Machines refresh.',start);
 assert.ok(start>=0&&end>start,'The real Machines polling block must be present.');
-let now=0,openDialog=false,pageBusy=false,editing=false,calls=0,rendered=[],hold=null;
+let now=0,openDialog=false,pageBusy=false,editing=false,calls=0,rendered=[],hold=null,visibilityHandler=null;
 let backend={machines:[{id:'discord-machine-1',botStatus:'confirmed',start:123,amount:1000000}],machineCommands:[]};
 const context=vm.createContext({
  Date:{now:()=>now},session:{user:{id:'123'}},activePage:'machines',refreshingPages:false,
  pendingActions:new Map(),state:{machines:[],machineCommands:[]},backgroundFailure:error=>{throw error;},
- document:{hidden:false,querySelector:()=>openDialog||pageBusy,activeElement:{matches:()=>editing}},
- setInterval:(callback,interval)=>{assert.equal(interval,15000);return 1;},
+ document:{hidden:false,querySelector:()=>openDialog||pageBusy,activeElement:{matches:()=>editing},
+  addEventListener:(name,handler)=>{if(name==='visibilitychange')visibilityHandler=handler;}},
+ setInterval:(callback,interval)=>{assert.equal(interval,3000);return 1;},
  window:{heritageNavigate:async options=>{
   assert.equal(options.fresh,true);assert.equal(options.preserveFocus,true);
   calls++;if(hold)await hold;
@@ -22,6 +23,7 @@ const context=vm.createContext({
  }},
 });
 vm.runInContext(source.slice(start,end)+'\nglobalThis.pollMachines=refreshMachineSnapshot;',context);
+assert.equal(typeof visibilityHandler,'function');
 
 await context.pollMachines();assert.equal(calls,0);
 now=30000;await context.pollMachines();
@@ -56,4 +58,4 @@ vm.runInContext(history+'\nglobalThis.renderMachineHistory=machineHistoryRows;',
 const markup=context.renderMachineHistory();
 assert.ok(markup.includes('&lt;script&gt;historical reference&lt;/script&gt;'));
 assert.ok(!markup.includes('<script>'),'Storage warnings must be escaped before display.');
-console.log('OK: Discord snapshots refresh at 30s/15s, one request, hidden/form/input/submit pauses, storage warning escaped.');
+console.log('OK: Discord snapshots refresh at 30s/3s, one request, hidden/form/input/submit pauses, storage warning escaped.');

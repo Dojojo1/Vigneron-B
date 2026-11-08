@@ -101,20 +101,27 @@ def financial(state, sales=None):
 
 
 def overview_metrics(state, now=None):
-    """Current sales ledger and machine cycles launched in the Brussels week."""
+    """Current sales progress and this week's confirmed machine activity."""
     now = now or datetime.now(TZ)
     start = now.date() - timedelta(days=now.weekday())
     selected, coverage = financial_sales(state)
-    received = (sum(s['amount'] for s in selected
-                    if not s.get('archive') and s['status'] != 'cancelled')
-                if coverage['available'] else None)
+    current_sales = [s for s in selected if not s.get('archive') and s['status'] != 'cancelled']
+    received = sum(s['amount'] for s in current_sales) if coverage['available'] else None
+    values = allocations(state) if coverage['available'] else {}
+    processed = (sum(values[s['id']] for s in current_sales)
+                 if coverage['available'] and all(values.get(s['id']) is not None for s in current_sales)
+                 else None)
     machines_available = state.get('businessSources', {}).get('machines', {}).get('available', True)
+    if state.get('machineBridgeConfirmedOnly') and any(
+        m.get('botStatus') == 'confirmed' for m in state['machines']
+    ):
+        machines_available = True
     cycles = [m for m in state['machines']
               if not m.get('cancelled') and not m.get('historical')
               and (not state.get('machineBridgeConfirmedOnly') or m.get('botStatus') == 'confirmed')
               and datetime.fromtimestamp(m['start'] / 1000, TZ).date() >= start
               and datetime.fromtimestamp(m['start'] / 1000, TZ).date() <= now.date()]
-    return {'received': received, 'processed': sum(m['amount'] for m in cycles) if machines_available else None,
+    return {'received': received, 'processed': processed,
             'companyGain': sum(m.get('machineCount', RULES['machineCount']) * 150000 for m in cycles) if machines_available else None}
 
 

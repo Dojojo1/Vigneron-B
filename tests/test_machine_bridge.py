@@ -314,6 +314,22 @@ def test_discord_cancellation_releases_cycle_while_site_recovery_is_pending(env)
     assert command(env).status_code==200, 'An old recovery request must not reserve a new launch.'
 
 
+def test_confirmed_recovery_releases_cycle_and_allows_next_launch(env):
+    enabled(env)
+    machine=canonical(env)
+    record_id=sync(env,machine).json()['recordId']
+    recovery=command(env,'recover',record_id)
+    assert recovery.status_code==200 and recovery.json()['pending'] is True
+    recovered={**machine,'revision':2,'recovered':True,
+               'recoveredBy':{'id':SUPREME,'name':'Paul'},
+               'recoveredAt':datetime.now(timezone.utc).isoformat()}
+    assert sync(env,recovered,recovery.json()['commandId']).status_code==200
+    page=env['client'].get('/api/pages/machines?view=screen').json()
+    assert page['machines']==[]
+    assert next(row for row in page['machineHistory'] if row['id']==record_id)['recovered'] is True
+    assert command(env).status_code==200
+
+
 def test_cancelled_machine_stays_in_history_and_cannot_be_recovered_again(env):
     enabled(env)
     record_id=sync(env,canonical(env,cancelled=True,recovered=True)).json()['recordId']
