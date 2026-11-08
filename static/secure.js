@@ -6,7 +6,7 @@
   if(location.hash!=='#overview')location.hash='overview';
   window.heritagePublicDemo();
   document.querySelector('#overview-bot-status').textContent='Aperçu local';
-  state.summary={gross:159000000,treated:0,company:23850000};
+  state.summary={gross:159000000,treated:0,company:23850000,group:127200000,loss:7950000};
   state.overviewMetrics={received:159000000,processed:1000000,companyGain:750000};
   state.machines=[{id:'cadres-preview',start:Date.now()-78*60000,amount:1000000,lotLabel:'lot-s45-22',lotYear:2026,launchedBy:'Giovanni Danté'}];
   state.machinesAvailable=true;
