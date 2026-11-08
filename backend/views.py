@@ -107,6 +107,7 @@ def screen(state, page, params):
     elif page=='stats':
         result['summary']=domain.financial(state)
         result['verifiedTreated']=domain.verified_treated_progress(state)
+        result['monthlySales']=domain.monthly_sales_summary(state)
         now=datetime.now(domain.TZ)
         days=[now.date()-timedelta(days=offset) for offset in range(6,-1,-1)]
         totals=dict.fromkeys(days,0)

@@ -5,6 +5,15 @@
 .stats-top .metric-label { font: 11px/1.5 var(--sans); letter-spacing: 1.2px; color: #c0b294; }
 .stats-top strong { margin: 12px 0 9px; font: 500 clamp(31px,2.6vw,40px)/1.1 var(--serif); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .stats-top small { max-width: 290px; font: 11px/1.6 var(--sans); color: #aaa38f; }
+.month-summary { margin-bottom: 18px; padding: 24px 26px; }
+.month-summary .panel-header { margin-bottom: 20px; }
+.month-summary .panel-header h2 { margin: 0 0 5px; font: 500 27px/1.2 var(--serif); color: #dfcdab; }
+.month-summary .panel-header p { font: 12px/1.5 var(--sans); color: #b6ac95; }
+.month-summary-values { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 18px; margin: 0; }
+.month-summary-values > div { min-width: 0; }
+.month-summary-values dt { font: 11px/1.5 var(--sans); color: #b6ac95; }
+.month-summary-values dd { margin: 7px 0 0; font: 500 clamp(22px,2vw,29px)/1.2 var(--serif); color: #edddbf; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.month-summary .form-note { margin: 20px 0 0; padding-top: 14px; border-top: 1px solid #c5a47120; font: 11px/1.6 var(--sans); color: #b6ac95; }
 .stats-grid { gap: 18px; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); align-items: stretch; }
 .stats-grid > .panel { min-width: 0; padding: 23px 25px; border-radius: 9px; }
 .stats-grid .panel-header { gap: 12px; margin-bottom: 20px; }
@@ -36,11 +45,14 @@
 .stats-grid .estate-quote .eyebrow { font-size: 9px; line-height: 1.6; letter-spacing: 2px; }
 .stats-grid .estate-quote > span { font-size: 8px; letter-spacing: 1.2px; }
 @media(max-width:1150px) {
+ .month-summary-values { grid-template-columns: repeat(3,minmax(0,1fr)); }
  .stats-grid { grid-template-columns: minmax(0,1fr); }
  .stats-top > article.panel { padding: 20px; }
  .stats-top .metric-label { font-size: 10px; letter-spacing: .7px; }
 }
 @media(max-width:600px) {
+ .month-summary { padding: 20px 17px; }
+ .month-summary-values { grid-template-columns: repeat(2,minmax(0,1fr)); }
  .stats-top { grid-template-columns: minmax(0,1fr); gap: 12px; }
  .stats-top > article.panel { padding: 18px 21px; }
  .stats-top strong { font-size: 34px; margin: 8px 0; }

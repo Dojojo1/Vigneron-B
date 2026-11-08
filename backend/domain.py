@@ -112,6 +112,39 @@ def verified_treated_progress(state):
             'knownCount': len(known), 'totalCount': len(sales)}
 
 
+def monthly_sales_summary(state, now=None):
+    """Verified dossiers received in the current Brussels calendar month."""
+    now = now or datetime.now(TZ)
+    selected, coverage = financial_sales(state)
+    result = {'month': now.strftime('%Y-%m'), 'available': coverage['available'],
+              'partial': coverage['partial'], 'count': 0, 'received': None,
+              'company': None, 'group': None, 'treated': None,
+              'knownProgressCount': 0, 'undatedCount': 0}
+    if not coverage['available']:
+        return result
+    rows = []
+    for sale in selected:
+        if sale['status'] == 'cancelled':
+            continue
+        raw = sale.get('receivedDate')
+        try:
+            received_day = datetime.strptime(raw, '%d/%m/%Y') if isinstance(raw, str) else None
+        except ValueError:
+            received_day = None
+        if received_day is None:
+            result['undatedCount'] += 1
+        elif (received_day.year, received_day.month) == (now.year, now.month):
+            rows.append(sale)
+    gross = sum(sale['amount'] for sale in rows)
+    values = allocations(state)
+    known = [sale for sale in rows if values.get(sale['id']) is not None]
+    result.update(count=len(rows), received=gross, company=gross * 15 // 100,
+                  group=gross * 80 // 100,
+                  treated=sum(values[sale['id']] for sale in known) if known or not rows else None,
+                  knownProgressCount=len(known))
+    return result
+
+
 def overview_metrics(state, now=None):
     """Current sales progress and this week's confirmed machine activity."""
     now = now or datetime.now(TZ)
