@@ -2,6 +2,8 @@
 (() => {
   'use strict';
   if (!window.gsap) return;
+  // Les gouttes n'ont pas besoin de suivre les écrans à 120/144 Hz.
+  window.gsap.ticker.fps(60);
   const content = document.querySelector('#content');
   if (!content) return;
 
