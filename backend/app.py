@@ -422,6 +422,7 @@ def create_app(settings=None, provider=None):
         'history':('events',),
         'overview':('sales','machines','businessSources','salesBridgeConfirmedOnly','businessChoices','companyHistory'),
         'stats':('sales','machines','machineStats','machineBridgeConfirmedOnly','businessSources','salesBridgeConfirmedOnly','businessChoices','companyHistory'),
+        'rankings':('machines','machineStats','machineBridgeConfirmedOnly'),
     }
 
     def team_data(params,screen=True):
@@ -464,7 +465,7 @@ def create_app(settings=None, provider=None):
         if page=='team': return team_data(params)
         state=shared_state if shared_state is not None else store.read_domain(
             screen_fields.get(page,()),array_counts=('machineSheetHistory',) if page=='machines' else ())
-        if page in ('sales','machines','tombola','overview','stats'):
+        if page in ('sales','machines','tombola','overview','stats','rankings'):
             state=projected_state if projected_state is not None else machine_projection(state)
         result=views.screen(state,page,params)
         if page in ('sales','tombola','overview','stats'):
@@ -498,7 +499,7 @@ def create_app(settings=None, provider=None):
         shared=store.read_domain(fields,array_counts=('machineSheetHistory',) if 'machines' in selected else ()) if fields else None
         role_id=security.highest_role(user)['id']
         projected=machine_projection(shared) if shared is not None and any(
-            page in ('sales','machines','tombola','overview','stats') for page in domain_pages) else None
+            page in ('sales','machines','tombola','overview','stats','rankings') for page in domain_pages) else None
         bridge_status=bridge.machine_status() if any(page in ('sales','tombola','machines','overview')
                                                    for page in selected) else None
         screens={page:screen_data(page,request,{},shared,projected,bridge_status) for page in selected}
@@ -548,7 +549,7 @@ def create_app(settings=None, provider=None):
         if view=='export':
             request.state.audit_export=True
             return {'events':state['events']}
-        if page in ('sales','machines','tombola','overview','stats'):state=machine_projection(state)
+        if page in ('sales','machines','tombola','overview','stats','rankings'):state=machine_projection(state)
         result=domain.project(state,page)
         if page in ('sales','tombola','overview','stats'):
             sources=state.get('businessSources',{})
@@ -686,7 +687,7 @@ def create_app(settings=None, provider=None):
             roles=[dict(row) for row in db.execute('SELECT id,name,position,active FROM roles ORDER BY position DESC,id')]
             permissions=[dict(row) for row in db.execute('SELECT * FROM role_permissions')]
             selected=[row['role_id'] for row in db.execute('SELECT role_id FROM access_roles')]
-        return {'roles':roles,'pages':list(pages.values()),'permissions':permissions,'selectedRoles':selected}
+        return {'roles':roles,'pages':[p for p in pages.values() if p['id']!='rankings'],'permissions':permissions,'selectedRoles':selected}
 
     @app.put('/api/admin/access')
     async def access_matrix(request:Request):
@@ -699,7 +700,7 @@ def create_app(settings=None, provider=None):
                 raise HTTPException(400,'Sélection de rôles invalide.')
             if not isinstance(permissions,dict) or set(permissions)!=set(selected):
                 raise HTTPException(400,'Configure uniquement les rôles retenus.')
-            private_pages={page for page,value in pages.items() if value['kind']=='private'}
+            private_pages={page for page,value in pages.items() if value['kind']=='private' and page!='rankings'}
             for values in permissions.values():
                 if not isinstance(values,dict) or set(values)-private_pages or any(type(allowed) is not bool for allowed in values.values()):
                     raise HTTPException(400,'Seules les pages configurables sont modifiables.')
@@ -723,7 +724,7 @@ def create_app(settings=None, provider=None):
         def commit_operation():
             if not isinstance(data,dict) or set(data)!={'permissions'} or not isinstance(data['permissions'],dict): raise HTTPException(400,'Permissions invalides.')
             for page,allowed in data['permissions'].items():
-                if page not in pages or pages[page]['kind']!='private' or type(allowed) is not bool: raise HTTPException(400,'Seules les pages configurables sont modifiables.')
+                if page not in pages or page=='rankings' or pages[page]['kind']!='private' or type(allowed) is not bool: raise HTTPException(400,'Seules les pages configurables sont modifiables.')
             with store.connect(True) as db:
                 if not db.execute('SELECT 1 FROM roles WHERE id=? AND active=1',(role_id,)).fetchone(): raise HTTPException(404,'Rôle introuvable.')
                 if not db.execute('SELECT 1 FROM access_roles WHERE role_id=?',(role_id,)).fetchone(): raise HTTPException(409,'Sélectionne d’abord ce rôle dans les rôles du domaine.')

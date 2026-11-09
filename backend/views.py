@@ -104,7 +104,19 @@ def screen(state, page, params):
         result.update(tombolaWeeks=weeks,tombolaRecords=take([r for r in state['tombolaRecords'] if r['week']==week and not r.get('deleted')],'tombola'))
     elif page=='history':
         result['events']=take(sorted(state['events'],key=lambda e:e['created'],reverse=True),'history')
-    elif page=='stats':
+    elif page in ('stats','rankings'):
+        if page=='rankings':
+            reports,global_rows=domain.machine_rankings_by_week(state)
+            selected=params.get('report','current')
+            old=state.get('machineStats',{}).get('history',{}).get(selected)
+            if old: selected=old.get('week_start',selected)
+            chosen=next((report for report in reports if report['key']==selected),None)
+            if not chosen: raise HTTPException(404,'Classement introuvable.')
+            rows=chosen['rows']
+            for report in reports:
+                if report is not chosen: report.pop('rows')
+            result.update(machineReports=reports,employeesTotal=rows,globalMachineRanking=global_rows)
+            return result
         result['summary']=domain.financial(state)
         result['verifiedTreated']=domain.verified_treated_progress(state)
         result['monthlySales']=domain.monthly_sales_summary(state)
@@ -119,16 +131,6 @@ def screen(state, page, params):
         unavailable=not coverage['available']
         result['days']=[{'label':['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'][day.weekday()],
                          'amount':None if unavailable else totals[day]} for day in days]
-        reports,global_rows=domain.machine_rankings_by_week(state)
-        selected=params.get('report','current')
-        old=state.get('machineStats',{}).get('history',{}).get(selected)
-        if old: selected=old.get('week_start',selected)
-        chosen=next((report for report in reports if report['key']==selected),None)
-        if not chosen: raise HTTPException(404,'Classement introuvable.')
-        rows=chosen['rows']
-        for report in reports:
-            if report is not chosen: report.pop('rows')
-        result.update(machineReports=reports,employeesTotal=rows,globalMachineRanking=global_rows)
     elif page=='overview':
         result.update(summary=domain.financial(state),overviewMetrics=domain.overview_metrics(state))
         batch=domain.current_batch(state)

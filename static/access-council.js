@@ -1,6 +1,6 @@
 'use strict';
 window.heritageCouncil=function({access,accounts},{api,when}){
-  const roles=access.roles.filter(r=>r.active),privatePages=access.pages.filter(p=>p.kind==='private');
+  const roles=access.roles.filter(r=>r.active),privatePages=access.pages.filter(p=>p.kind==='private'&&p.id!=='rankings');
   const pageIcons={overview:'home',sales:'funds',machines:'machines',tombola:'tombola',history:'history',stats:'gain',journal:'sales',logs:'history',team:'team'};
   function roleHeading(name){
    const parts=name.match(/^(.+?)\s*[·•]\s*(.+)$/u);

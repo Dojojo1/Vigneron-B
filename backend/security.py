@@ -103,6 +103,7 @@ class Security:
 
     def allowed(self, user, page):
         if self.is_supreme(user): return True
+        if page == 'rankings': page = 'stats'
         assert_site_access(self.store,user['id'])
         account=active_credential(self.store,user['id']) if is_guest(user) else None
         if page == 'profile': return True

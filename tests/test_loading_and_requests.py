@@ -69,15 +69,15 @@ def test_catalogue_and_rank_archives_are_loaded_only_when_requested(env):
     state=state_of(env)
     state['machineStats']={'week_start':'2026-10-19','users':{},'history':{'old':{'week_start':'2026-10-12','users':{MEMBER:{'name':'Ancien classement privé','count':7}}}}}
     save_state(env,state)
-    data=env['client'].get('/api/pages/stats?view=screen').json()
+    data=env['client'].get('/api/pages/rankings?view=screen').json()
     assert data['catalog']=={'voitures':[],'motos':[]} and data['employeesTotal']==[]
     assert data['globalMachineRanking'][0]['count']==7
     assert all('rows' not in report for report in data['machineReports'] if report['key']!='current')
-    old=env['client'].get('/api/pages/stats?view=screen&report=old').json()
+    old=env['client'].get('/api/pages/rankings?view=screen&report=old').json()
     assert old['employeesTotal'][0]['count']==7
     assert env['client'].get('/api/pages/tombola?view=catalog').json()['catalog']==state['catalog']
     assert env['client'].get('/api/pages/sales?view=catalog').status_code==404
-    assert env['client'].get('/api/pages/stats?view=screen&report=missing').status_code==404
+    assert env['client'].get('/api/pages/rankings?view=screen&report=missing').status_code==404
 
 
 def test_machine_rankings_show_past_weeks_and_sum_confirmed_launches(env):
@@ -97,13 +97,15 @@ def test_machine_rankings_show_past_weeks_and_sum_confirmed_launches(env):
         {**original,'id':'unconfirmed','start':launched(-7),'actorId':MEMBER,'launchedBy':'Employé','botStatus':'unconfirmed','cancelled':False},
     ]
     save_state(env,state)
-    current=env['client'].get('/api/pages/stats?view=screen').json()
+    current=env['client'].get('/api/pages/rankings?view=screen').json()
     previous=(monday-timedelta(days=7)).isoformat()
     assert [report['key'] for report in current['machineReports']]==['current',previous]
     assert current['employeesTotal']==[{'id':MEMBER,'name':'Employé','count':1}]
     assert [(row['id'],row['count']) for row in current['globalMachineRanking']]==[(MEMBER,2),(OTHER,1)]
-    archived=env['client'].get('/api/pages/stats?view=screen&report='+previous).json()
+    archived=env['client'].get('/api/pages/rankings?view=screen&report='+previous).json()
     assert {row['id']:row['count'] for row in archived['employeesTotal']}=={MEMBER:1,OTHER:1}
+    financial=env['client'].get('/api/pages/stats?view=screen').json()
+    assert 'machineReports' not in financial and 'globalMachineRanking' not in financial
 
 
 def test_screen_views_still_enforce_page_permissions_and_validate_paging(env):
@@ -122,7 +124,7 @@ def test_empty_views_return_valid_zero_totals_and_empty_lists(env):
     for key in ('sales','machines','events','tombolaRecords'): state[key]=[]
     state['machineStats']={'users':{},'history':{}}
     save_state(env,state)
-    for page in ('sales','machines','tombola','history','stats','overview','team'):
+    for page in ('sales','machines','tombola','history','stats','rankings','overview','team'):
         response=env['client'].get('/api/pages/'+page+'?view=screen')
         assert response.status_code==200
     assert env['client'].get('/api/pages/stats?view=screen').json()['summary']['gross']==0

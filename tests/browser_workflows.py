@@ -137,7 +137,7 @@ try:
     assert js("return document.querySelector('.team-grid').textContent.includes('Profil vérifié');")
     mobile=[]
     command('WebDriver:SetWindowRect',{'width':390,'height':844})
-    for route,selector in [('overview','.night-metrics'),('sales','.sales-dossiers'),('machines','.machine-history'),('tombola','.raffle-grid'),('history','.history-table'),('stats','.employee-ranking'),('team','.team-grid'),('profile','.register-panel'),('council','.access-matrix-panel'),('journal','.journal-panel')]:
+    for route,selector in [('overview','.night-metrics'),('sales','.sales-dossiers'),('machines','.machine-history'),('tombola','.raffle-grid'),('history','.history-table'),('stats','.stats-top'),('rankings','.employee-ranking'),('team','.team-grid'),('profile','.register-panel'),('council','.access-matrix-panel'),('journal','.journal-panel')]:
         go(route,selector)
         size=js("return {page:location.hash,scroll:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth};")
         assert size['scroll']<=size['viewport']+1,size

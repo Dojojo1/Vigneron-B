@@ -452,6 +452,9 @@ def mutate(state,page,action,identifier,values,actor):
 def project(state,page):
     result={'sales':[],'machines':[],'events':[],'raffles':[],'tombolaRecords':[],'catalog':state.get('catalog',CONFIG['catalog']),'salesWeek':{'archives':[],'lastResetDate':None},'allocations':{}}
     if page in ('sales','overview','stats'):result['salesCoverage']=financial_sales(state)[1]
+    if page=='rankings':
+        reports,global_rows=machine_rankings_by_week(state)
+        return {**result,'machineReports':reports,'employeesTotal':reports[0]['rows'],'globalMachineRanking':global_rows}
     if page in ('overview','stats'):result.update(companyHistory=project_history(state),companyTotal=project_company_total(state))
     if page=='sales': result.update(sales=state['sales'],salesWeek=state['salesWeek'],allocations=allocations(state),events=[e for e in state['events'] if e.get('page')=='sales'],importedArchives=archive_catalog(state))
     elif page=='machines': result.update(machines=state['machines'],machineSheetHistory=state.get('machineSheetHistory',[]))
@@ -469,9 +472,5 @@ def project(state,page):
                 day=now.date()-timedelta(days=offset)
                 total=sum(s['amount'] for s in selected if s['status']!='cancelled' and datetime.fromtimestamp(s['created']/1000,TZ).date()==day) if coverage['available'] else None
                 result['days'].append({'label':['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'][day.weekday()],'amount':total})
-            reports,global_rows=machine_rankings_by_week(state)
-            result['machineReports']=reports
-            result['employeesTotal']=reports[0]['rows']
-            result['globalMachineRanking']=global_rows
             result['groups']=[{'name':name,'gross':sum(s['amount'] for s in selected if s['group']==name and s['status']!='cancelled') if coverage['available'] else None} for name in RULES['groups']]
     return result

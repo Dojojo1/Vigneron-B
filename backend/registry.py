@@ -10,4 +10,5 @@ def discover_pages(static_dir):
     pages['council'] = {'id':'council','label':'Le Conseil des Accès','kind':'supreme'}
     # GitHub Pages may publish a new client category before the Linux shell is updated.
     pages.setdefault('logs', {'id':'logs','label':'Logs','kind':'private'})
+    pages.setdefault('rankings', {'id':'rankings','label':'Classements','kind':'private'})
     return pages

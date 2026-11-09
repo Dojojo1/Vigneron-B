@@ -9,7 +9,7 @@ from backend.bot_bridge import BotBridge
 from conftest import EMPLOYEE, MEMBER, OTHER, SUPREME, grant, headers, login
 
 
-SCREEN_PAGES = ('overview','sales','machines','tombola','history','stats','team')
+SCREEN_PAGES = ('overview','sales','machines','tombola','history','stats','rankings','team')
 
 
 def entries(env, request_id=None):

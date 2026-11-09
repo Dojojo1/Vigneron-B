@@ -55,7 +55,7 @@
  const pendingActions=new Map(),operationKeys=new Map(),requestCooldowns=new Map();
  let pendingMachineLaunch=null;
  const pageCache=new Map(),bootstrapTasks=new Set(),CACHE_LIMIT=48,CACHE_BYTES=16*1024*1024,LOADING_DELAY=180,SESSION_LEASE=30000,REFRESH_INTERVAL=60000;
- const versionedRoutes=new Set(['overview','sales','machines','tombola','stats','team','history']);
+ const versionedRoutes=new Set(['overview','sales','machines','tombola','stats','rankings','team','history']);
  let cacheEpoch=0,displayedPage=null,accountMarkup='',profileDraft=null,sessionConfirmedAt=0,sessionCheck=null,suspendedForm=null;
  function clearPageCache(routes){
   cacheEpoch++;
@@ -80,7 +80,7 @@
  function affectedPages(path){
   if(path==='/api/admin/company-history')return ['overview','stats','journal'];
   if(path.startsWith('/api/actions/tombola')){catalogCache=null;return ['tombola','history','journal'];}
-  if(path.startsWith('/api/actions/'))return ['overview','sales','machines','stats','history','journal'];
+  if(path.startsWith('/api/actions/'))return ['overview','sales','machines','stats','rankings','history','journal'];
   if(path.startsWith('/api/me/'))return ['profile','team','council','journal'];
   return null;
  }
@@ -305,7 +305,7 @@
   if(route==='sales'){params.set('scope',defaults?'current':salesScope);params.set('q',defaults?'':search);}
   if(route==='machines'){params.set('q',defaults?'':machineSearch);params.set('status',defaults?'all':machineFilter);}
   if(route==='tombola')params.set('week',defaults?weekKey():tombolaWeek||weekKey());
-  if(route==='stats')params.set('report',defaults?'current':machineStatsWeek);
+  if(route==='rankings')params.set('report',defaults?'current':machineStatsWeek);
   return '/api/pages/'+encodeURIComponent(route)+'?'+params;
  }
  // Les données privées restent uniquement en mémoire, liées au compte et à ses droits.
@@ -522,7 +522,7 @@
  // Machines refresh: fetch confirmed snapshots even when all actions originate in Discord.
  let machineRefreshInFlight=false,lastMachineRefresh=0;
  async function refreshMachineSnapshot(){
-  if(!session||!['machines','sales','tombola','overview','stats'].includes(activePage)||document.hidden||refreshingPages||machineRefreshInFlight||pendingActions.size)return;
+  if(!session||!['machines','sales','tombola','overview','stats','rankings'].includes(activePage)||document.hidden||refreshingPages||machineRefreshInFlight||pendingActions.size)return;
   const interval=[...(state.machineCommands||[]),...(state.businessCommands||[])].some(job=>job.status==='pending'||job.status==='uncertain')?3000:30000;
   const now=Date.now();if(now-lastMachineRefresh<interval)return;
   if(document.querySelector('dialog[open], #content[aria-busy="true"]')||document.activeElement?.matches('input,select,textarea'))return;
@@ -548,7 +548,7 @@
     return;
    }
    clearPageCache(affectedPages('/api/actions/'+page));
-   if(activePage===page||activePage==='overview'||activePage==='stats')
+   if(activePage===page||activePage==='overview'||activePage==='stats'||activePage==='rankings')
     await window.heritageNavigate({fresh:true,preserveFocus:true});
    toast(job.status==='applied'?'Opération confirmée par le bot.':job.error?.message||'Le bot a refusé l’opération. La page a été actualisée.');
    return;
@@ -713,7 +713,7 @@
  setInterval(()=>void refreshBotStatus(),30000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshBotStatus();});
  setInterval(async()=>{
-  if(!session||document.hidden||activePage==='welcome'||['machines','sales','tombola','overview','stats'].includes(activePage)||refreshingPages||machineRefreshInFlight)return;
+  if(!session||document.hidden||activePage==='welcome'||['machines','sales','tombola','overview','stats','rankings'].includes(activePage)||refreshingPages||machineRefreshInFlight)return;
   refreshingPages=true;
   try{
    await ensurePreloaded([activePage]);

@@ -22,6 +22,18 @@ def test_new_roles_have_no_selection_or_private_access(env):
     assert env['client'].get('/api/pages/sales').status_code == 403
 
 
+def test_rankings_inherit_statistics_permission_without_extra_matrix_row(env):
+    login(env, SUPREME)
+    assert all(page['id'] != 'rankings' for page in env['client'].get('/api/admin/access').json()['pages'])
+    assert save(env, ['100'], {'100': {'stats': True}}).status_code == 200
+    login(env, MEMBER)
+    assert env['client'].get('/api/pages/rankings?view=screen').status_code == 200
+    login(env, SUPREME)
+    assert save(env, ['100'], {'100': {'stats': False}}).status_code == 200
+    login(env, MEMBER)
+    assert env['client'].get('/api/pages/rankings?view=screen').status_code == 403
+
+
 def test_matrix_save_and_role_removal_revoke_access_immediately(env):
     # Ce scénario alterne volontairement de nombreux comptes en quelques secondes.
     env['cfg'].visitor_auth_per_ten_minutes = 30
