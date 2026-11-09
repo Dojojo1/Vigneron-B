@@ -34,6 +34,19 @@ def test_rankings_inherit_statistics_permission_without_extra_matrix_row(env):
     assert env['client'].get('/api/pages/rankings?view=screen').status_code == 403
 
 
+def test_only_owner_can_save_shared_navigation_order(env):
+    login(env, SUPREME)
+    original=[page['id'] for page in env['client'].get('/api/me').json()['pages']]
+    order=list(reversed(original))
+    assert env['client'].put('/api/admin/navigation-order',json={'order':order[:-1]},headers=headers(env)).status_code==400
+    response=env['client'].put('/api/admin/navigation-order',json={'order':order},headers=headers(env))
+    assert response.status_code==200
+    assert env['client'].get('/api/me').json()['navigationOrder']==order
+    login(env, MEMBER)
+    assert env['client'].get('/api/me').json()['navigationOrder']==order
+    assert env['client'].put('/api/admin/navigation-order',json={'order':original},headers=headers(env)).status_code==403
+
+
 def test_matrix_save_and_role_removal_revoke_access_immediately(env):
     # Ce scénario alterne volontairement de nombreux comptes en quelques secondes.
     env['cfg'].visitor_auth_per_ten_minutes = 30

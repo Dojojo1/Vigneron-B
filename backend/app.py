@@ -375,9 +375,28 @@ def create_app(settings=None, provider=None):
     @app.get('/api/me')
     def me(request:Request):
         user=auth(request)
+        with store.connect() as db:
+            saved=db.execute("SELECT value FROM metadata WHERE key='navigation_order'").fetchone()
+        navigation_order=json.loads(saved['value']) if saved else []
         return {'user':profile(user),'csrf':request.state.session['csrf'],
                 'pages':[value for key,value in pages.items() if security.allowed(user,key)],
+                'navigationOrder':navigation_order,
                 'botConnection':bridge.connection_status(),**configuration()}
+
+    @app.put('/api/admin/navigation-order')
+    async def set_navigation_order(request:Request):
+        user=supreme(request);data=await json_body(request)
+        order=data.get('order') if isinstance(data,dict) and set(data)=={'order'} else None
+        if not isinstance(order,list) or len(order)!=len(pages) or any(not isinstance(page,str) for page in order) or set(order)!=set(pages):
+            raise HTTPException(400,'Ordre du menu invalide.')
+        def commit_order():
+            with store.connect(True) as db:
+                previous=db.execute("SELECT value FROM metadata WHERE key='navigation_order'").fetchone()
+                before=json.loads(previous['value']) if previous else []
+                db.execute("INSERT OR REPLACE INTO metadata(key,value) VALUES('navigation_order',?)",(json.dumps(order),))
+                if order!=before:store.audit(db,user['id'],'navigation_order_changed',{'page':'council','before':before,'after':order})
+            return {'navigationOrder':order}
+        return await run_in_threadpool(commit_order)
 
     @app.post('/api/client-errors')
     async def client_error(request:Request):

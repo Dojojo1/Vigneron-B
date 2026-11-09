@@ -1,4 +1,13 @@
 [hidden] { display: none !important; }
+.navigation-order-panel #navigation-edit-status { display: inline-block; margin-left: 14px; color: var(--muted); font: 11px/1.5 var(--sans); }
+#navigation .navigation-edit-hint { margin: 5px 12px 14px; padding: 9px 10px; border: 1px solid #b9995e77; color: #e3cb9e; background: #101a1d; font: 11px/1.45 var(--sans); }
+#navigation .navigation-edit-item { position: relative; cursor: grab; }
+#navigation .navigation-edit-item:active { cursor: grabbing; }
+#navigation .navigation-edit-item > a { display: flex; width: 100%; padding-right: 48px; }
+#navigation .navigation-edit-actions { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: grid; gap: 2px; }
+#navigation .navigation-edit-actions button { width: 28px; height: 26px; padding: 0; border: 1px solid #b9995e77; background: #101a1d; color: #e3cb9e; font: 15px/1 var(--sans); cursor: pointer; }
+#navigation .navigation-edit-actions button:focus-visible { outline: 2px solid #ebd398; outline-offset: 1px; }
+#navigation .navigation-edit-actions button:disabled { opacity: .35; cursor: default; }
 .individual-create,.individual-edit,.access-code-entry { border-top: 1px solid var(--line); padding-top: 18px; margin-top: 20px; }
 .individual-create > summary,.individual-edit > summary,.access-code-entry > summary { cursor: pointer; color: var(--gold); font: 13px/1.6 var(--sans); }
 .individual-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; margin-top: 20px; }
