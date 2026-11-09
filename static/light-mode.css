@@ -1,9 +1,9 @@
 /* Opt-in performance setting. The normal visual design is untouched. */
+.light-mode-row { display: flex; justify-content: flex-end; margin: 0 0 20px; }
 .light-mode-control {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  margin-left: auto;
   padding: 7px 10px 7px 14px;
   border: 1px solid #b7996266;
   border-radius: 9px;
@@ -15,7 +15,6 @@
 .light-mode-control small { display: block; margin-top: 3px; color: #bdad90; font-size: 10px; font-weight: 400; }
 .light-mode-control input { width: 18px; height: 18px; margin: 0; accent-color: #d7b375; cursor: pointer; }
 .light-mode-control:focus-within { outline: 2px solid #e5cda6; outline-offset: 3px; }
-html body.dashboard-active .content > .night-section-heading:first-child { position: relative; z-index: 4; }
 
 html.heritage-light-mode *,
 html.heritage-light-mode *::before,
@@ -34,6 +33,6 @@ html.heritage-light-mode .entry-panel::before,
 html.heritage-light-mode .cycle-dial .dial-orbit i { animation: none !important; }
 html.heritage-light-mode .glass-drop { display: none !important; }
 @media (max-width: 760px) {
-  .light-mode-control { margin-left: 0; }
+  .light-mode-row { margin: 0 0 18px; }
   .light-mode-control small { display: none; }
 }
