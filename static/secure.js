@@ -645,7 +645,7 @@
   state.catalog=catalogCache;
   const list=$('#vehicle-catalog');if(list)list.innerHTML=[...new Set([...catalogCache.voitures,...catalogCache.motos])].map(name=>`<option value="${escapeHTML(name)}"></option>`).join('');
  };
- window.heritageHistoryExport=async()=> (await api('/api/pages/history?view=export',{exporting:true})).events;
+ window.heritageHistoryExport=async()=> await api('/api/pages/history?view=export',{exporting:true});
  async function loadSheets(retries=0){
   const container=$('#sheet-archive-content');if(!container)return;
   sheetsAbort?.abort();sheetsAbort=new AbortController();

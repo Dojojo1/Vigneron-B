@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from . import domain
 from .weekly_history import archive_catalog, selected_archive
 from .company_history import project_history, project_company_total
+from .sale_refs import references as sale_references
 
 
 def number(params, key, default=0, maximum=10000000):
@@ -37,6 +38,8 @@ def base(state):
 
 def screen(state, page, params):
     result=base(state)
+    if page in ('sales','history'):
+        result['saleRefs']=sale_references(state.get('sales', []))
     query=str(params.get('q','')).strip().casefold()
     if len(query)>160: raise HTTPException(400,'La recherche est trop longue.')
     def take(rows,key,limit=50):
@@ -68,7 +71,7 @@ def screen(state, page, params):
         result.update(salesWeek=state['salesWeek'],scopeCount=len(selected),
                       scopeCoverage=domain.financial_sales(state,selected)[1],
                       scopeTotals={key:totals[key] for key in ('gross','company','group','loss')})
-        filtered=[s for s in selected if query in ' '.join(str(s.get(k,'')) for k in ('id','group','employee','giver')).casefold()]
+        filtered=[s for s in selected if query in (' '.join(str(s.get(k,'')) for k in ('id','group','employee','giver'))+' '+result['saleRefs'].get(str(s['id']), '')).casefold()]
         filtered.sort(key=lambda s:(s['created'],str(s['id'])),reverse=True)
         result['sales']=take(filtered,'sales')
         allocations=domain.allocations(state)

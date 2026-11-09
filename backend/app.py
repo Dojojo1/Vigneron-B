@@ -438,11 +438,19 @@ def create_app(settings=None, provider=None):
         'sales':('weeklyHistory','sales','machines','events','salesWeek','businessSources','salesBridgeConfirmedOnly','businessChoices'),
         'machines':('machines',),
         'tombola':('tombolaRecords','businessSources','salesBridgeConfirmedOnly','businessChoices'),
-        'history':('events',),
+        'history':('events','sales'),
         'overview':('sales','machines','businessSources','salesBridgeConfirmedOnly','businessChoices','companyHistory'),
         'stats':('sales','machines','machineStats','machineBridgeConfirmedOnly','businessSources','salesBridgeConfirmedOnly','businessChoices','companyHistory'),
         'rankings':('machines','machineStats','machineBridgeConfirmedOnly'),
     }
+
+    def journal_data(params):
+        result=query_log(store,params,pages)
+        sale_ids={str(row['record']) for row in result['audit'] if row.get('page')=='sales' and row.get('record')}
+        if sale_ids:
+            refs=views.sale_references(store.read_domain(('sales',)).get('sales',[]))
+            result['saleRefs']={identifier:refs[identifier] for identifier in sale_ids if identifier in refs}
+        return result
 
     def team_data(params,screen=True):
         size=views.number(params,'limit',50,100) if screen else 10000000
@@ -476,7 +484,7 @@ def create_app(settings=None, provider=None):
 
     def screen_data(page,request,params,shared_state=None,projected_state=None,bridge_status=None):
         """Même construction des écrans pour une lecture seule ou groupée."""
-        if page=='journal': return query_log(store,params,pages)
+        if page=='journal': return journal_data(params)
         if page=='logs': return {'page':'logs','entries':[]}
         if page=='profile': return {'page':page}
         if page=='council':
@@ -536,7 +544,7 @@ def create_app(settings=None, provider=None):
     @app.get('/api/pages/{page}')
     def page_data(page:str,request:Request):
         user=require(request,page)
-        if page=='journal': return query_log(store,request.query_params,pages)
+        if page=='journal': return journal_data(request.query_params)
         if page=='logs': return {'page':'logs','entries':[]}
         if page=='profile': return {'page':page}
         if page=='council':
@@ -555,7 +563,7 @@ def create_app(settings=None, provider=None):
         if view=='screen':
             return screen_response(screen_data(page,request,request.query_params),user,request)
         elif view in ('catalog','sheets','active','export'):
-            state=store.read_domain({'catalog':('catalog',),'sheets':('machineSheetHistory',),'active':('machines',),'export':('events',)}[view])
+            state=store.read_domain({'catalog':('catalog',),'sheets':('machineSheetHistory',),'active':('machines',),'export':('events','sales')}[view])
         else: state=store.read_domain()
         if view=='catalog': return {'catalog':state['catalog']}
         if view=='sheets':
@@ -567,7 +575,7 @@ def create_app(settings=None, provider=None):
             return {'machines':[batch] if batch else []}
         if view=='export':
             request.state.audit_export=True
-            return {'events':state['events']}
+            return {'events':state['events'],'saleRefs':views.sale_references(state['sales'])}
         if page in ('sales','machines','tombola','overview','stats','rankings'):state=machine_projection(state)
         result=domain.project(state,page)
         if page in ('sales','tombola','overview','stats'):
