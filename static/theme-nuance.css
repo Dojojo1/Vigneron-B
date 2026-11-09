@@ -158,6 +158,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
     linear-gradient(120deg, #29414f80, #08121bc9 55%, #302b237d);
 }
 .entry-screen .entry-panel::before { animation: heritage-glass 16s ease-in-out infinite alternate; }
+html.heritage-pause-verre .entry-screen .entry-panel::before { animation-play-state: paused !important; }
 @keyframes heritage-glass { from { opacity: .58; } to { opacity: .95; } }
 .entry-medallion { box-shadow: 0 0 30px #b9965833, 0 7px 24px #0009, inset 0 0 0 4px #b7905d12; }
 
