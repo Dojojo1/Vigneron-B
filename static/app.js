@@ -408,9 +408,10 @@ document.addEventListener('click',async e=>{
   if(action==='delete-vehicle'&&!confirm('Supprimer ce véhicule de la tombola et mettre à jour les annonces Discord ?'))return;
   if(action==='delete-tombola-week'&&!confirm('Supprimer tous les véhicules de cette semaine et retirer leurs annonces Discord ?'))return;
   if(['cancel-sale','reset-payments'].includes(action)&&!confirm('Confirmer cette modification ?'))return;
-  b.disabled=true;b.setAttribute('aria-busy','true');
+  const label=b.innerHTML;
+  b.disabled=true;b.setAttribute('aria-busy','true');b.textContent='Envoi…';
   try{await window.heritageAction(action,id,{});if(action==='confirm-sales-reset')$('#sales-reset-dialog').close();}
-  finally{b.disabled=false;b.removeAttribute('aria-busy');}
+  finally{b.disabled=false;b.removeAttribute('aria-busy');b.innerHTML=label;}
  }catch(error){toast(error.message);}
 });
 $('#reset-demo').addEventListener('click',()=>window.heritageResetTestData?.());

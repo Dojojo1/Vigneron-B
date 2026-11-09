@@ -155,7 +155,7 @@
     throw error;
    }
    if(privateRead&&!currentScope()){const error=new Error('Les données ont changé pendant le chargement. Réessaie.');error.cancelled=true;error.staleRead=true;throw error;}
-   if(writing){const routes=affectedPages(path);clearPageCache(routes);if(path!=='/auth/logout')queuePreload(routes);}
+   if(writing){const routes=affectedPages(path);clearPageCache(routes);if(path!=='/auth/logout'&&!path.startsWith('/api/actions/'))queuePreload(routes);}
    window.heritageFeedback?.recovered(path);
    if(publicPages)await hydrateAvatars(data);
    return data;
@@ -615,19 +615,20 @@
 
   const page=actionPage(action);if(!page)throw Error('Action inconnue.');
   const result=await api('/api/actions/'+page,{method:'POST',requestKey,body:{action,id:id||null,values}});
-  if(action==='add-machine'&&result.pending&&result.preview){
-   pendingMachineLaunch={id:result.commandId,recordId:result.recordId,action,status:'pending',createdAt:result.preview.start/1000,preview:result.preview};
-   if(activePage==='machines'||activePage==='overview'){
-    state.machineCommands=[...(state.machineCommands||[]).filter(job=>job.id!==result.commandId),pendingMachineLaunch];
-    render();
-   }
+  if(result.pending&&page==='machines'&&result.commandId){
+   const job={id:result.commandId,recordId:result.recordId,action,status:'pending',createdAt:Date.now()/1000};
+   if(action==='add-machine'&&result.preview){job.preview=result.preview;pendingMachineLaunch=job;}
+   state.machineCommands=[...(state.machineCommands||[]).filter(item=>item.id!==job.id),job];
+   if(activePage==='machines'||activePage==='overview')render();
   }
   if(action==='add-sale'||action==='confirm-sales-reset'){salesScope='current';search='';pageOffsets.sales=0;pageOffsets.events=0;}
-  const refreshed=await window.heritageNavigate({fresh:true,preserveFocus:true});
   if(result.pending&&page!=='machines'&&result.commandId){
-   toast('Demande envoyée. Le résultat du bot s’affichera automatiquement.');
+   state.businessCommands=[...(state.businessCommands||[]).filter(job=>job.id!==result.commandId),{id:result.commandId,action,status:'pending',createdAt:Date.now()/1000}];
+   toast('Demande enregistr\u00e9e. En attente de confirmation du bot.');
    void followBusinessCommand(page,result.commandId,sessionScope(session));
-  }else toast(result.pending?'Lot affiché. Synchronisation avec le bot en cours.':refreshed?'Opération enregistrée dans la base du site.':'Opération enregistrée, mais l’affichage n’a pas pu être actualisé.');
+  }else toast(result.pending?'Demande enregistr\u00e9e. En attente de confirmation du bot.':'Op\u00e9ration enregistr\u00e9e dans la base du site.');
+  // La confirmation de l'envoi ne doit pas attendre le rechargement de la page.
+  void window.heritageNavigate({fresh:true,preserveFocus:true});
  }
  window.heritageAction=async(action,id,values)=>{
   const key=JSON.stringify([action,id||null,values]);
