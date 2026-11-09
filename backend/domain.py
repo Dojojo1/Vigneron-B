@@ -240,6 +240,50 @@ def machine_ranking(state):
     return sorted(rows,key=lambda row:(-row['count'],row['name'].casefold()))
 
 
+def machine_rankings_by_week(state):
+    """Rank confirmed launches by Brussels week, with archived site counters as a fallback."""
+    now=datetime.now(TZ)
+    current=(now.date()-timedelta(days=now.weekday())).isoformat()
+    weeks={}
+    if state.get('machineBridgeConfirmedOnly') or 'machineStats' not in state:
+        for machine in state['machines']:
+            if machine.get('cancelled') or (state.get('machineBridgeConfirmedOnly') and machine.get('botStatus')!='confirmed'):
+                continue
+            actor_id=machine.get('actorId')
+            name=machine.get('launchedBy')
+            if not name or not machine.get('start'): continue
+            week_date=datetime.fromtimestamp(machine['start']/1000,TZ).date()
+            week=(week_date-timedelta(days=week_date.weekday())).isoformat()
+            identity=str(actor_id) if actor_id else 'legacy:'+name.casefold()
+            rows=weeks.setdefault(week,{})
+            row=rows.setdefault(identity,{'id':identity,'name':name,'count':0})
+            row['name']=name;row['count']+=1
+    if 'machineStats' in state:
+        stats=state['machineStats']
+        sources=[(stats.get('week_start'),stats.get('users',{}))]
+        sources.extend((report.get('week_start',key),report.get('users',{}))
+                       for key,report in stats.get('history',{}).items())
+        for week,users in sources:
+            if not week or state.get('machineBridgeConfirmedOnly') and week in weeks: continue
+            rows=weeks.setdefault(week,{})
+            for uid,info in users.items():
+                count=max(0,int(info.get('count',0)))
+                if not count: continue
+                identity=str(uid)
+                row=rows.setdefault(identity,{'id':identity,'name':info.get('name') or identity,'count':0})
+                row['name']=info.get('name') or identity;row['count']+=count
+    weeks.setdefault(current,{})
+    sorted_rows=lambda rows:sorted(rows.values(),key=lambda row:(-row['count'],row['name'].casefold(),row['id']))
+    reports=[{'key':'current' if week==current else week,'weekStart':week,'rows':sorted_rows(weeks[week])}
+             for week in sorted(weeks,reverse=True)]
+    global_rows={}
+    for users in weeks.values():
+        for uid,row in users.items():
+            total=global_rows.setdefault(uid,{'id':uid,'name':row['name'],'count':0})
+            total['name']=row['name'];total['count']+=row['count']
+    return reports,sorted_rows(global_rows)
+
+
 def update_machine_counter(state,machine,actor,increment):
     if 'machineStats' not in state: return
     stats=state['machineStats'];now=datetime.now(TZ);week=(now.date()-timedelta(days=now.weekday())).isoformat()
@@ -425,11 +469,9 @@ def project(state,page):
                 day=now.date()-timedelta(days=offset)
                 total=sum(s['amount'] for s in selected if s['status']!='cancelled' and datetime.fromtimestamp(s['created']/1000,TZ).date()==day) if coverage['available'] else None
                 result['days'].append({'label':['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'][day.weekday()],'amount':total})
-            result['employeesTotal']=machine_ranking(state)
-            stats=state.get('machineStats',{})
-            result['machineReports']=[{'key':'current','weekStart':stats.get('week_start'),'rows':result['employeesTotal']}]
-            for key,report in stats.get('history',{}).items():
-                rows=sorted([{'id':str(uid),'name':info.get('name') or str(uid),'count':max(0,int(info.get('count',0)))} for uid,info in report.get('users',{}).items()],key=lambda row:(-row['count'],row['name'].casefold()))
-                result['machineReports'].append({'key':key,'weekStart':report.get('week_start',key),'rows':rows})
+            reports,global_rows=machine_rankings_by_week(state)
+            result['machineReports']=reports
+            result['employeesTotal']=reports[0]['rows']
+            result['globalMachineRanking']=global_rows
             result['groups']=[{'name':name,'gross':sum(s['amount'] for s in selected if s['group']==name and s['status']!='cancelled') if coverage['available'] else None} for name in RULES['groups']]
     return result

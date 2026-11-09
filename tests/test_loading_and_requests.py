@@ -2,10 +2,12 @@ import copy
 import json
 import asyncio
 import httpx
+from datetime import datetime, timedelta
 
 from fastapi.testclient import TestClient
+from backend import domain
 
-from conftest import MEMBER, SUPREME, grant, headers, login
+from conftest import MEMBER, OTHER, SUPREME, grant, headers, login
 
 
 def save_state(env, state):
@@ -69,12 +71,39 @@ def test_catalogue_and_rank_archives_are_loaded_only_when_requested(env):
     save_state(env,state)
     data=env['client'].get('/api/pages/stats?view=screen').json()
     assert data['catalog']=={'voitures':[],'motos':[]} and data['employeesTotal']==[]
-    assert 'Ancien classement privé' not in json.dumps(data)
+    assert data['globalMachineRanking'][0]['count']==7
+    assert all('rows' not in report for report in data['machineReports'] if report['key']!='current')
     old=env['client'].get('/api/pages/stats?view=screen&report=old').json()
     assert old['employeesTotal'][0]['count']==7
     assert env['client'].get('/api/pages/tombola?view=catalog').json()['catalog']==state['catalog']
     assert env['client'].get('/api/pages/sales?view=catalog').status_code==404
     assert env['client'].get('/api/pages/stats?view=screen&report=missing').status_code==404
+
+
+def test_machine_rankings_show_past_weeks_and_sum_confirmed_launches(env):
+    login(env,SUPREME)
+    state=state_of(env)
+    monday=datetime.now(domain.TZ).date()-timedelta(days=datetime.now(domain.TZ).weekday())
+    def launched(days):
+        return int(datetime.combine(monday+timedelta(days=days),datetime.min.time(),domain.TZ).timestamp()*1000)
+    original=state['machines'][0]
+    state['machineBridgeConfirmedOnly']=True
+    state['machineStats']={'week_start':monday.isoformat(),'users':{},'history':{}}
+    state['machines']=[
+        {**original,'id':'one','start':launched(0),'actorId':MEMBER,'launchedBy':'Employé','botMachineId':'one','botStatus':'confirmed','cancelled':False},
+        {**original,'id':'two','start':launched(-7),'actorId':MEMBER,'launchedBy':'Employé','botMachineId':'two','botStatus':'confirmed','cancelled':False},
+        {**original,'id':'three','start':launched(-7),'actorId':OTHER,'launchedBy':'Autre','botMachineId':'three','botStatus':'confirmed','cancelled':False},
+        {**original,'id':'cancelled','start':launched(-7),'actorId':MEMBER,'launchedBy':'Employé','botMachineId':'cancelled','botStatus':'confirmed','cancelled':True},
+        {**original,'id':'unconfirmed','start':launched(-7),'actorId':MEMBER,'launchedBy':'Employé','botStatus':'unconfirmed','cancelled':False},
+    ]
+    save_state(env,state)
+    current=env['client'].get('/api/pages/stats?view=screen').json()
+    previous=(monday-timedelta(days=7)).isoformat()
+    assert [report['key'] for report in current['machineReports']]==['current',previous]
+    assert current['employeesTotal']==[{'id':MEMBER,'name':'Employé','count':1}]
+    assert [(row['id'],row['count']) for row in current['globalMachineRanking']]==[(MEMBER,2),(OTHER,1)]
+    archived=env['client'].get('/api/pages/stats?view=screen&report='+previous).json()
+    assert {row['id']:row['count'] for row in archived['employeesTotal']}=={MEMBER:1,OTHER:1}
 
 
 def test_screen_views_still_enforce_page_permissions_and_validate_paging(env):

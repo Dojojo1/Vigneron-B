@@ -41,6 +41,7 @@
 .stats-grid .employee-ranking .empty { min-height: 96px; display: grid; place-items: center; padding: 20px 0; font-size: 12px; color: #a9a28e; }
 .stats-grid > .panel > .form-note { border-top: 1px solid #c5a47120; margin: 12px 0 0; padding-top: 13px; font: 11px/1.6 var(--sans); color: #a29b88; }
 .stats-grid .estate-quote { min-width: 0; min-height: 230px; padding: 25px 28px; border-radius: 9px; }
+.stats-grid > .estate-quote { grid-column: 1 / -1; min-height: 170px; }
 .stats-grid .estate-quote blockquote { margin: 14px 0; font-size: clamp(24px,2.3vw,31px); line-height: 1.35; }
 .stats-grid .estate-quote .eyebrow { font-size: 9px; line-height: 1.6; letter-spacing: 2px; }
 .stats-grid .estate-quote > span { font-size: 8px; letter-spacing: 1.2px; }

@@ -119,18 +119,16 @@ def screen(state, page, params):
         unavailable=not coverage['available']
         result['days']=[{'label':['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'][day.weekday()],
                          'amount':None if unavailable else totals[day]} for day in days]
-        stats=state.get('machineStats',{})
-        reports=[{'key':'current','weekStart':stats.get('week_start')}]
-        reports.extend({'key':key,'weekStart':report.get('week_start',key)} for key,report in stats.get('history',{}).items())
+        reports,global_rows=domain.machine_rankings_by_week(state)
         selected=params.get('report','current')
-        if selected=='current': rows=domain.machine_ranking(state)
-        elif selected in stats.get('history',{}):
-            rows=sorted([{'id':str(uid),'name':info.get('name') or str(uid),'count':max(0,int(info.get('count',0)))}
-                         for uid,info in stats['history'][selected].get('users',{}).items()],key=lambda row:(-row['count'],row['name'].casefold()))
-        else: raise HTTPException(404,'Classement introuvable.')
+        old=state.get('machineStats',{}).get('history',{}).get(selected)
+        if old: selected=old.get('week_start',selected)
+        chosen=next((report for report in reports if report['key']==selected),None)
+        if not chosen: raise HTTPException(404,'Classement introuvable.')
+        rows=chosen['rows']
         for report in reports:
-            if report['key']==selected: report['rows']=rows
-        result.update(machineReports=reports,employeesTotal=rows)
+            if report is not chosen: report.pop('rows')
+        result.update(machineReports=reports,employeesTotal=rows,globalMachineRanking=global_rows)
     elif page=='overview':
         result.update(summary=domain.financial(state),overviewMetrics=domain.overview_metrics(state))
         batch=domain.current_batch(state)
