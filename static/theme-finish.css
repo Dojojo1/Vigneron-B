@@ -7,40 +7,6 @@
 /* Le décor disparaît progressivement avant la première carte. */
 main { z-index: 1; }
 
-/* Vidéo de fumée au premier plan : le fond noir disparaît par fusion. */
-.estate-atmosphere {
-  display: block;
-  position: fixed;
-  z-index: 3;
-  left: 206px;
-  bottom: 0;
-  width: calc(100% - 206px);
-  height: min(23vh, 230px);
-  pointer-events: none;
-  user-select: none;
-  object-fit: cover;
-  object-position: center bottom;
-  mix-blend-mode: screen;
-  filter: brightness(2.3) contrast(1.12);
-  opacity: 0;
-  transition: opacity .8s ease;
-  mask-image: linear-gradient(to bottom, transparent, #000 30%);
-}
-.estate-atmosphere.is-visible { opacity: .85; }
-body.on-entry .estate-atmosphere { display: none; }
-@media (prefers-reduced-motion: reduce) {
-  .estate-atmosphere:not(.motion-requested) { display: none; transition: none; }
-}
-@media (min-width: 1700px) {
-  .estate-atmosphere { left: 218px; width: calc(100% - 218px); }
-}
-@media (max-width: 1250px) {
-  .estate-atmosphere { left: 175px; width: calc(100% - 175px); }
-}
-@media (max-width: 760px) {
-  .estate-atmosphere { left: 0; width: 100%; height: min(20vh, 170px); }
-}
-
 .night-dossier-photo {
   position: relative;
   filter: brightness(1.09) saturate(1.18) contrast(1.03);
@@ -179,9 +145,6 @@ body.on-entry .estate-atmosphere { display: none; }
 .sales-activity .activity-author { display: block; margin-top: 5px; color: #8f8b7e; font: 11px var(--serif); }
 .sales-activity .section-label { color: #9e927a; font-size: 9px; }
 
-.smoke-activate { position: fixed; right: 16px; bottom: 16px; z-index: 15; border: 1px solid #bfa06c88; background: #101719ed; color: #e4c799; font: 12px var(--sans); padding: 10px 14px; cursor: pointer; border-radius: 3px; }
-.smoke-activate:hover { border-color: #dec28b; background: #24261f; }
-.smoke-activate:focus-visible { outline: 2px solid #e4c799; outline-offset: 3px; }
 
 /* Recherche et compte : taille lisible sans agrandir le panorama. */
 .topbar { height: 110px; }
