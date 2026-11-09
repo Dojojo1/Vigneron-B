@@ -1,16 +1,44 @@
-/* Original tombola design: only proportions, spacing and legibility adjusted. */
-.raffle-grid { grid-template-columns: repeat(auto-fit,minmax(min(100%,420px),1fr)); align-items: start; gap: 20px; }
-.raffle-grid > .raffle { width: 100%; min-width: 0; max-width: 640px; padding: 22px 25px; }
-.raffle-grid > .raffle > .eyebrow { margin: 0 0 12px; }
-.raffle-grid > .raffle > h3 { margin: 0 0 15px; font-size: 29px; line-height: 1.2; }
-.raffle-grid .vehicle-summary { padding: 13px 0 15px; }
-.raffle-grid .vehicle-summary h4 { font-size: 29px; line-height: 1.2; overflow-wrap: anywhere; }
-.raffle-grid .vehicle-summary h4 small { margin-left: 7px; font-size: 11px; }
-.raffle-grid .vehicle-summary > p { margin: 8px 0 12px; font-size: 12px; }
-.raffle-grid > .raffle > p:not(.eyebrow) { margin: 14px 0; font-size: 12px; line-height: 1.8; }
-.raffle-grid .record-actions button { padding: 9px 12px; font-size: 11px; line-height: 1.3; }
+.tombola-toolbar { align-items: end; gap: 12px; }
+.tombola-toolbar .field { min-width: min(280px,100%); }
+.tombola-toolbar .button.primary { margin-left: auto; }
+.raffle-grid { display: block; }
+.raffle-grid > .tombola-week-card { width: 100%; max-width: none; padding: 0; overflow: hidden; }
+.tombola-week-heading { display: flex; align-items: end; justify-content: space-between; gap: 28px; padding: 28px 32px; border-bottom: 1px solid #c5a47135; }
+.tombola-week-date { color: var(--gold); font: 11px var(--sans); letter-spacing: .08em; }
+.tombola-week-heading h3 { margin: 8px 0 5px; color: var(--ivory); font: 500 clamp(26px,3vw,38px)/1.15 var(--serif); }
+.tombola-week-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+.tombola-week-heading > strong { flex-shrink: 0; color: var(--gold); font: 500 clamp(24px,2.8vw,36px)/1.1 var(--serif); font-variant-numeric: tabular-nums; }
+.tombola-vehicle-list { display: grid; }
+.tombola-week-card .vehicle-summary { display: grid; grid-template-columns: minmax(180px,1fr) minmax(120px,auto) auto; align-items: center; gap: 22px; padding: 18px 32px; border-bottom: 1px solid #c5a47123; }
+.tombola-week-card .vehicle-summary:last-child { border-bottom: 0; }
+.tombola-vehicle-identity { display: flex; gap: 17px; align-items: center; min-width: 0; }
+.tombola-vehicle-number { color: #b9a17b; font: 23px var(--serif); font-variant-numeric: tabular-nums; }
+.tombola-vehicle-identity h4 { margin: 0; color: var(--ivory); font: 500 22px/1.2 var(--serif); overflow-wrap: anywhere; }
+.tombola-vehicle-identity div > span { color: var(--muted); font-size: 11px; text-transform: capitalize; }
+.tombola-vehicle-price { color: var(--gold); font: 18px var(--serif); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tombola-week-card .record-actions { display: flex; flex-wrap: wrap; gap: 7px; margin: 0; }
+.tombola-week-card .record-actions button { padding: 9px 11px; font-size: 11px; line-height: 1.2; }
+.tombola-week-footer { display: flex; justify-content: space-between; gap: 24px; padding: 22px 32px; border-top: 1px solid #c5a47135; }
+.tombola-week-footer > div { display: flex; flex-wrap: wrap; gap: 14px 25px; align-items: center; }
+.tombola-week-footer > div > span { color: var(--muted); font-size: 11px; }
+.tombola-week-footer strong { display: block; margin-top: 4px; color: var(--ivory); font: 17px var(--serif); font-variant-numeric: tabular-nums; }
+.tombola-week-footer details { min-width: 180px; }
+.tombola-week-footer summary { color: var(--gold); cursor: pointer; font-size: 11px; text-align: right; }
+.tombola-week-footer details .record-actions { display: grid; gap: 12px; margin-top: 13px; }
+.tombola-week-footer details .record-actions > div { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
+.tombola-week-footer details .record-actions span { width: 100%; color: var(--muted); font-size: 10px; text-align: right; }
+@media(max-width:900px) {
+ .tombola-week-card .vehicle-summary { grid-template-columns: minmax(0,1fr) auto; }
+ .tombola-week-card .vehicle-summary .record-actions { grid-column: 1/-1; }
+}
 @media(max-width:600px) {
- .raffle-grid > .raffle { padding: 20px; }
- .raffle-grid > .raffle > h3 { font-size: 26px; }
- .raffle-grid .vehicle-summary h4 { font-size: 27px; }
+ .tombola-toolbar .button.primary { margin-left: 0; }
+ .tombola-week-heading,.tombola-week-footer { padding: 20px; }
+ .tombola-week-heading { align-items: start; flex-direction: column; gap: 12px; }
+ .tombola-week-card .vehicle-summary { padding: 16px 20px; gap: 10px; }
+ .tombola-vehicle-identity h4 { font-size: 19px; }
+ .tombola-vehicle-price { font-size: 15px; }
+ .tombola-week-footer { flex-direction: column; }
+ .tombola-week-footer summary,.tombola-week-footer details .record-actions span { text-align: left; }
+ .tombola-week-footer details .record-actions > div { justify-content: flex-start; }
 }

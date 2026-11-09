@@ -11,7 +11,7 @@ from fastapi import HTTPException
 
 ACTIONS = {
     'sales': {'add-sale', 'sale-detail', 'finish-sale', 'sale-waiting', 'sale-progress', 'cancel-sale', 'confirm-sales-reset'},
-    'tombola': {'raffle-record', 'vehicle-buy', 'vehicle-pay', 'pay-all', 'reset-payments', 'delete-vehicle', 'delete-tombola-week'},
+    'tombola': {'raffle-record', 'add-vehicle', 'vehicle-buy', 'vehicle-pay', 'pay-all', 'reset-payments', 'delete-vehicle', 'delete-tombola-week'},
 }
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS bot_business_jobs(
@@ -294,6 +294,13 @@ class BusinessBridge:
         if action=='raffle-record':
             names=[str(values['vehicle'+str(i)]).strip() for i in range(50) if 'vehicle'+str(i) in values]
             if [v.get('name') for v in target.get('vehicles',[])]!=names:mismatch()
+        if action=='add-vehicle':
+            before=original.get('vehicles',[]) if original else []
+            after=target.get('vehicles',[])
+            if len(after)!=len(before)+1 or after[:len(before)]!=before:mismatch()
+            added=after[-1]
+            if added.get('name')!=str(values.get('vehicleName','')).strip() or added.get('type')!=values.get('vehicleType','voiture'):
+                mismatch()
 
     def acknowledge(self, db, payload, now):
         command_id, status = payload.get('commandId'), payload.get('status')

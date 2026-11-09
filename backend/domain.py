@@ -16,7 +16,7 @@ TZ = ZoneInfo(RULES['timeZone'])
 ACTIONS = {
  'sales': {'add-sale','sale-detail','finish-sale','sale-waiting','sale-progress','cancel-sale','confirm-sales-reset'},
  'machines': {'add-machine','edit-machine-time','recover','unrecover','cancel-machine'},
- 'tombola': {'raffle-record','vehicle-buy','vehicle-pay','pay-all','reset-payments','delete-vehicle','delete-tombola-week'},
+ 'tombola': {'raffle-record','add-vehicle','vehicle-buy','vehicle-pay','pay-all','reset-payments','delete-vehicle','delete-tombola-week'},
 }
 
 def seed():
@@ -152,9 +152,12 @@ def overview_metrics(state, now=None):
     now = now or datetime.now(TZ)
     start = now.date() - timedelta(days=now.weekday())
     selected, coverage = financial_sales(state)
-    current_sales = [s for s in selected if not s.get('archive') and s['status'] != 'cancelled']
-    received = sum(s['amount'] for s in current_sales) if coverage['available'] else None
     values = allocations(state) if coverage['available'] else {}
+    # Carry forward archived dossiers only while blanchiment remains unfinished.
+    current_sales = [s for s in selected if s['status'] != 'cancelled'
+                     and (not s.get('archive') or s['status'] == 'active'
+                          and (values.get(s['id']) is None or values[s['id']] < s['amount']))]
+    received = sum(s['amount'] for s in current_sales) if coverage['available'] else None
     processed = (sum(values[s['id']] for s in current_sales)
                  if coverage['available'] and all(values.get(s['id']) is not None for s in current_sales)
                  else None)
@@ -350,11 +353,30 @@ def mutate(state,page,action,identifier,values,actor):
                 old=existing['vehicles'][index] if existing and index<len(existing['vehicles']) else {}
                 vehicles.append({'name':name,'type':kind,'price':price,'bought':old.get('bought',False),'paid':old.get('paid',False)})
             if not vehicles or (not existing and len(vehicles)<2): raise ValueError('Configure au moins deux véhicules pour une nouvelle fiche.')
-            if existing: existing.update(week=week,vehicles=vehicles)
-            else: state['tombolaRecords'].append({'id':str(uuid.uuid4()),'week':week,'vehicles':vehicles})
+            if existing:
+                if any(r['id']!=existing['id'] and r['week']==week and not r.get('deleted') for r in state['tombolaRecords']):
+                    raise ValueError('Cette semaine possede deja une fiche.')
+                existing.update(week=week,vehicles=vehicles)
+            else:
+                if any(r['week']==week and not r.get('deleted') for r in state['tombolaRecords']):
+                    raise ValueError('Cette semaine possède déjà une fiche. Ajoute un véhicule à la fiche existante.')
+                state['tombolaRecords'].append({'id':str(uuid.uuid4()),'week':week,'vehicles':vehicles})
             for vehicle in vehicles:
                 choices=state['catalog']['motos' if vehicle['type']=='moto' else 'voitures']
                 if vehicle['name'] not in choices: choices.append(vehicle['name'])
+        elif action=='add-vehicle':
+            record=get_record(state['tombolaRecords'],identifier)
+            if record.get('deleted') or len(record['vehicles'])>=50: raise ValueError('Cette fiche ne peut plus recevoir de véhicule.')
+            raw_name=values.get('vehicleName')
+            kind=values.get('vehicleType','voiture')
+            if not isinstance(raw_name,str) or not raw_name.strip() or len(raw_name.strip())>100 or kind not in ('voiture','moto'):
+                raise ValueError('Véhicule invalide.')
+            raw_price=values.get('vehiclePrice')
+            price=amount(raw_price,allow_zero=True) if str(raw_price if raw_price is not None else '').strip() else None
+            vehicle={'name':raw_name.strip(),'type':kind,'price':price,'bought':False,'paid':False}
+            record['vehicles'].append(vehicle)
+            choices=state['catalog']['motos' if kind=='moto' else 'voitures']
+            if vehicle['name'] not in choices: choices.append(vehicle['name'])
         else:
             rid,_,index=str(identifier).partition('|');record=get_record(state['tombolaRecords'],rid)
             if action=='delete-vehicle':

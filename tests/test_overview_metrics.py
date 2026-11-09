@@ -1,4 +1,4 @@
-"""Dashboard indicators use the current ledger and this week's machine cycles."""
+"""Dashboard indicators include open carryovers and this week's machine cycles."""
 from datetime import datetime, timedelta
 
 from backend import domain
@@ -24,6 +24,27 @@ def test_overview_metrics_ignore_archived_cancelled_and_old_cycles():
     }
     assert domain.overview_metrics(state, now) == {
         'received': 7_000_000, 'processed': 6_600_000, 'companyGain': 1_500_000,
+    }
+
+
+def test_overview_metrics_keep_unfinished_dossiers_after_week_reset():
+    now = datetime(2026, 11, 9, 1, tzinfo=domain.TZ)
+    state = {
+        'sales': [
+            {'id': 'waiting', 'amount': 5_000_000, 'status': 'active',
+             'archive': 's45', 'treated': 0, 'progressKnown': True,
+             'botStatus': 'confirmed', 'created': 1},
+            {'id': 'ready', 'amount': 5_000_000, 'status': 'active',
+             'archive': 's45', 'treated': 5_000_000, 'progressKnown': True,
+             'botStatus': 'confirmed', 'created': 2},
+            {'id': 'returned', 'amount': 5_000_000, 'status': 'finished',
+             'archive': 's45', 'treated': 5_000_000, 'progressKnown': True,
+             'botStatus': 'confirmed', 'created': 3},
+        ],
+        'machines': [],
+    }
+    assert domain.overview_metrics(state, now) == {
+        'received': 5_000_000, 'processed': 0, 'companyGain': 0,
     }
 
 

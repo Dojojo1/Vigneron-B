@@ -86,7 +86,7 @@
  }
  const can=page=>Boolean(session?.pages.some(p=>p.id===page));
  const landingPage=()=>can('overview')?'overview':'profile';
- const actionPage=action=>action==='company-history'?'stats':['add-sale','sale-detail','finish-sale','sale-waiting','sale-progress','cancel-sale','confirm-sales-reset','archive-sales'].includes(action)?'sales':['add-machine','edit-machine-time','recover','unrecover','cancel-machine'].includes(action)?'machines':['raffle-record','vehicle-buy','vehicle-pay','pay-all','reset-payments','delete-vehicle','delete-tombola-week'].includes(action)?'tombola':null;
+ const actionPage=action=>action==='company-history'?'stats':['add-sale','sale-detail','finish-sale','sale-waiting','sale-progress','cancel-sale','confirm-sales-reset','archive-sales'].includes(action)?'sales':['add-machine','edit-machine-time','recover','unrecover','cancel-machine'].includes(action)?'machines':['raffle-record','add-vehicle','vehicle-buy','vehicle-pay','pay-all','reset-payments','delete-vehicle','delete-tombola-week'].includes(action)?'tombola':null;
  const whenFormatter=new Intl.DateTimeFormat('fr-BE',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Brussels'});
  const when=seconds=>whenFormatter.format(new Date(seconds*1000));
  const avatarCache=new Map();

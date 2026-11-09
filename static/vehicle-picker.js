@@ -45,7 +45,8 @@
  }
  function open(input){
   const wrapper=prepare(input);if(active!==wrapper)close();active=wrapper;position=-1;
-  const type=wrapper.closest('.vehicle-fields').querySelector('input[type=radio]:checked')?.value;
+  const type=wrapper.closest('.vehicle-fields')?.querySelector('input[type=radio]:checked')?.value
+    || document.querySelector('#form-fields [name=vehicleType]')?.value;
   const catalogue=type==='moto'?state.catalog.motos:state.catalog.voitures;
   const query=normalize(input.value),matches=[...new Set(catalogue||[])].filter(name=>normalize(name).includes(query));
   matches.sort((a,b)=>Number(normalize(b).startsWith(query))-Number(normalize(a).startsWith(query))||a.localeCompare(b,'fr'));

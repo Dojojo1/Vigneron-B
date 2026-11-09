@@ -56,6 +56,19 @@ def test_tombola_keeps_buy_and_payment_independent(env):
     assert action(env,'tombola','reset-payments',record['id']).status_code==200
 
 
+def test_tombola_adds_one_vehicle_to_existing_week(env):
+    login(env,SUPREME)
+    values={'weekDate':'21/10/2026','vehicle0':'Windsor','vehicle1':'Bati'}
+    assert action(env,'tombola','raffle-record',values=values).status_code==200
+    record=env['client'].get('/api/pages/tombola').json()['tombolaRecords'][0]
+    assert action(env,'tombola','raffle-record',values=values).status_code==400
+    added={'vehicleName':'Neo','vehicleType':'voiture','vehiclePrice':'275000'}
+    assert action(env,'tombola','add-vehicle',record['id'],added).status_code==200
+    records=env['client'].get('/api/pages/tombola').json()['tombolaRecords']
+    assert len(records)==1
+    assert records[0]['vehicles'][-1]=={'name':'Neo','type':'voiture','price':275000,'bought':False,'paid':False}
+
+
 def test_actions_bound_to_page_and_reject_identity_forgery(env):
     login(env,SUPREME)
     assert action(env,'machines','confirm-sales-reset').status_code==403
