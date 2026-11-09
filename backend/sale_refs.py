@@ -5,19 +5,23 @@ from datetime import datetime
 from .domain import TZ
 
 
+def sale_week(sale):
+    raw = sale.get('receivedDate')
+    try:
+        day = datetime.strptime(raw, '%d/%m/%Y').date()
+    except (TypeError, ValueError):
+        day = datetime.fromtimestamp(sale['created'] / 1000, TZ).date()
+    year, week, _ = day.isocalendar()
+    return year, week
+
+
 def references(sales):
     groups = defaultdict(list)
     for sale in sales:
         identifier = str(sale.get('id', ''))
         if not identifier:
             continue
-        raw = sale.get('receivedDate')
-        try:
-            day = datetime.strptime(raw, '%d/%m/%Y').date()
-        except (TypeError, ValueError):
-            day = datetime.fromtimestamp(sale['created'] / 1000, TZ).date()
-        year, week, _ = day.isocalendar()
-        groups[(year, week)].append(sale)
+        groups[sale_week(sale)].append(sale)
     result = {}
     for (year, week), rows in groups.items():
         for number, sale in enumerate(sorted(rows, key=lambda row: (row.get('created', 0), str(row['id']))), 1):

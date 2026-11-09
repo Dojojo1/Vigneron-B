@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from . import domain
 from .weekly_history import archive_catalog, selected_archive
 from .company_history import project_history, project_company_total
-from .sale_refs import references as sale_references
+from .sale_refs import references as sale_references, sale_week
 
 
 def number(params, key, default=0, maximum=10000000):
@@ -64,8 +64,10 @@ def screen(state, page, params):
                 archiveIncomplete=not known)
             return result
 
+        current_week=datetime.now(domain.TZ).date().isocalendar()[:2]
         selected=[s for s in state['sales'] if scope=='all' or
-                  (scope=='current' and not s.get('archive')) or
+                  (scope=='current' and not s.get('archive') and
+                   (s['status']=='active' or sale_week(s)==current_week)) or
                   (scope=='open' and s['status']=='active') or s.get('archive')==scope]
         totals=domain.financial(state,selected)
         result.update(salesWeek=state['salesWeek'],scopeCount=len(selected),
