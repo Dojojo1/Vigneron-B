@@ -209,6 +209,13 @@ def creating_actor(values, actor):
     return actor.strip(),actor_id
 
 def current_batch(state):
+    if state.get('machineBridgeConfirmedOnly'):
+        # Le bot ne suit qu'un cycle à la fois. Une ancienne fiche non récupérée
+        # ne peut pas redevenir le cycle courant après un lot plus récent.
+        latest=max((m for m in state['machines'] if m.get('botStatus')=='confirmed'
+                    and not m.get('historical') and not m.get('trackingDisabled')),
+                   key=lambda m:m['start'],default=None)
+        return latest if latest and not latest.get('cancelled') and not latest.get('recovered') else None
     return max((m for m in state['machines'] if not m.get('cancelled') and not m.get('recovered') and not m.get('historical') and not m.get('trackingDisabled')),key=lambda m:m['start'],default=None)
 
 

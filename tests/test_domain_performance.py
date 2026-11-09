@@ -34,6 +34,19 @@ def test_current_batch_keeps_first_latest_tie_and_excludes_each_inactive_flag():
     assert domain.current_batch(state) is later
 
 
+def test_confirmed_cycle_does_not_resurrect_older_unrecovered_lot():
+    old={'id':'lot-s40-15','start':100,'botStatus':'confirmed','recovered':False}
+    latest={'id':'lot-s46-2','start':200,'botStatus':'confirmed','recovered':True}
+    state={'machineBridgeConfirmedOnly':True,'machines':[old,latest]}
+    before=copy.deepcopy(state)
+
+    assert domain.current_batch(state) is None
+    assert state==before
+
+    latest['recovered']=False
+    assert domain.current_batch(state) is latest
+
+
 def freeze_views_time(monkeypatch,instant):
     moment=datetime.fromisoformat(instant)
     converted=[]
