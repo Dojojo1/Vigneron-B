@@ -19,14 +19,14 @@
       else cardsInView.delete(entry.target);
       for (const tween of loops) {
         if (tween.data?.closest('.night-metric, .batch-card') === entry.target) {
-          if (!document.hidden && entry.isIntersecting) tween.resume();
+          if (!document.hidden && !document.documentElement.classList.contains('heritage-light-mode') && entry.isIntersecting) tween.resume();
           else tween.pause();
         }
       }
     }), {rootMargin: '80px'});
     const visible = () => loops.forEach(tween => {
       const card = tween.data?.closest('.night-metric, .batch-card');
-      if (!document.hidden && card && cardsInView.has(card)) tween.resume();
+      if (!document.hidden && !document.documentElement.classList.contains('heritage-light-mode') && card && cardsInView.has(card)) tween.resume();
       else tween.pause();
     });
 
@@ -99,11 +99,13 @@
     });
     observer.observe(content, {childList: true, subtree: true});
     document.addEventListener('visibilitychange', visible);
+    document.addEventListener('heritage:light-mode', visible);
     update();
     return () => {
       observer.disconnect();
       cardObserver.disconnect();
       document.removeEventListener('visibilitychange', visible);
+      document.removeEventListener('heritage:light-mode', visible);
       loops.forEach(tween => tween.kill());
       animatedDrops.forEach(drop => drop.remove());
     };
