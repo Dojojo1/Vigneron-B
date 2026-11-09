@@ -1,13 +1,6 @@
 /* GSAP Core : une entrée légère et quelques gouttes sur le verre du tableau de bord. */
 (() => {
   'use strict';
-  // Essai ponctuel sur l'URL publique : le mode normal conserve l'animation.
-  if (new URLSearchParams(window.location.search).get('pause-verre') === '1') {
-    document.documentElement.classList.add('heritage-pause-verre');
-  }
-  if (new URLSearchParams(window.location.search).get('test-rendu-leger') === '1') {
-    document.documentElement.classList.add('heritage-test-rendu-leger');
-  }
   if (!window.gsap) return;
   // Les gouttes n'ont pas besoin de suivre les écrans à 120/144 Hz.
   window.gsap.ticker.fps(60);
