@@ -95,6 +95,7 @@ def screen(state, page, params):
         recovered=[m for m in state['machines'] if m.get('recovered') and not m.get('cancelled') and (not state.get('machineBridgeConfirmedOnly') or m.get('botStatus')=='confirmed')]
         result.update(machines=[batch] if batch else [],machineHistory=history,
                       machineSummary={'recovered':len(recovered),'amount':sum(m['amount'] for m in recovered)},
+                      machineMonthSummary=domain.machine_month_summary(state),
                       sheetCount=state.get('_count_machineSheetHistory',len(state.get('machineSheetHistory',[]))))
     elif page=='tombola':
         now=datetime.now(domain.TZ)

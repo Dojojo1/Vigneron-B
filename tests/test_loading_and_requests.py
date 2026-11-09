@@ -108,6 +108,20 @@ def test_machine_rankings_show_past_weeks_and_sum_confirmed_launches(env):
     assert 'machineReports' not in financial and 'globalMachineRanking' not in financial
 
 
+def test_machine_month_summary_uses_launch_and_recovery_dates_separately():
+    now=datetime(2026,11,9,12,tzinfo=domain.TZ)
+    stamp=lambda month,day:int(datetime(2026,month,day,12,tzinfo=domain.TZ).timestamp()*1000)
+    state={'machineBridgeConfirmedOnly':True,'machines':[
+        {'start':stamp(10,31),'recoveredAt':stamp(11,1),'recovered':True,'cancelled':False,'botStatus':'confirmed','amount':1000000},
+        {'start':stamp(11,2),'recoveredAt':stamp(11,3),'recovered':True,'cancelled':False,'botStatus':'confirmed','amount':1500000},
+        {'start':stamp(11,4),'recovered':False,'cancelled':False,'botStatus':'confirmed','amount':1000000},
+        {'start':stamp(11,5),'recovered':True,'cancelled':False,'botStatus':'confirmed','amount':1000000},
+        {'start':stamp(11,6),'recoveredAt':stamp(11,7),'recovered':True,'cancelled':True,'botStatus':'confirmed','amount':1000000},
+        {'start':stamp(11,8),'recoveredAt':stamp(11,9),'recovered':True,'cancelled':False,'botStatus':'pending','amount':1000000},
+    ]}
+    assert domain.machine_month_summary(state,now)=={'launched':3,'recovered':2,'amount':2500000}
+
+
 def test_screen_views_still_enforce_page_permissions_and_validate_paging(env):
     grant(env,'100','overview');login(env)
     assert env['client'].get('/api/pages/overview?view=screen').status_code==200

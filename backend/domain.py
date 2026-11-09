@@ -284,6 +284,25 @@ def machine_rankings_by_week(state):
     return reports,sorted_rows(global_rows)
 
 
+def machine_month_summary(state, now=None):
+    """Count confirmed launches and recoveries in the current Brussels month."""
+    now=now or datetime.now(TZ)
+    month=(now.year,now.month)
+    def in_month(timestamp):
+        try:
+            day=datetime.fromtimestamp(timestamp/1000,TZ)
+        except (TypeError,ValueError,OverflowError):
+            return False
+        return (day.year,day.month)==month
+    machines=[machine for machine in state['machines']
+              if not machine.get('cancelled') and
+              (not state.get('machineBridgeConfirmedOnly') or machine.get('botStatus')=='confirmed')]
+    recovered=[machine for machine in machines if machine.get('recovered') and in_month(machine.get('recoveredAt'))]
+    return {'launched':sum(in_month(machine.get('start')) for machine in machines),
+            'recovered':len(recovered),
+            'amount':sum(machine['amount'] for machine in recovered)}
+
+
 def update_machine_counter(state,machine,actor,increment):
     if 'machineStats' not in state: return
     stats=state['machineStats'];now=datetime.now(TZ);week=(now.date()-timedelta(days=now.weekday())).isoformat()

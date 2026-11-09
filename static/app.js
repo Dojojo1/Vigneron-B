@@ -228,9 +228,13 @@ function machineHistoryRows(){
 }
 function machinesPage(){
  const current=activeBatch(),active=current?[current]:[];
- const recovered=state.machines.filter(m=>m.recovered&&!m.cancelled);
+ const monthFormatter=new Intl.DateTimeFormat('en-US',{year:'numeric',month:'numeric',timeZone:BOT_RULES.timeZone}),month=monthFormatter.format(Date.now());
+ const thisMonth=timestamp=>Number.isFinite(timestamp)&&monthFormatter.format(new Date(timestamp))===month;
+ const confirmed=state.machines.filter(m=>!m.cancelled&&(!state.machineBridgeConfirmedOnly||m.botStatus==='confirmed'));
+ const recovered=confirmed.filter(m=>m.recovered&&thisMonth(m.recoveredAt));
+ const monthly=state.machineMonthSummary||{launched:confirmed.filter(m=>thisMonth(m.start)).length,recovered:recovered.length,amount:recovered.reduce((sum,m)=>sum+m.amount,0)};
  return `<p class="demo-notice">Les 5 machines partent ensemble et se récupèrent ensemble : un lancement correspond à un lot global. Charge habituelle : 200 000 $ par machine, soit 1 000 000 $ au total. Le montant global peut être corrigé au lancement.</p>
- <div class="machine-summary"><div><strong>${current?BOT_RULES.machineCount:0} / ${BOT_RULES.machineCount}</strong><span>machines · ${current?'1 lot actif':'aucun lot actif'}</span></div><div><strong>${state.machineSummary?.recovered??recovered.length}</strong><span>lots récupérés</span></div><div><strong>${money(state.machineSummary?.amount??recovered.reduce((sum,m)=>sum+m.amount,0))}</strong><span>montant total des lots récupérés</span></div></div>
+ <div class="machine-summary"><div><strong>${monthly.launched}</strong><span>lots lancés ce mois</span></div><div><strong>${monthly.recovered}</strong><span>lots récupérés ce mois</span></div><div><strong>${money(monthly.amount)}</strong><span>montant récupéré ce mois</span></div></div>
  <div class="panel-header"><div><h2>Le lot en cours</h2><p>5 machines · un seul compteur de 4 h 45 · récupération groupée</p></div><button class="button primary launch-lot-button" data-action="add-machine">＋ Lancer un lot</button></div>
  <div class="machine-list batch-list">${active.map(midnightMachine).join('')||'<p class="empty">Aucun lot actif. Les lancements précédents restent dans le registre.</p>'}</div>
  <section class="panel machine-history"><div class="panel-header"><div><h2>Historique des lots</h2><p>Un lancement = 5 machines · auteur, montant et récupération conservés</p></div><span class="section-label">${state.pagination?.machines?.total??state.machines.length} LOTS</span></div>
