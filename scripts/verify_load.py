@@ -94,7 +94,8 @@ async def exercise(base_url,store,baseline_id):
                 if label=='bootstrap':
                     screens=response.json()['pages']
                     check(len(screens['sales']['sales'])==50,'Préchargement des dossiers non borné.')
-                    check(len(screens['machines']['machineHistory'])==10,'Préchargement des lots non borné.')
+                    check(len(screens['machines']['machineHistory'])==5,'Préchargement des lots non borné.')
+                    check(screens['machines']['pagination']['machines']['total']==1000,'Total des lots préchargés incorrect.')
                     check(len(screens['journal']['audit'])==10,'Préchargement du journal non borné.')
                     check(all('detail' not in row for row in screens['journal']['audit']),'Le préchargement expose des détails du journal.')
                     check('load-fixture-detail-only' not in response.text,'Détail confidentiel de fixture dans le préchargement.')

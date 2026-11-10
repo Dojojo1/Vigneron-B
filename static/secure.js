@@ -38,6 +38,7 @@
     bearer=result.token;sessionStorage.setItem('heritage.backend-token',bearer);
     location.hash=result.landing;
    }
+   if(!bearer){void window.heritageOpenConnectedSite(config);return;}
   }catch(error){
    const failedTicket=location.hash.startsWith('#auth=');
    if(failedTicket)history.replaceState(null,'',location.pathname+location.search);
@@ -90,13 +91,58 @@
  const actionPage=action=>action==='company-history'?'stats':['add-sale','sale-detail','finish-sale','sale-waiting','sale-progress','cancel-sale','confirm-sales-reset','archive-sales'].includes(action)?'sales':['add-machine','edit-machine-time','recover','unrecover','cancel-machine'].includes(action)?'machines':['raffle-record','add-vehicle','vehicle-buy','vehicle-pay','pay-all','reset-payments','delete-vehicle','delete-tombola-week'].includes(action)?'tombola':null;
  const whenFormatter=new Intl.DateTimeFormat('fr-BE',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Brussels'});
  const when=seconds=>whenFormatter.format(new Date(seconds*1000));
- const avatarCache=new Map();
+ const avatarCache=new Map(),avatarTasks=new Map(),avatarQueue=[];
+ let avatarActive=0,avatarGeneration=0,avatarRenderTimer=null;
+ window.heritageAvatar=url=>publicPages&&typeof url==='string'&&url.startsWith('/api/')?avatarCache.get(url)||'':url;
+ function clearAvatars(){
+  avatarGeneration++;clearTimeout(avatarRenderTimer);avatarRenderTimer=null;
+  for(const task of avatarQueue.splice(0))task.resolve();
+  for(const task of avatarTasks.values())task.controller?.abort();
+  avatarTasks.clear();
+  for(const image of avatarCache.values())URL.revokeObjectURL(image);
+  avatarCache.clear();
+ }
+ function pumpAvatars(){
+  while(avatarActive<4&&avatarQueue.length){
+   const task=avatarQueue.shift();
+   if(task.generation!==avatarGeneration){task.resolve();continue;}
+   avatarActive++;
+   const controller=new AbortController();task.controller=controller;
+   const timeout=setTimeout(()=>controller.abort(),10000);
+   void (async()=>{
+    try{
+     const response=await fetch(apiBase+task.url,{headers:{Authorization:'Bearer '+task.token,...bridgeHeaders},credentials:'omit',cache:'no-store',signal:controller.signal});
+     if(response.ok){
+      const image=URL.createObjectURL(await response.blob());
+      if(task.generation===avatarGeneration&&task.token===bearer){
+       avatarCache.set(task.url,image);
+       if(activePage==='team'&&!avatarRenderTimer)avatarRenderTimer=setTimeout(()=>{avatarRenderTimer=null;if(activePage==='team'&&displayedPage==='team')render({incremental:true});},100);
+      }else URL.revokeObjectURL(image);
+     }
+    }catch{}finally{
+     clearTimeout(timeout);avatarActive--;
+     if(avatarTasks.get(task.url)===task)avatarTasks.delete(task.url);
+     task.resolve();pumpAvatars();
+    }
+   })();
+  }
+ }
+ function loadAvatar(url){
+  if(avatarCache.has(url))return Promise.resolve();
+  if(avatarTasks.has(url))return avatarTasks.get(url).promise;
+  const task={url,token:bearer,generation:avatarGeneration};
+  task.promise=new Promise(resolve=>{task.resolve=resolve;});
+  avatarTasks.set(url,task);avatarQueue.push(task);pumpAvatars();
+  return task.promise;
+ }
  async function hydrateAvatars(data){
   if(!bearer||!data||typeof data!=='object')return;
   const urls=new Set();
   const collect=value=>{if(!value||typeof value!=='object')return;if(Array.isArray(value)){value.forEach(collect);return;}for(const [key,item] of Object.entries(value)){if(key==='avatar'&&typeof item==='string'&&item.startsWith('/api/'))urls.add(item);else if(item&&typeof item==='object')collect(item);}};
   collect(data);
-  await Promise.all([...urls].map(async url=>{if(avatarCache.has(url))return;try{const response=await fetch(apiBase+url,{headers:{Authorization:'Bearer '+bearer,...bridgeHeaders},cache:'no-store'});if(response.ok)avatarCache.set(url,URL.createObjectURL(await response.blob()));}catch{}}));
+  const tasks=[...urls].map(loadAvatar);
+  if(Array.isArray(data.members)||Array.isArray(data.pages?.team?.members))return;
+  await Promise.all(tasks);
   const replace=value=>{if(!value||typeof value!=='object')return;if(Array.isArray(value)){value.forEach(replace);return;}for(const [key,item] of Object.entries(value)){if(key==='avatar'&&avatarCache.has(item))value[key]=avatarCache.get(item);else if(item&&typeof item==='object')replace(item);}};
   replace(data);
  }
@@ -157,7 +203,11 @@
    if(privateRead&&!currentScope()){const error=new Error('Les données ont changé pendant le chargement. Réessaie.');error.cancelled=true;error.staleRead=true;throw error;}
    if(writing){const routes=affectedPages(path);clearPageCache(routes);if(path!=='/auth/logout'&&!path.startsWith('/api/actions/'))queuePreload(routes);}
    window.heritageFeedback?.recovered(path);
-   if(publicPages)await hydrateAvatars(data);
+   if(publicPages){
+    if(path==='/api/me'&&session&&data?.user?.id!==session.user.id)clearAvatars();
+    await hydrateAvatars(data);
+   }
+   if(!currentScope()){const error=new Error('Chargement remplacé.');error.cancelled=true;error.staleRead=privateRead;throw error;}
    return data;
   }catch(error){
    if(!currentScope()){error.cancelled=true;error.staleRead=privateRead&&!signal?.aborted;throw error;}
@@ -169,6 +219,7 @@
  }
  function sessionScope(data){return data?JSON.stringify([data.user.id,data.user.role.id,data.user.supreme,data.localPreview,data.csrf,data.pages.map(p=>p.id)]):null;}
  function publishSession(data){
+  if(session&&!data)clearAvatars();
   if(sessionScope(data)!==sessionScope(session)){clearPageCache();lastVisited=null;if(session)concealPrivateUI();}
   if(!data||data.user.id!==session?.user.id)navigationEditMode=false;
   if(session&&(!data||data.user.id!==session.user.id)){profileDraft=null;state=seed();$('#content').replaceChildren();displayedPage=null;accountMarkup='';}
@@ -668,7 +719,7 @@
   if(!session?.user.supreme||!confirm('Réinitialiser uniquement les données métier de test ? Une sauvegarde sera conservée.'))return;
   try{await api('/api/admin/reset-test-data',{method:'POST',body:{}});machineStatsWeek='current';salesScope='current';tombolaWeek='';for(const key of Object.keys(pageOffsets))pageOffsets[key]=0;await window.heritageNavigate();toast('Données de test réinitialisées.');}catch(error){toast(error.message);}
  };
- async function logout(){if(session?.user.authProvider==='local'){try{await api('/auth/logout',{method:'POST',body:{}});lastVisited=null;location.hash='welcome';}catch(error){toast(error.message);}return;}try{await api('/auth/logout',{method:'POST',body:{}});session=null;window.heritageSession=null;state=seed();if(publicPages){bearer='';sessionStorage.removeItem('heritage.backend-token');}location.assign(publicPages?location.pathname:'/');}catch(error){toast(error.message);}}
+ async function logout(){if(session?.user.authProvider==='local'){try{await api('/auth/logout',{method:'POST',body:{}});lastVisited=null;location.hash='welcome';}catch(error){toast(error.message);}return;}try{await api('/auth/logout',{method:'POST',body:{}});clearAvatars();session=null;window.heritageSession=null;state=seed();if(publicPages){bearer='';sessionStorage.removeItem('heritage.backend-token');}location.assign(publicPages?location.pathname:'/');}catch(error){toast(error.message);}}
  function hidePanels(){['profile-menu','notifications-panel','search-results'].forEach(id=>$('#'+id).hidden=true);$('#profile-toggle').setAttribute('aria-expanded','false');$('#notifications-toggle').setAttribute('aria-expanded','false');}
  $('#profile-toggle').addEventListener('click',()=>{const opening=$('#profile-menu').hidden;hidePanels();$('#profile-menu').hidden=!opening;$('#profile-toggle').setAttribute('aria-expanded',String(opening));});
  $('#edit-profile').addEventListener('click',()=>{hidePanels();location.hash='profile';});

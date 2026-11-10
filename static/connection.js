@@ -1,6 +1,6 @@
 'use strict';
 // This file only receives a PUBLIC server address. No credential belongs here.
-window.heritageOpenConnectedSite=async()=>{
+window.heritageOpenConnectedSite=async(existingConfig)=>{
  const button=document.querySelector('#enter-demo'),note=document.querySelector('.entry-demo-note');
  let loginURL=null;
  const showEntry=()=>{
@@ -20,9 +20,12 @@ window.heritageOpenConnectedSite=async()=>{
  note.textContent='Préparation de la connexion Discord…';showEntry();
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
  try{
-  const response=await fetch(new URL('site-config.json',document.baseURI),{cache:'no-store',signal:controller.signal});
-  if(!response.ok)throw Error('Configuration publique indisponible.');
-  const config=await response.json();
+  let config=existingConfig;
+  if(!config){
+   const response=await fetch(new URL('site-config.json',document.baseURI),{cache:'no-store',signal:controller.signal});
+   if(!response.ok)throw Error('Configuration publique indisponible.');
+   config=await response.json();
+  }
   if(!config||typeof config!=='object'||Array.isArray(config))throw Error('Configuration publique invalide.');
   if(config.mode==='preview'&&!config.backendUrl){delete window.heritageLogin;return 'preview';}
   if(config.mode&&config.mode!=='connected')throw Error('Mode de connexion invalide.');

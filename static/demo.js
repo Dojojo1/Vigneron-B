@@ -54,7 +54,7 @@ window.heritagePublicDemo=()=>{
  }
  window.heritageNavigate=async()=>{
   const route=location.hash.slice(1)||'welcome';closeMenu();
-  if(route==='external-access'){location.replace('#council');return true;}
+  if(route==='external-access'){location.hash='council';return true;}
   if(route==='welcome'){activePage='welcome';entry(true);return true;}
   activePage=routes.includes(route)?route:'overview';entry(false);
   if(activePage==='council')accessPanel();
@@ -69,7 +69,7 @@ window.heritagePublicDemo=()=>{
  window.heritageRetry=async()=>{await window.heritageNavigate();window.heritageFeedback?.clear();};
  window.heritageFilter=()=>void window.heritageNavigate();
  window.heritageCatalog=async()=>{const list=$('#vehicle-catalog');if(list)list.innerHTML=[...state.catalog.voitures,...state.catalog.motos].map(name=>`<option value="${escapeHTML(name)}"></option>`).join('');};
- window.heritageHistoryExport=async()=>state.events;
+ window.heritageHistoryExport=async()=>({events:state.events,saleRefs:state.saleRefs||{}});
  window.heritageAction=window.heritageLocalBusiness();
  for(const id of ['logout','edit-profile','profile-settings'])$('#'+id).addEventListener('click',()=>{location.hash=id==='logout'?'welcome':'profile';});
  $('#profile-toggle').addEventListener('click',()=>{const menu=$('#profile-menu');menu.hidden=!menu.hidden;$('#profile-toggle').setAttribute('aria-expanded',String(!menu.hidden));});

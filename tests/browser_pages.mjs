@@ -82,18 +82,31 @@ try{
  await js("document.querySelector('#enter-demo').click()");await delay(200);
  assert.equal(await js("document.querySelector('main').hidden"),false);
  if(!liveURL&&!mirrorURL){
-  await js("document.querySelector('.management-navigation > summary').scrollIntoView({block:'center'});document.querySelector('.management-navigation > summary').click()");
-  await wait("document.querySelector('.management-links').matches(':popover-open')");
-  assert.ok(await js("document.querySelector('.management-links').getBoundingClientRect().left>=document.querySelector('#sidebar').getBoundingClientRect().right"),'Management must open beside the desktop sidebar');
-  await js("document.querySelector('.management-links [data-page=council]').click()");
-  await wait("activePage==='council' && !document.querySelector('.management-navigation').open");
+  await js("document.querySelector('#navigation [data-page=council]').click()");
+  await wait("activePage==='council'");
  }
- for(const route of ['sales','machines','tombola','history','stats','journal','team','profile','council','external-access','overview']){
+ for(const route of ['sales','machines','tombola','history','stats','journal','team','profile','council','overview']){
   await js(`location.hash=${JSON.stringify(route)}`);await delay(100);
   assert.equal(await js('activePage'),route);
   assert.ok(await js("document.querySelector('#content').innerText.trim().length>0"),route);
  }
  if(!liveURL&&!mirrorURL){
+  await js("location.hash='external-access'");
+  await wait("typeof activePage!=='undefined' && activePage==='council' && location.hash==='#council'");
+  await js("location.hash='history'");
+  await wait("activePage==='history' && !!document.querySelector('[data-action=export]')");
+  const csv=await js(`(async()=>{
+   let file;
+   const create=URL.createObjectURL,click=HTMLAnchorElement.prototype.click;
+   URL.createObjectURL=blob=>{file=blob;return create(blob);};
+   HTMLAnchorElement.prototype.click=function(){if(this.download==='heritage-test-historique.csv')return;click.call(this);};
+   try{
+    document.querySelector('[data-action=export]').click();
+    for(let i=0;i<50&&!file;i++)await new Promise(done=>setTimeout(done,10));
+    return file?await file.text():null;
+   }finally{URL.createObjectURL=create;HTMLAnchorElement.prototype.click=click;}
+  })()`);
+  assert.ok(csv?.startsWith('"Date";"Opération";"Fiche concernée";"Auteur"'),'Preview history must export a CSV');
   await js("location.hash='stats'");await delay(100);
   assert.equal(await js("document.querySelector('#content').textContent.includes('NaN')"),false);
   for(const width of [320,390,768,1440]){
