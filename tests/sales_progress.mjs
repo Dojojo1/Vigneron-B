@@ -37,6 +37,17 @@ assert.equal(progress().known,false,'Older transports may carry only source avai
 set({test:1000000});
 assert.equal(progress().percent,20,'Reconnection restores confirmed progress.');
 assert.ok(context.render(sale,0).includes('20 % traité'));
+set({test:1999999});
+assert.equal(progress().percent,39,'The site must use the same integer percentage as the bot.');
+sale.amount=100;
+for(const percentage of [29,57,58]){
+ set({test:percentage});
+ assert.equal(progress().percent,percentage,'Binary floating point must not lower an exact integer percentage.');
+}
+sale.amount=9007199254740991;
+set({test:9007199254740990});
+assert.equal(progress().percent,99,'Large safe integers must agree with the bot without false completion.');
+sale.amount=5000000;
 set({});
 sale.treated=1000000;
 assert.equal(progress().percent,20,'Confirmed record fallback remains supported.');

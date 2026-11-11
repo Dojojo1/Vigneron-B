@@ -50,7 +50,9 @@ function saleProgress(s){
  const known=(!salesReadOnly()||freshPartial)&&s.progressKnown!==false&&Number.isFinite(raw)&&Number.isFinite(s.amount)&&s.amount>0;
  const treated=known?Math.max(0,Math.min(s.amount,raw)):0;
  // Only a fully treated amount may be labelled complete, even near 100%.
- return{treated,percent:known?(treated>=s.amount?100:Math.min(99,Math.round(treated/s.amount*100))):0,known};
+ const percent=known?(Number.isSafeInteger(treated)&&Number.isSafeInteger(s.amount)
+  ?Number(BigInt(treated)*100n/BigInt(s.amount)):Math.floor(treated/s.amount*100)):0;
+ return{treated,percent,known};
 }
 const pages={overview:['Tableau de bord','L’HÉRITAGE<span class="domain-subtitle">— LE DOMAINE —</span>','Tradition · Passion · Excellence','home'],sales:['Gestion Blanchiments','Les dossiers<br>du domaine<span>.</span>','Chaque affaire a son histoire. Gardons le fil.','sales'],machines:['Gestion Machines','Le temps fait<br>son œuvre<span>.</span>','Un cycle de 4 h 45. Chaque récupération compte.','machines'],tombola:['Véhicule tombola','Le goût<br>du privilège<span>.</span>','Les véhicules du domaine. Des achats aux paiements.','tombola'],history:['Historique','La mémoire<br>des affaires<span>.</span>','Les mouvements du domaine, dans les moindres détails.','history'],stats:['Statistiques','Les chiffres<br>du domaine<span>.</span>','L’organisation aujourd’hui. La liberté demain.','sales'],rankings:['Classements','Les artisans<br>du domaine<span>.</span>','Les lancements de la semaine et du domaine.','gain'],journal:['Journal permanent','La mémoire<br>du domaine<span>.</span>','Les actions restent dans le registre.','history'],logs:['Logs','Les traces<br>du domaine<span>.</span>','Les messages du bot seront conservés ici.','history'],team:['Équipe','Les visages<br>de la famille<span>.</span>','La confiance se cultive. La loyauté se reconnaît.','team']};
 $('#navigation').innerHTML=['overview','sales','machines','tombola','history','stats','rankings','team'].map(id=>[id,pages[id]]).map(([id,p])=>`<a href="#${id}" data-page="${id}">${icon(p[3])}<span>${p[0]}</span></a>`).join('');$('#home-icon').innerHTML=icon('home');
@@ -301,8 +303,11 @@ function updatePageContent(markup){
  });
  existing.slice(incoming.length).forEach(node=>node.remove());
 }
-function updatePageHeading(route,label){
+ let announcedPage=null;
+ window.addEventListener('heritage:domain-visibility',()=>{if(document.body.classList.contains('on-entry'))announcedPage=null;});
+ function updatePageHeading(route,label){
  const p=pages[route];label=label||p?.[0]||'Le domaine';
+  if(route!==announcedPage){$('#page-announcement').textContent=`Page ouverte : ${label}`;announcedPage=route;}
  $('body').classList.toggle('dashboard-active',route==='overview');$('#breadcrumb').textContent=label;
  if(p)$('#page-title').innerHTML=p[1];else $('#page-title').textContent=label;
  $('#page-subtitle').textContent=p?.[2]||'';document.title=`${label} — L’Héritage`;
@@ -499,7 +504,7 @@ function refreshMachineDisplay(){
  if(document.hidden||document.body.classList.contains('on-entry')||!['overview','machines'].includes(activePage))return;
  const machineById=new Map([...state.machines,...(state.machineHistory||[])].map(machine=>[machine.id,machine]));
  document.querySelectorAll('[data-countdown]').forEach(el=>{const m=machineById.get(el.dataset.countdown);if(!m)return;setMachineDisplayText(el,countdown(m));const gaugeEl=el.closest('[data-gauge]');if(gaugeEl){const p=m.recovered?100:cyclePercent(m);gaugeEl.style.setProperty('--percent',`${p}%`);gaugeEl.style.setProperty('--cycle-progress',String(p));gaugeEl.style.setProperty('--cycle-angle',`${p*3.6}deg`);}});
- document.querySelectorAll('[data-cycle-progress]').forEach(el=>{const m=machineById.get(el.dataset.cycleProgress);if(!m)return;el.style.width=`${cyclePercent(m)}%`;el.parentElement.setAttribute('aria-valuenow',String(Math.round(cyclePercent(m))));});
+ document.querySelectorAll('[data-cycle-progress]').forEach(el=>{const m=machineById.get(el.dataset.cycleProgress);if(!m)return;const percent=cyclePercent(m);el.style.width=`${percent}%`;el.parentElement.setAttribute('aria-valuenow',String(Math.floor(percent)));});
  document.querySelectorAll('[data-cycle-state]').forEach(el=>{const m=machineById.get(el.dataset.cycleState);if(m){setMachineDisplayText(el,cycleStateLabel(m));el.classList.toggle('is-ready',remaining(m)===0);}});document.querySelectorAll('[data-cycle-percent]').forEach(el=>{const m=machineById.get(el.dataset.cyclePercent);if(m)setMachineDisplayText(el,`${Math.floor(cyclePercent(m))} %`);});
  const now=Date.now();
  if(activePage==='machines'&&now-lastMachineHistoryRefresh>=10000

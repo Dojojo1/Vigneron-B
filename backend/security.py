@@ -55,6 +55,20 @@ class Security:
                 finally: os.close(directory_fd)
         self.cipher = Fernet(keyfile.read_bytes())
         self.lock = asyncio.Lock()
+        self.roles_lock = asyncio.Lock()
+        self.member_locks = {}
+        self.roles_generation = 0
+        self.member_generations = {}
+
+    def note_invalidation(self, kind, user_id=None):
+        """Called under ``lock`` after a bot access event commits."""
+        if kind in ('ready', 'roles_update'):
+            self.roles_generation += 1
+        elif kind in ('member_update', 'member_remove'):
+            self.member_generations[user_id] = self.member_generations.get(user_id, 0) + 1
+
+    def access_generation(self, user_id):
+        return self.roles_generation, self.member_generations.get(user_id, 0)
 
     def encrypt(self, value): return self.cipher.encrypt(value.encode()).decode()
     def decrypt(self, value): return self.cipher.decrypt(value.encode()).decode()
@@ -76,12 +90,18 @@ class Security:
             if before!=after: self.store.audit(db,None,'roles_synchronized',{'page':'council','before':before,'after':after})
 
     async def synchronize_roles(self, force=False):
-        checked = await run_in_threadpool(self._roles_checked)
-        if not force and checked is not None and time.time()-checked < self.settings.access_ttl: return
-        roles = await self.discord.roles()
-        if not any(str(role['id']) == self.settings.guild_id for role in roles):
-            raise HTTPException(503, 'Synchronisation des rôles incomplète.')
-        await run_in_threadpool(self._save_roles, roles)
+        async with self.roles_lock:
+            for _ in range(2):
+                generation = self.roles_generation
+                checked = await run_in_threadpool(self._roles_checked)
+                if not force and checked is not None and time.time()-checked < self.settings.access_ttl: return
+                roles = await self.discord.roles()
+                if generation != self.roles_generation: continue
+                if not any(str(role['id']) == self.settings.guild_id for role in roles):
+                    raise HTTPException(503, 'Synchronisation des rôles incomplète.')
+                await run_in_threadpool(self._save_roles, roles)
+                if generation == self.roles_generation: return
+            raise HTTPException(503, 'Les rôles ont changé pendant leur synchronisation. Réessaie.')
 
     def highest_role(self, user):
         if is_guest(user):
@@ -155,36 +175,73 @@ class Security:
         session = await run_in_threadpool(self._read_session, value)
         if not value or not session: raise HTTPException(401, 'Connecte-toi avec Discord.')
         request.state.audit_actor=session['user_id']
-        async with self.lock:
-            user = await run_in_threadpool(self.store.read_user, session['user_id'])
-            await run_in_threadpool(assert_site_access,self.store,session['user_id'])
-            # Une révocation ou rotation effectuée pendant l'attente du verrou
-            # doit également invalider une session déjà lue.
-            if not await run_in_threadpool(self._read_session,value):raise HTTPException(401,'Ta session n’est plus valide.')
-            if not user or not user['member']: raise HTTPException(401, 'Ton accès au domaine a été révoqué.')
-            if is_guest(user):
-                await run_in_threadpool(active_credential,self.store,user['id'])
-                return user,dict(session)
-            await self.synchronize_roles()
-            if time.time()-user['checked_at'] >= self.settings.access_ttl:
-                if user['token_expires'] <= time.time()+30:
-                    credentials = await self.discord.refresh(self.decrypt(user['refresh_token']))
-                    await run_in_threadpool(self._save_credentials, user, credentials)
-                try:
-                    member = await self.discord.member(user['id'])
-                except HTTPException as error:
-                    if error.status_code in (401,403):
-                        await run_in_threadpool(self._revoke_membership, user['id'])
-                    raise
-                await run_in_threadpool(self._save_member, user, member)
-                user = await run_in_threadpool(self.store.read_user, user['id'])
-            try:
-                self.require_employee(user['id'],json.loads(user['role_ids']))
-            except EmployeeRoleRequired:
-                await run_in_threadpool(self._revoke_employee, user['id'])
-                raise EmployeeRoleRequired(401) from None
-            await run_in_threadpool(self.highest_role, user)
-        return user, dict(session)
+        # Serialize checks of one account, while unrelated members may await
+        # Discord concurrently. Bot events and account changes keep ``lock``.
+        async with self.member_locks.setdefault(session['user_id'], asyncio.Lock()):
+            for attempt in range(2):
+                async with self.lock:
+                    live_session = await run_in_threadpool(self._read_session, value)
+                    if not live_session: raise HTTPException(401, 'Ta session n’est plus valide.')
+                    user = await run_in_threadpool(self.store.read_user, live_session['user_id'])
+                    await run_in_threadpool(assert_site_access, self.store, live_session['user_id'])
+                    if not user or not user['member']:
+                        raise HTTPException(401, 'Ton accès au domaine a été révoqué.')
+                    if is_guest(user):
+                        await run_in_threadpool(active_credential, self.store, user['id'])
+                        return user, dict(live_session)
+                    generation = self.access_generation(user['id'])
+                    roles_checked = await run_in_threadpool(self._roles_checked)
+                    if (roles_checked is not None and time.time()-roles_checked < self.settings.access_ttl
+                            and time.time()-user['checked_at'] < self.settings.access_ttl):
+                        try:
+                            self.require_employee(user['id'], json.loads(user['role_ids']))
+                        except EmployeeRoleRequired:
+                            await run_in_threadpool(self._revoke_employee, user['id'])
+                            raise EmployeeRoleRequired(401) from None
+                        await run_in_threadpool(self.highest_role, user)
+                        return user, dict(live_session)
+
+                await self.synchronize_roles()
+                needs_member = time.time()-user['checked_at'] >= self.settings.access_ttl
+                credentials = None
+                member = None
+                if needs_member:
+                    if user['token_expires'] <= time.time()+30:
+                        credentials = await self.discord.refresh(self.decrypt(user['refresh_token']))
+                    try:
+                        member = await self.discord.member(user['id'])
+                    except HTTPException as error:
+                        async with self.lock:
+                            if self.access_generation(user['id']) != generation and attempt == 0:
+                                continue
+                            if error.status_code in (401,403):
+                                await run_in_threadpool(self._revoke_membership, user['id'])
+                        raise
+
+                async with self.lock:
+                    # A bot event may revoke access while the network is slow.
+                    live_session = await run_in_threadpool(self._read_session, value)
+                    if not live_session: raise HTTPException(401, 'Ta session n’est plus valide.')
+                    current = await run_in_threadpool(self.store.read_user, live_session['user_id'])
+                    await run_in_threadpool(assert_site_access, self.store, live_session['user_id'])
+                    if not current or not current['member']:
+                        raise HTTPException(401, 'Ton accès au domaine a été révoqué.')
+                    if self.access_generation(current['id']) != generation:
+                        if attempt == 0: continue
+                        raise HTTPException(503, 'Les autorisations ont changé pendant la vérification. Réessaie.')
+                    if member is not None:
+                        if credentials is not None:
+                            await run_in_threadpool(self._save_credentials, current, credentials)
+                        await run_in_threadpool(self._save_member, current, member)
+                        current = await run_in_threadpool(self.store.read_user, current['id'])
+                    try:
+                        self.require_employee(current['id'], json.loads(current['role_ids']))
+                    except EmployeeRoleRequired:
+                        await run_in_threadpool(self._revoke_employee, current['id'])
+                        raise EmployeeRoleRequired(401) from None
+                    await run_in_threadpool(self.highest_role, current)
+                    return current, dict(live_session)
+            raise HTTPException(503, 'Les autorisations ont changé pendant la vérification. Réessaie.')
 
     def create_login(self, identity, member, credentials):
         user_id = str(identity['id'])

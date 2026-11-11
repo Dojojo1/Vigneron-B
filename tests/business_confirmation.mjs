@@ -10,8 +10,10 @@ assert.ok(start>=0&&end>start);
 const notices=[];
 let status='pending',refreshes=0;
 const context=vm.createContext({
- session:{user:{id:'123'}},activePage:'tombola',
+ session:{user:{id:'123'}},activePage:'overview',displayedPage:'overview',refreshingPages:false,
  sessionScope:()=> '123',pageURL:()=>'/api/pages/tombola?view=screen',
+ state:{businessCommands:[{id:'command-1',status:'pending'}]},Date:{now:()=>10000},
+ document:{hidden:false,querySelector:()=>null,activeElement:{matches:()=>false}},
  api:async()=>({businessCommands:[{id:'command-1',status}]}),
  setTimeout:callback=>{callback();return 1;},
  clearPageCache:()=>{},affectedPages:()=>['tombola'],

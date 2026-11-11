@@ -120,6 +120,47 @@ def test_wrong_applied_outcome_is_refused_and_rolls_back_projection(env):
     assert ack(env, job['commandId'], bad).status_code == 409
 
 
+def test_sales_reset_ack_requires_the_current_records_in_a_new_archive(env):
+    setup(env)
+    current = [sale(), sale(id='1002')]
+    assert sync(env, snapshot(records=current, salesWeek={'archives': [], 'lastResetDate': None})).status_code == 200
+    job = action(env, 'sales', 'confirm-sales-reset').json()
+    command_id = job['commandId']
+    queued = signed(env, 'GET', '/internal/bot/commands').json()['commands'][0]['body']
+    assert queued['record'] is None  # The bot's command contract stays unchanged.
+    unchanged = snapshot(records=current, revision=1, salesWeek={'archives': [], 'lastResetDate': None})
+    assert ack(env, command_id, {'snapshot': unchanged}).status_code == 409
+    assert all(row.get('archive') is None for row in env['store'].read_domain()['sales'])
+
+    fake_archive = snapshot(records=current, revision=1,
+                            salesWeek={'archives': [{'name': None}], 'lastResetDate': None})
+    assert ack(env, command_id, {'snapshot': fake_archive}).status_code == 409
+
+    archive = '2026-s44'
+    incomplete = snapshot(records=[sale(archive=archive), current[1]], revision=1,
+                          salesWeek={'archives': [{'name': archive}], 'lastResetDate': None})
+    assert ack(env, command_id, {'recordId': archive, 'snapshot': incomplete}).status_code == 409
+    confirmed = snapshot(records=[sale(archive=archive), sale(id='1002', archive=archive),
+                                  sale(id='1003', archive=archive)], revision=1,
+                         salesWeek={'archives': [{'name': archive}], 'lastResetDate': None})
+    assert sync(env, confirmed).status_code == 200  # The bot publishes before its ACK.
+    assert ack(env, command_id, {'recordId': archive, 'snapshot': confirmed}).status_code == 200
+    assert ack(env, command_id, {'recordId': archive, 'snapshot': confirmed}).json()['duplicate'] is True
+    assert {row['archive'] for row in env['store'].read_domain()['sales']} == {archive}
+
+
+def test_empty_sales_reset_requires_a_new_archive_name_from_bot(env):
+    setup(env)
+    empty = snapshot(records=[], salesWeek={'archives': [], 'lastResetDate': None})
+    assert sync(env, empty).status_code == 200
+    job = action(env, 'sales', 'confirm-sales-reset').json()
+    result = {'snapshot': snapshot(records=[], revision=1,
+                                   salesWeek={'archives': [], 'lastResetDate': None})}
+    assert ack(env, job['commandId'], result).status_code == 409
+    result['recordId'] = 's44'
+    assert ack(env, job['commandId'], result).status_code == 200
+
+
 def test_unauthorized_member_cannot_queue_business_actions(env):
     setup(env)
     login(env, MEMBER)

@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS bot_business_jobs(
 CREATE TABLE IF NOT EXISTS bot_business_sources(
  guild_id TEXT NOT NULL,page TEXT NOT NULL,revision INTEGER NOT NULL,
  snapshot TEXT NOT NULL,updated REAL NOT NULL,PRIMARY KEY(guild_id,page));
+CREATE TABLE IF NOT EXISTS bot_business_reset_baselines(
+ id TEXT PRIMARY KEY REFERENCES bot_commands(id),current_ids TEXT NOT NULL,archive_names TEXT NOT NULL);
 '''
 
 
@@ -66,6 +68,14 @@ class BusinessBridge:
                 raise HTTPException(409, 'Cette fiche doit être synchronisée et confirmée par le bot avant modification.')
         elif action not in ('add-sale', 'raffle-record', 'confirm-sales-reset'):
             raise HTTPException(400, 'Une fiche est requise pour cette opération.')
+        reset_baseline = None
+        if action == 'confirm-sales-reset':
+            # Preserve the week seen when the command was queued: a later sync
+            # may publish the new snapshot before the ACK arrives.
+            current_ids = [str(row['id']) for row in state.get('sales', [])
+                           if row.get('botStatus') == 'confirmed' and not row.get('archive')]
+            archive_names = [str(row['name']) for row in state.get('salesWeek', {}).get('archives', [])]
+            reset_baseline = (sorted(current_ids), sorted(archive_names))
         supplied = {key: value for key, value in values.items() if not key.startswith('_')}
         for row in db.execute("SELECT c.body FROM bot_commands c JOIN bot_business_jobs j ON j.id=c.id WHERE j.page=? AND j.status IN ('pending','uncertain')", (page,)):
             other = json.loads(row['body'])
@@ -79,6 +89,9 @@ class BusinessBridge:
                 'actor': {'id': str(actor_id), 'name': actor_name}, 'record': record}
         db.execute('INSERT INTO bot_commands VALUES(?,?,?,NULL)', (command_id, time.time(), encoded(body)))
         db.execute('INSERT INTO bot_business_jobs VALUES(?,?,?,?,NULL,NULL)', (command_id, page, 'pending', record_id))
+        if reset_baseline is not None:
+            db.execute('INSERT INTO bot_business_reset_baselines VALUES(?,?,?)',
+                       (command_id, encoded(reset_baseline[0]), encoded(reset_baseline[1])))
         self.store.audit(db, actor_id, 'business_command_pending', {'page': page, 'action': action, 'commandId': command_id, 'recordId': record_id})
         return {'ok': True, 'pending': True, 'commandId': command_id, 'recordId': record_id, 'status': 'pending'}
 
@@ -255,7 +268,7 @@ class BusinessBridge:
                    (self.settings.guild_id, page, revision, snapshot, time.time()))
         return {'page': page, 'revision': revision, 'available': source['available']}
 
-    def verify_outcome(self, command, result, snapshot):
+    def verify_outcome(self, command, result, snapshot, reset_baseline=None):
         def mismatch():
             raise HTTPException(409, "Le résultat ne confirme pas la modification demandée.")
         action=command['action'];records=snapshot.get('records',[])
@@ -266,7 +279,24 @@ class BusinessBridge:
         if action=='delete-tombola-week':
             if any(r.get('week')==command['recordId'] and not r.get('deleted') for r in records):mismatch()
             return
-        if action=='confirm-sales-reset':return
+        if action=='confirm-sales-reset':
+            # Older queued commands had no baseline; keep their ACK compatible.
+            if reset_baseline is None:
+                return
+            current_ids, old_names = reset_baseline
+            archive_name = result.get('recordId')
+            if not isinstance(archive_name, str) or not archive_name or archive_name in old_names:
+                mismatch()
+            if not current_ids:
+                return  # The bot's durable result names the newly created archive.
+            archives = snapshot.get('salesWeek', {}).get('archives', [])
+            new_names = {row.get('name') for row in archives if isinstance(row, dict)} - old_names
+            if archive_name not in new_names:
+                mismatch()
+            by_id = {str(row.get('id')): row for row in records if isinstance(row, dict)}
+            if any(by_id.get(identifier, {}).get('archive') != archive_name for identifier in current_ids):
+                mismatch()
+            return
         if action=='delete-vehicle':
             index=int(command['recordId'].partition('|')[2])
             expected=list(original['vehicles']);expected.pop(index)
@@ -324,7 +354,12 @@ class BusinessBridge:
             if not isinstance(projection, dict) or projection.get('page') != row['page'] or not projection.get('complete') or not projection.get('available'):
                 raise HTTPException(409, 'La confirmation exige les données réellement vérifiées après exécution.')
             try:
-                self.verify_outcome(json.loads(row['body']),result,projection)
+                command = json.loads(row['body'])
+                baseline = db.execute('SELECT current_ids,archive_names FROM bot_business_reset_baselines WHERE id=?',
+                                      (command_id,)).fetchone() if command['action'] == 'confirm-sales-reset' else None
+                reset_baseline = (set(json.loads(baseline['current_ids'])),
+                                  set(json.loads(baseline['archive_names']))) if baseline else None
+                self.verify_outcome(command,result,projection,reset_baseline)
             except (KeyError,TypeError,ValueError,IndexError):
                 raise HTTPException(409,'Le résultat métier ne confirme pas la demande.') from None
             self.apply_snapshot(db, projection)

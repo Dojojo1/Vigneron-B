@@ -91,6 +91,22 @@ try{
   assert.ok(await js("document.querySelector('#content').innerText.trim().length>0"),route);
  }
  if(!liveURL&&!mirrorURL){
+  assert.equal(await js("document.querySelector('#content').hasAttribute('aria-live')"),false);
+  assert.equal(await js("document.querySelector('#page-announcement').getAttribute('aria-live')"),'polite');
+  const announcement=await js("document.querySelector('#page-announcement').textContent");
+  await js('render()');
+  assert.equal(await js("document.querySelector('#page-announcement').textContent"),announcement,'Counter refresh must not re-announce the whole page');
+  await js("location.hash='sales'");
+  await wait("activePage==='sales'");
+  assert.notEqual(await js("document.querySelector('#page-announcement').textContent"),announcement,'Changing pages must be announced');
+  for(const width of [320,390]){
+   await command('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:true});
+   for(const selector of ['#menu-toggle','#notifications-toggle','#profile-settings']){
+    const size=await js(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return [r.width,r.height]})()`);
+    assert.ok(size.every(value=>value>=44),`${selector} touch target at ${width}px: ${size}`);
+   }
+   assert.equal(await js('document.documentElement.scrollWidth<=innerWidth+1'),true,`Accessible header overflow at ${width}px`);
+  }
   await js("location.hash='external-access'");
   await wait("typeof activePage!=='undefined' && activePage==='council' && location.hash==='#council'");
   await js("location.hash='history'");

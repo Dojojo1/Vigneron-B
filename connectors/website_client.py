@@ -69,15 +69,3 @@ class WebsiteClient:
         if not isinstance(payload,dict):raise ValueError('Resolution request must be an object.')
         if payload.get('guildId',self.guild_id)!=self.guild_id:raise ValueError('Resolution belongs to another guild.')
         return await asyncio.to_thread(self._request,'POST','resolve',{**payload,'guildId':self.guild_id})
-
-    async def poll(self,handler,interval=10):
-        """handler(command) must be idempotent on command['id']; acknowledge only on success.
-
-        The caller owns this task and cancels it when the existing bot shuts down.
-        Exceptions propagate so the bot can log/retry without hiding failed actions.
-        """
-        while True:
-            for command in await self.commands():
-                await handler(command)
-                await self.acknowledge(command['id'])
-            await asyncio.sleep(max(3,interval))

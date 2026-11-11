@@ -174,8 +174,11 @@ def create_app(settings=None, provider=None):
                 request.state.identity,request.state.session=user,session
                 request.state.audit_stage='authorization'
                 if path.startswith(('/api/pages/','/api/actions/','/api/visits/','/spaces/')):
-                    page=path.split('/')[3 if path.startswith('/api/') else 2]
-                    await run_in_threadpool(security.require_page,user,page,pages)
+                    # Page reads call require() in their route, immediately
+                    # before data access. Other routes keep this early gate.
+                    if not (request.method in ('GET','HEAD') and path.startswith('/api/pages/')):
+                        page=path.split('/')[3 if path.startswith('/api/') else 2]
+                        await run_in_threadpool(security.require_page,user,page,pages)
                 elif path.startswith('/api/admin/') or path not in {'/app','/api/me','/api/me/profile','/api/me/avatar','/api/client-errors','/api/bootstrap','/api/bot-status'}:
                     if not security.is_supreme(user): raise HTTPException(403,'Cet espace n’a pas encore d’autorisation configurée.')
                 if request.method not in ('GET','HEAD','OPTIONS'):
@@ -233,7 +236,10 @@ def create_app(settings=None, provider=None):
         nonce=bridge.verify(request.method,request.url.path,request.headers,body)
         payload=await json_body(request) if request.method=='POST' else None
         async with security.lock:
-            return await run_in_threadpool(bridge.handle,operation,nonce,payload)
+            result=await run_in_threadpool(bridge.handle,operation,nonce,payload)
+            if operation=='events' and not result.get('duplicate'):
+                security.note_invalidation(payload.get('kind'),payload.get('userId'))
+            return result
 
     @app.get('/auth/start')
     def start():

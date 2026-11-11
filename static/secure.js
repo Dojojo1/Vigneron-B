@@ -621,13 +621,18 @@
  };
  // Machines refresh: fetch confirmed snapshots even when all actions originate in Discord.
  let machineRefreshInFlight=false,lastMachineRefresh=0;
+ const businessStatusReadAt={sales:0,tombola:0};
  async function refreshMachineSnapshot(){
   if(!session||!['machines','sales','tombola','overview','stats','rankings'].includes(activePage)||document.hidden||refreshingPages||machineRefreshInFlight||pendingActions.size)return;
   const interval=[...(state.machineCommands||[]),...(state.businessCommands||[])].some(job=>job.status==='pending'||job.status==='uncertain')?3000:30000;
   const now=Date.now();if(now-lastMachineRefresh<interval)return;
   if(document.querySelector('dialog[open], #content[aria-busy="true"]')||document.activeElement?.matches('input,select,textarea'))return;
   machineRefreshInFlight=true;lastMachineRefresh=now;
-  try{await window.heritageNavigate({fresh:true,preserveFocus:true});}
+  const route=activePage;
+  try{
+   if(await window.heritageNavigate({fresh:true,preserveFocus:true})&&activePage===route&&Object.hasOwn(businessStatusReadAt,route))
+    businessStatusReadAt[route]=Date.now();
+  }
   catch(error){backgroundFailure(error);}
   finally{machineRefreshInFlight=false;}
  }
@@ -635,12 +640,19 @@
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshMachineSnapshot();});
  // End Machines refresh.
  async function followBusinessCommand(page,commandId,scope){
+  const startedAt=Date.now();
   for(let attempt=0;attempt<15;attempt++){
    await new Promise(resolve=>setTimeout(resolve,2000));
    if(!session||sessionScope(session)!==scope)return;
-   let data;
-   try{data=await api(pageURL(page,true),{background:true});}
-   catch(error){if(error.status===401)return;continue;}
+   const visible=activePage===page&&displayedPage===page&&!document.hidden&&
+    !refreshingPages&&!document.querySelector('dialog[open], #content[aria-busy="true"]')&&
+    !document.activeElement?.matches('input,select,textarea')&&
+    state.businessCommands?.some(item=>item.id===commandId);
+   let data=state;
+   if(!visible||Date.now()-Math.max(startedAt,businessStatusReadAt[page]||0)>=5000){
+    try{data=await api(pageURL(page,true),{background:true});}
+    catch(error){if(error.status===401)return;continue;}
+   }
    const job=data.businessCommands?.find(item=>item.id===commandId);
    if(!job||job.status==='pending')continue;
    if(job.status==='uncertain'){
@@ -648,7 +660,7 @@
     return;
    }
    clearPageCache(affectedPages('/api/actions/'+page));
-   if(activePage===page||activePage==='overview'||activePage==='stats'||activePage==='rankings')
+   if((activePage===page&&data!==state)||activePage==='overview'||activePage==='stats'||activePage==='rankings')
     await window.heritageNavigate({fresh:true,preserveFocus:true});
    toast(job.status==='applied'?'Opération confirmée par le bot.':job.error?.message||'Le bot a refusé l’opération. La page a été actualisée.');
    return;

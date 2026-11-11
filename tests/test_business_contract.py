@@ -105,6 +105,23 @@ class SignedBusinessContractTests(bot_tests.BusinessOperationsTests):
         self.assertEqual(self.app.state.store.read_domain()['sales'][0]['status'], 'cancelled')
         self.assertEqual(self.channel.send.await_count, 1)
 
+    async def test_signed_sales_reset_proves_archive_even_for_empty_week(self):
+        for expected_count in (0, 1):
+            if expected_count:
+                self.submit('sales', 'add-sale', values={'group': 'Groupe A', 'giver': '123', 'amount': '5000000'})
+                await self.consume()
+            job = self.submit('sales', 'confirm-sales-reset')
+            await self.consume()
+            with self.app.state.store.connect() as db:
+                result = json.loads(db.execute('SELECT result FROM bot_business_jobs WHERE id=?',
+                                               (job['commandId'],)).fetchone()['result'])
+            archive = result['recordId']
+            self.assertTrue(archive)
+            self.assertTrue(archive.startswith('s'))
+            records = result['snapshot']['records']
+            if expected_count:
+                self.assertEqual({record['archive'] for record in records}, {archive})
+
     async def test_signed_tombola_payment_vehicle_delete_and_week_delete(self):
         self.submit('tombola', 'raffle-record', values={'weekDate': '29/10/2026',
             'vehicle0': 'Asbo', 'type0': 'voiture', 'price0': '100',
