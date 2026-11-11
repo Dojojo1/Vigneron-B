@@ -90,6 +90,9 @@ try{
  await js("document.querySelector('#enter-demo').click()");await delay(200);
  assert.equal(await js("document.querySelector('main').hidden"),false);
  if(!liveURL&&!mirrorURL){
+  if(await js("matchMedia('(prefers-reduced-motion: reduce)').matches")){
+   assert.equal(await js("document.documentElement.classList.contains('heritage-full-motion')"),false);
+  }
   await js("document.querySelector('#navigation [data-page=council]').click()");
   await wait("activePage==='council'");
  }

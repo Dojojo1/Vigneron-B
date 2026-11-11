@@ -11,8 +11,8 @@
   const entryPanel = entry?.querySelector('.entry-panel');
   let entryVisible = false;
   const entryLoops = [];
-  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (entryPanel && !reducedMotion) {
+  const motionPreference = matchMedia('(prefers-reduced-motion: reduce)');
+  if (entryPanel && !motionPreference.matches) {
     [13, 87, 18, 82].forEach((left, index) => {
       const drop = document.createElement('span');
       drop.className = 'entry-moving-drop';
@@ -30,26 +30,31 @@
   }
   const syncEntry = () => {
     const visible = !!entry && !entry.hidden && document.body.classList.contains('on-entry');
-    const moving = visible && !document.hidden && !document.documentElement.classList.contains('heritage-light-mode');
+    const moving = visible && !document.hidden && !motionPreference.matches
+      && !document.documentElement.classList.contains('heritage-light-mode');
     entryLoops.forEach(tween => moving ? tween.resume() : tween.pause());
     if (!visible) { entryVisible = false; return; }
     if (entryVisible) return;
     entryVisible = true;
     const targets = entry.querySelectorAll('.entry-brand, .entry-panel-shell, .entry-signature');
+    if (motionPreference.matches) {
+      window.gsap.set(targets, {clearProps: 'transform,opacity'});
+      return;
+    }
     window.gsap.fromTo(targets,
-      {y: reducedMotion ? 0 : 12, opacity: 0},
-      {y: 0, opacity: 1, duration: reducedMotion ? .2 : .72,
-        stagger: reducedMotion ? .03 : .12, ease: 'power2.out',
+      {y: 12, opacity: 0},
+      {y: 0, opacity: 1, duration: .72,
+        stagger: .12, ease: 'power2.out',
         clearProps: 'transform,opacity'});
   };
   document.addEventListener('heritage:domain-visibility', syncEntry);
   document.addEventListener('visibilitychange', syncEntry);
   document.addEventListener('heritage:light-mode', syncEntry);
+  motionPreference.addEventListener('change', syncEntry);
   syncEntry();
 
   const media = window.gsap.matchMedia();
-  document.documentElement.classList.add('heritage-full-motion');
-  media.add('all', () => {
+  media.add('(prefers-reduced-motion: no-preference)', () => {
     const seen = new WeakSet();
     const loops = new Set();
     const animatedDrops = new Set();
