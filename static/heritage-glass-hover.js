@@ -4,6 +4,24 @@
   const content = document.querySelector('#content');
   if (!content) return;
 
+  const entryPanel = document.querySelector('#entry-screen .entry-panel');
+  if (entryPanel) {
+    const layer = document.createElement('span');
+    layer.className = 'entry-water-layer';
+    layer.setAttribute('aria-hidden', 'true');
+    entryPanel.append(layer);
+    entryPanel.addEventListener('pointerenter', event => {
+      if (event.pointerType !== 'touch') entryPanel.classList.add('water-hover');
+    });
+    entryPanel.addEventListener('pointermove', event => {
+      if (event.pointerType === 'touch') return;
+      const bounds = entryPanel.getBoundingClientRect();
+      entryPanel.style.setProperty('--entry-hover-x', `${event.clientX - bounds.left}px`);
+      entryPanel.style.setProperty('--entry-hover-y', `${event.clientY - bounds.top}px`);
+    }, {passive: true});
+    entryPanel.addEventListener('pointerleave', () => entryPanel.classList.remove('water-hover'));
+  }
+
   const filter = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   filter.setAttribute('aria-hidden', 'true');
   filter.setAttribute('class', 'heritage-water-filter');

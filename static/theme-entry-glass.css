@@ -91,6 +91,17 @@ body.on-entry { margin: 0; overflow-x: clip; }
   z-index: 1;
   filter: drop-shadow(0 0 5px #dca5663b);
 }
+.entry-screen .entry-panel > .entry-moving-drop {
+  position: absolute;
+  z-index: 1;
+  width: 6px;
+  height: 10px;
+  border: 1px solid #d8eaf58c;
+  border-radius: 50% 50% 48% 48%;
+  background: radial-gradient(at 35% 20%, #f4fbff95, #7894a557 45%, #0b192638 78%);
+  box-shadow: inset -1px -1px 2px #08121a9c, 0 1px 3px #d5eafa55;
+  pointer-events: none;
+}
 .entry-medallion {
   z-index: 2;
   position: absolute;

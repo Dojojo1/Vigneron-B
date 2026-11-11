@@ -79,6 +79,14 @@ try{
  assert.equal(await js("getComputedStyle(document.body).fontFamily.includes('Times New Roman')"),false);
  assert.equal(await js("document.querySelector('#site-error').hidden"),true,JSON.stringify({notice:await js("document.querySelector('#site-error').innerText"),exceptions,failures}));
  assert.equal(await js("document.querySelector('.access-code-entry').hidden"),true);
+ if(!liveURL&&!mirrorURL){
+  assert.equal(await js("document.querySelectorAll('.entry-moving-drop').length"),
+   await js("matchMedia('(prefers-reduced-motion: reduce)').matches?0:4"));
+  await js("document.querySelector('.entry-panel').dispatchEvent(new PointerEvent('pointerenter',{pointerType:'mouse'}))");
+  assert.equal(await js("document.querySelector('.entry-panel').classList.contains('water-hover')"),true);
+  await js("document.querySelector('.entry-panel').dispatchEvent(new PointerEvent('pointerleave',{pointerType:'mouse'}))");
+  assert.equal(await js("document.querySelector('.entry-panel').classList.contains('water-hover')"),false);
+ }
  await js("document.querySelector('#enter-demo').click()");await delay(200);
  assert.equal(await js("document.querySelector('main').hidden"),false);
  if(!liveURL&&!mirrorURL){
@@ -217,6 +225,9 @@ try{
   assert.ok(await js("document.querySelector('#individual-code-value').value.startsWith('APERCU-')"));
   await js("window.confirm=()=>true;document.querySelector('[data-site-block]').click()");
   await wait("document.querySelector('.individual-status').textContent==='Révoqué'");
+  assert.equal(await js("document.querySelector('[data-delete-access]')!==null"),true);
+  await js("document.querySelector('[data-delete-access]').click()");
+  await wait("document.querySelectorAll('#individual-users [data-account-id]').length===0");
   await js("location.hash='council'");await delay(100);
   assert.ok(await js("document.querySelector('#role-selection-count').textContent.includes('7 retenus')"));
   await js("document.querySelector('[data-manage-role=example-6]').click();document.querySelector('[data-retain-role]').click()");

@@ -7,6 +7,46 @@
   const content = document.querySelector('#content');
   if (!content) return;
 
+  const entry = document.querySelector('#entry-screen');
+  const entryPanel = entry?.querySelector('.entry-panel');
+  let entryVisible = false;
+  const entryLoops = [];
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (entryPanel && !reducedMotion) {
+    [13, 87, 18, 82].forEach((left, index) => {
+      const drop = document.createElement('span');
+      drop.className = 'entry-moving-drop';
+      drop.setAttribute('aria-hidden', 'true');
+      drop.style.left = `${left}%`;
+      drop.style.top = `${18 + index % 2 * 24}%`;
+      entryPanel.append(drop);
+      const tween = window.gsap.fromTo(drop,
+        {y: -8, opacity: 0},
+        {y: 120 + index * 20, opacity: .7, duration: 4 + index * .55,
+          ease: 'none', repeat: -1, repeatDelay: 1.8, delay: index * .8,
+          paused: true});
+      entryLoops.push(tween);
+    });
+  }
+  const syncEntry = () => {
+    const visible = !!entry && !entry.hidden && document.body.classList.contains('on-entry');
+    const moving = visible && !document.hidden && !document.documentElement.classList.contains('heritage-light-mode');
+    entryLoops.forEach(tween => moving ? tween.resume() : tween.pause());
+    if (!visible) { entryVisible = false; return; }
+    if (entryVisible) return;
+    entryVisible = true;
+    const targets = entry.querySelectorAll('.entry-brand, .entry-panel-shell, .entry-signature');
+    window.gsap.fromTo(targets,
+      {y: reducedMotion ? 0 : 12, opacity: 0},
+      {y: 0, opacity: 1, duration: reducedMotion ? .2 : .72,
+        stagger: reducedMotion ? .03 : .12, ease: 'power2.out',
+        clearProps: 'transform,opacity'});
+  };
+  document.addEventListener('heritage:domain-visibility', syncEntry);
+  document.addEventListener('visibilitychange', syncEntry);
+  document.addEventListener('heritage:light-mode', syncEntry);
+  syncEntry();
+
   const media = window.gsap.matchMedia();
   document.documentElement.classList.add('heritage-full-motion');
   media.add('all', () => {

@@ -25,10 +25,10 @@
   <g clip-path="url(#shape)">
     <rect width="720" height="530" filter="url(#grain)" opacity=".035"/>
     <g opacity=".85">
-      <use href="#drop" transform="translate(30 31) rotate(-12) scale(1.1)"/>
-      <use href="#drop" transform="translate(58 57) rotate(9) scale(.65)"/>
-      <use href="#drop" transform="translate(44 90) rotate(-5) scale(1.25)"/>
-      <use href="#drop" transform="translate(80 30) rotate(12) scale(.6)"/>
+      <use href="#drop" transform="translate(92 52) rotate(-12) scale(1.1)"/>
+      <use href="#drop" transform="translate(120 86) rotate(9) scale(.65)"/>
+      <use href="#drop" transform="translate(76 127) rotate(-5) scale(1.25)"/>
+      <use href="#drop" transform="translate(168 65) rotate(12) scale(.6)"/>
       <use href="#drop" transform="translate(26 127) rotate(-15) scale(.5)"/>
       <use href="#drop" transform="translate(67 151) rotate(5) scale(.8)"/>
       <use href="#drop" transform="translate(42 191) rotate(3) scale(.7)"/>

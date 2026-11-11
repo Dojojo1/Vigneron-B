@@ -118,6 +118,8 @@ def test_delete_individual_account_invalidates_session_and_preserves_audit(env):
     old=env['client'].cookies.get(COOKIE)
     env['client'].cookies.clear()
     login(env,SUPREME)
+    revoked=env['client'].post(f'/api/admin/accounts/{uid}/site-access',json={'blocked':True},headers=headers(env))
+    assert revoked.status_code==200 and revoked.json()['account']['blocked']
     assert env['client'].delete(f'/api/admin/access-accounts/{MEMBER}',headers=headers(env)).status_code==404
     result=env['client'].delete(f'/api/admin/access-accounts/{uid}',headers=headers(env))
     assert result.status_code==200 and result.json()=={'deleted':True}
