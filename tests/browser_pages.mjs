@@ -275,7 +275,8 @@ try{
   assert.equal(await js('window.heritageSession'),null);
   await js("location.hash='overview'");await delay(100);
   assert.equal(await js("document.querySelector('main').hidden"),true,'Hash navigation must not open private pages before login');
-  assert.equal(await js("document.querySelector('#connected-access-code').href"),'https://login-test.example/#welcome');
+  assert.equal(await js("document.querySelector('.access-code-entry').hidden"),false,'Code login remains on GitHub Pages');
+  assert.equal(await js("document.querySelector('#connected-access-code')"),null);
   for(const width of [320,390,768,1440]){
    await command('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});
    assert.equal(await js('document.documentElement.scrollWidth<=innerWidth+1'),true,`Login page overflow at ${width}px`);
