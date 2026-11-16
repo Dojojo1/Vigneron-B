@@ -811,6 +811,7 @@ def create_app(settings=None, provider=None):
         async with security.lock:return await run_in_threadpool(accounts.rotate,user['id'],user_id)
 
     @app.delete('/api/admin/access-accounts/{user_id}')
+    @app.post('/api/admin/access-accounts/{user_id}/delete')
     async def delete_access_account(user_id:str,request:Request):
         user=supreme(request)
         async with security.lock:return await run_in_threadpool(accounts.delete,user['id'],user_id)

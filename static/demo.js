@@ -19,9 +19,9 @@ window.heritagePublicDemo=()=>{
    const account={id:'preview-'+localId(),username:body.displayName,display_name:body.displayName,last_login:Date.now()/1000,role_ids:'[]',member:false,protected:false,siteAccess:{provider:'access_code',loginName:body.loginName,pages:body.pages,blocked:false}};
    settings.users.push(account);persist();return {account:{loginName:body.loginName},accessCode:code()};
   }
-  const match=path.match(/^\/api\/admin\/(?:access-accounts|accounts)\/([^/]+)(?:\/(site-access|rotate-code))?$/);
+  const match=path.match(/^\/api\/admin\/(?:access-accounts|accounts)\/([^/]+)(?:\/(site-access|rotate-code|delete))?$/);
   if(match){const user=settings.users.find(u=>u.id===decodeURIComponent(match[1]));if(!user)throw new Error('Compte introuvable.');
-   if(method==='DELETE'&&user.siteAccess.provider==='access_code'&&match[2]===undefined){settings.users=settings.users.filter(u=>u!==user);persist();return {deleted:true};}
+   if((method==='DELETE'&&match[2]===undefined||method==='POST'&&match[2]==='delete')&&user.siteAccess.provider==='access_code'){settings.users=settings.users.filter(u=>u!==user);persist();return {deleted:true};}
    if(match[2]==='rotate-code')return {account:{loginName:user.siteAccess.loginName},accessCode:code()};
    if(match[2]==='site-access')user.siteAccess.blocked=body.blocked;else if(method==='PATCH')user.siteAccess.pages=body.pages;else throw new Error('Action indisponible.');
    persist();return {};

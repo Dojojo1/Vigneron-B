@@ -38,7 +38,8 @@
     entryVisible = true;
     const targets = entry.querySelectorAll('.entry-brand, .entry-panel-shell, .entry-signature');
     if (motionPreference.matches) {
-      window.gsap.set(targets, {clearProps: 'transform,opacity'});
+      window.gsap.fromTo(targets, {opacity: 0},
+        {opacity: 1, duration: .2, stagger: .03, clearProps: 'opacity'});
       return;
     }
     window.gsap.fromTo(targets,

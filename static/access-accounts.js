@@ -53,7 +53,7 @@ window.heritageAccessAccounts=function({root,accounts,pages,api,esc,when,toast})
    void act(row,button,()=>api('/api/admin/accounts/'+encodeURIComponent(id)+'/site-access',{method:'POST',body:{blocked}}));
   }else if(button.hasAttribute('data-delete-access')){
    if(!confirm(`Supprimer définitivement le compte de ${user.display_name||user.username} ? Son code et ses sessions seront invalidés. Cette action ne peut pas être annulée.`))return;
-   hideCode();void act(row,button,()=>api('/api/admin/access-accounts/'+encodeURIComponent(id),{method:'DELETE'}));
+   hideCode();void act(row,button,()=>api('/api/admin/access-accounts/'+encodeURIComponent(id)+'/delete',{method:'POST'}));
   }else{
    if(!confirm('Générer un nouveau code ? L’ancien code et toutes les sessions de cette personne seront invalidés.'))return;
    hideCode();void act(row,button,()=>api('/api/admin/access-accounts/'+encodeURIComponent(id)+'/rotate-code',{method:'POST',body:{}}));
