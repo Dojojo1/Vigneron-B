@@ -80,8 +80,7 @@ try{
  assert.equal(await js("document.querySelector('#site-error').hidden"),true,JSON.stringify({notice:await js("document.querySelector('#site-error').innerText"),exceptions,failures}));
  assert.equal(await js("document.querySelector('.access-code-entry').hidden"),true);
  if(!liveURL&&!mirrorURL){
-  assert.equal(await js("document.querySelectorAll('.entry-moving-drop').length"),
-   await js("matchMedia('(prefers-reduced-motion: reduce)').matches?0:4"));
+  assert.equal(await js("document.querySelectorAll('.entry-moving-drop').length"),4);
   await js("document.querySelector('.entry-panel').dispatchEvent(new PointerEvent('pointerenter',{pointerType:'mouse'}))");
   assert.equal(await js("document.querySelector('.entry-panel').classList.contains('water-hover')"),true);
   await js("document.querySelector('.entry-panel').dispatchEvent(new PointerEvent('pointerleave',{pointerType:'mouse'}))");
@@ -90,9 +89,7 @@ try{
  await js("document.querySelector('#enter-demo').click()");await delay(200);
  assert.equal(await js("document.querySelector('main').hidden"),false);
  if(!liveURL&&!mirrorURL){
-  if(await js("matchMedia('(prefers-reduced-motion: reduce)').matches")){
-   assert.equal(await js("document.documentElement.classList.contains('heritage-full-motion')"),false);
-  }
+  assert.equal(await js("document.documentElement.classList.contains('heritage-full-motion')"),true);
   await js("document.querySelector('#navigation [data-page=council]').click()");
   await wait("activePage==='council'");
  }

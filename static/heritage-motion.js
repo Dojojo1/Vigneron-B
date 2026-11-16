@@ -11,8 +11,7 @@
   const entryPanel = entry?.querySelector('.entry-panel');
   let entryVisible = false;
   const entryLoops = [];
-  const motionPreference = matchMedia('(prefers-reduced-motion: reduce)');
-  if (entryPanel && !motionPreference.matches) {
+  if (entryPanel) {
     [13, 87, 18, 82].forEach((left, index) => {
       const drop = document.createElement('span');
       drop.className = 'entry-moving-drop';
@@ -30,18 +29,13 @@
   }
   const syncEntry = () => {
     const visible = !!entry && !entry.hidden && document.body.classList.contains('on-entry');
-    const moving = visible && !document.hidden && !motionPreference.matches
+    const moving = visible && !document.hidden
       && !document.documentElement.classList.contains('heritage-light-mode');
     entryLoops.forEach(tween => moving ? tween.resume() : tween.pause());
     if (!visible) { entryVisible = false; return; }
     if (entryVisible) return;
     entryVisible = true;
     const targets = entry.querySelectorAll('.entry-brand, .entry-panel-shell, .entry-signature');
-    if (motionPreference.matches) {
-      window.gsap.fromTo(targets, {opacity: 0},
-        {opacity: 1, duration: .2, stagger: .03, clearProps: 'opacity'});
-      return;
-    }
     window.gsap.fromTo(targets,
       {y: 12, opacity: 0},
       {y: 0, opacity: 1, duration: .72,
@@ -51,11 +45,11 @@
   document.addEventListener('heritage:domain-visibility', syncEntry);
   document.addEventListener('visibilitychange', syncEntry);
   document.addEventListener('heritage:light-mode', syncEntry);
-  motionPreference.addEventListener('change', syncEntry);
   syncEntry();
 
   const media = window.gsap.matchMedia();
-  media.add('(prefers-reduced-motion: no-preference)', () => {
+  document.documentElement.classList.add('heritage-full-motion');
+  media.add('all', () => {
     const seen = new WeakSet();
     const loops = new Set();
     const animatedDrops = new Set();
