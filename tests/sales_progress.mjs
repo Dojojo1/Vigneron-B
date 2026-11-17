@@ -15,7 +15,8 @@ const context=vm.createContext({Intl,Date,Map,Number,Math,
 vm.runInContext(block('function allocations(){','const pages=')+'\n'+
  block('function badge(s){','function machineFinish(m){')+'\n'+
  block('function coffreIssue(s){','function overview(){')+
- '\nglobalThis.progress=saleProgress;globalThis.render=midnightDossier;globalThis.renderOld=dossier;',context);
+ block('function coffreCheckPanel(){','function salesPage(){')+
+ '\nglobalThis.progress=saleProgress;globalThis.render=midnightDossier;globalThis.renderOld=dossier;globalThis.renderCheck=coffreCheckPanel;',context);
 const sale={id:'test',amount:5000000,treated:5000000,progressKnown:true,
  status:'active',group:'Groupe test',employee:'Profil test',created:0};
 const set=(allocations,changes={})=>{context.state={allocations,salesAvailable:true,...changes};};
@@ -93,11 +94,13 @@ let check={status:'matched',tracked:[{id:'test',delta:1000000}],treatedDelta:100
  coffreMovements:{money:0,saleMoney:0}};
 set({test:1000000},{coffreCheck:check});
 assert.ok(!context.render(sale,0).includes('coffre-alert'),'Equal totals need no alert, even without a clean-money deposit.');
+assert.equal(context.renderCheck(),'','A coherent check must not show a panel.');
 check={...check,status:'mismatch',tracked:[{id:'test',delta:1000000,
  issue:{unexplained:100000,available:900000}}]};
 set({test:1000000},{coffreCheck:check});
 assert.ok(context.render(sale,0).includes('coffre-alert'));
 assert.ok(context.render(sale,0).includes('Différence : 100000 $'));
+assert.ok(context.renderCheck().includes('role="alert"'));
 set({test:1000000});
 sale.status='cancelled';
 assert.ok(!context.render(sale,0).includes('sale-row-progress'));

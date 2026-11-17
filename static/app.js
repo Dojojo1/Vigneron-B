@@ -226,14 +226,10 @@ function salesWeekSummary(){
 }
 function coffreCheckPanel(){
  const check=state.coffreCheck;
- if(!check||state.importedArchiveSelected)return '';
- const labels={waiting:'En attente de nouvelles récupérations',matched:'Totaux cohérents',
-  unmatched:'Aucun écart prouvé',unavailable:'Vérification indisponible',mismatch:'Écart à vérifier'};
- const detail=check.status==='mismatch'
-  ?`Les deux dossiers totalisent ${money(check.treatedDelta)} traités pour ${money(check.recoveredAmount)} de machines lancées depuis le point de départ et récupérées.`
-  :`Progression des deux dossiers : ${money(check.treatedDelta)} · machines lancées depuis le point de départ et récupérées : ${money(check.recoveredAmount)}.`;
- const issues=check.status==='mismatch'?check.tracked.filter(row=>row.issue).map(row=>`<p class="coffre-issue-detail">Dossier #${escapeHTML(saleDisplayId(row.id))} : ${money(row.issue.unexplained)} de progression sans récupération admissible selon l’ordre du bot.</p>`).join(''):'';
- return `<section class="panel coffre-check ${issues?'coffre-alert':''}" ${issues?'role="alert"':'aria-label="Vérification des deux nouveaux dossiers"'}><h2>${labels[check.status]||labels.unavailable}</h2><p>${detail}</p>${issues}<p class="form-note">Argent propre obtenu à la récupération (80 %) : ${money(check.cleanRecoveredAmount)}. Il peut être remis directement, sans dépôt au coffre.</p><p class="form-note">Mouvements nets enregistrés dans le coffre depuis le dépôt des 10 M$, hors logs exclus : argent ${money(check.coffreMovements.money)} · argent sale ${money(check.coffreMovements.saleMoney)}. Ils ne prouvent pas l’attribution à un dossier.</p><a href="#logs">Voir les logs du coffre →</a></section>`;
+ if(!check||state.importedArchiveSelected||check.status!=='mismatch')return '';
+ const issues=check.tracked?.filter(row=>row.issue).map(row=>`<p class="coffre-issue-detail">Dossier #${escapeHTML(saleDisplayId(row.id))} : ${money(row.issue.unexplained)} de progression sans récupération admissible selon l’ordre du bot.</p>`).join('');
+ if(!issues)return '';
+ return `<section class="panel coffre-check coffre-alert" role="alert"><h2>Écart à vérifier</h2>${issues}<p>Les deux dossiers totalisent ${money(check.treatedDelta)} traités pour ${money(check.recoveredAmount)} de machines lancées depuis le point de départ et récupérées.</p><a href="#logs">Voir les logs du coffre →</a></section>`;
 }
 function salesPage(){
  const readOnly=salesReadOnly(),source=state.businessSources?.sales;
