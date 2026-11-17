@@ -77,6 +77,28 @@ def test_two_selected_sales_only_flag_proven_overcount(env):
     assert all('issue' not in entry for entry in check['tracked'])
 
 
+def test_signed_alert_read_returns_only_proven_dossier_issues(env):
+    configure(env)
+    path = '/internal/bot/coffre-alert'
+    assert env['client'].get(path).status_code == 403
+    state = env['store'].read_domain()
+    sample = sale(id='1571966486782939269', treated=1000000, botStatus='confirmed')
+    state['sales'] = [sample, {**sample, 'id': '1571966567963435083', 'treated': 0}]
+    state['machines'] = []
+    with env['store'].connect(True) as db:
+        db.execute('UPDATE domain_store SET body=? WHERE id=1', (json.dumps(state),))
+        db.executemany('INSERT INTO coffre_checks VALUES(?,?,?,?)',
+                       [(row['id'], 1794870000, 0, 5000000) for row in state['sales']])
+    response = signed(env, 'GET', path)
+    assert response.status_code == 200
+    result = response.json()
+    assert result['status'] == 'mismatch'
+    assert result['issues'] == [{'id': sample['id'], 'delta': 1000000,
+                                 'unexplained': 1000000, 'available': 0}]
+    with env['store'].connect() as db:
+        assert db.execute('SELECT count(*) FROM bot_commands').fetchone()[0] == 0
+
+
 def test_old_launch_recovered_after_cutoff_is_not_attributed_to_new_sales(env):
     configure(env)
     state = env['store'].read_domain()

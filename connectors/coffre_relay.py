@@ -1,8 +1,8 @@
-"""Read-only Discord coffre mirror -> signed site events, with a durable cursor.
-
-This module is copied into the existing bot. It never sends a Discord message.
-"""
+"""Relay coffre logs to the site and alert one Discord channel on proven discrepancies."""
 import asyncio
+import hashlib
+import json
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -15,6 +15,7 @@ AUTHOR_ID = 1490974768445390928
 FIRST_MESSAGE_ID = 1571966270356856975  # Deposit of 10 M saleMoney.
 FIRST_EVENT = datetime.fromisoformat('2026-11-16T20:11:33+01:00').timestamp()
 FOOTER = 'vinbot:coffre:v1'
+ALERT_CHANNEL_ID = 1572273143911813223
 
 
 class CoffreRelay:
@@ -24,6 +25,10 @@ class CoffreRelay:
         with self.connect() as db:
             db.execute('CREATE TABLE IF NOT EXISTS cursor(id INTEGER PRIMARY KEY CHECK(id=1),message_id TEXT NOT NULL)')
             db.execute('INSERT OR IGNORE INTO cursor VALUES(1,?)', (str(FIRST_MESSAGE_ID - 1),))
+            db.execute('CREATE TABLE IF NOT EXISTS alert_state(id INTEGER PRIMARY KEY CHECK(id=1),fingerprint TEXT NOT NULL)')
+            db.execute("INSERT OR IGNORE INTO alert_state VALUES(1,'')")
+            db.execute('CREATE TABLE IF NOT EXISTS alert_candidate(id INTEGER PRIMARY KEY CHECK(id=1),fingerprint TEXT NOT NULL)')
+            db.execute("INSERT OR IGNORE INTO alert_candidate VALUES(1,'')")
         self.path.chmod(0o600)
         self.task = None
 
@@ -44,6 +49,71 @@ class CoffreRelay:
         with self.connect() as db:
             db.execute('UPDATE cursor SET message_id=? WHERE id=1 AND CAST(message_id AS INTEGER)<?',
                        (str(message_id), int(message_id)))
+
+    def alert_fingerprint(self):
+        with self.connect() as db:
+            return db.execute('SELECT fingerprint FROM alert_state WHERE id=1').fetchone()[0]
+
+    def remember_alert(self, fingerprint):
+        with self.connect() as db:
+            db.execute('UPDATE alert_state SET fingerprint=? WHERE id=1', (fingerprint,))
+
+    def candidate(self):
+        with self.connect() as db:
+            return db.execute('SELECT fingerprint FROM alert_candidate WHERE id=1').fetchone()[0]
+
+    def remember_candidate(self, fingerprint):
+        with self.connect() as db:
+            db.execute('UPDATE alert_candidate SET fingerprint=? WHERE id=1', (fingerprint,))
+
+    @staticmethod
+    def alert_details(snapshot):
+        if not isinstance(snapshot, dict) or snapshot.get('status') != 'mismatch':
+            return None
+        issues = snapshot.get('issues')
+        if not isinstance(issues, list) or not 1 <= len(issues) <= 2:
+            raise ValueError('Écart du site sans dossier précis.')
+        lines = []
+        for issue in sorted(issues, key=lambda row: str(row.get('id', ''))):
+            identifier = issue.get('id')
+            amount = issue.get('unexplained')
+            delta = issue.get('delta')
+            available = issue.get('available')
+            if (not isinstance(identifier, str) or not re.fullmatch(r'[0-9]{15,25}', identifier)
+                    or any(type(value) is not int or value < 0 or value > 9007199254740991
+                           for value in (amount, delta, available)) or amount == 0):
+                raise ValueError('Détail de l’écart du coffre invalide.')
+            lines.append(f'Dossier #{identifier} : {amount:,} $ de progression à vérifier '
+                         f'({delta:,} $ traités ; {available:,} $ de machines récupérées encore disponibles).')
+        content = ('⚠️ Écart dans Gestion blanchiment\n' + '\n'.join(lines)
+                   + '\nCalcul selon l’ordre des dossiers du bot. Les dépôts d’argent propre au coffre sont facultatifs.')
+        fingerprint = hashlib.sha256(json.dumps({'start': snapshot.get('startedAt'),
+            'issues': sorted(issues, key=lambda row: row['id'])}, sort_keys=True).encode()).hexdigest()
+        return fingerprint, content
+
+    async def alert_sync(self):
+        snapshot = await self.website.coffre_alert()
+        if snapshot.get('status') in ('matched', 'waiting', 'unmatched'):
+            self.remember_alert('')
+            self.remember_candidate('')
+            return False
+        details = self.alert_details(snapshot)
+        if details is None:
+            self.remember_candidate('')
+            return False
+        fingerprint, content = details
+        if fingerprint == self.alert_fingerprint():
+            return False
+        if fingerprint != self.candidate():
+            self.remember_candidate(fingerprint)
+            return False
+        channel = self.bot.get_channel(ALERT_CHANNEL_ID) or await self.bot.fetch_channel(ALERT_CHANNEL_ID)
+        if str(channel.guild.id) != self.website.guild_id:
+            raise ValueError('Le salon d’alerte n’appartient pas au serveur du site.')
+        await channel.send(content)
+        self.remember_alert(fingerprint)
+        self.remember_candidate('')
+        return True
 
     @staticmethod
     def log(message):
@@ -93,6 +163,12 @@ class CoffreRelay:
                 raise
             except Exception as error:
                 print(f'[SITE COFFRE] Lecture ou livraison différée ({type(error).__name__}).', flush=True)
+            try:
+                await self.alert_sync()
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                print(f'[SITE COFFRE] Alerte différée ({type(error).__name__}).', flush=True)
             await asyncio.sleep(60)
 
     async def start(self):

@@ -167,7 +167,7 @@ def create_app(settings=None, provider=None):
             if request.method in ('POST','PUT','PATCH'):
                 length=request.headers.get('content-length')
                 if length and (not length.isdigit() or int(length)>request_body_limit(path)): raise HTTPException(413,'Requête trop volumineuse.')
-            public=path in {'/','/api/status','/auth/start','/auth/callback','/auth/handoff','/auth/access-code','/auth/logout',BOT_PATH+'/events',BOT_PATH+'/commands',BOT_PATH+'/ack',BOT_PATH+'/resolve'} or path in public_files or path.startswith('/assets/')
+            public=path in {'/','/api/status','/auth/start','/auth/callback','/auth/handoff','/auth/access-code','/auth/logout',BOT_PATH+'/events',BOT_PATH+'/commands',BOT_PATH+'/ack',BOT_PATH+'/resolve',BOT_PATH+'/coffre-alert'} or path in public_files or path.startswith('/assets/')
             if not public:
                 request.state.audit_stage='authentication'
                 user,session=await security.resolve(request)
@@ -230,7 +230,7 @@ def create_app(settings=None, provider=None):
 
     @app.api_route(BOT_PATH+'/{operation}',methods=['GET','POST'])
     async def bot_exchange(operation:str,request:Request):
-        if (operation,request.method) not in {('commands','GET'),('events','POST'),('ack','POST'),('resolve','POST')}:
+        if (operation,request.method) not in {('commands','GET'),('events','POST'),('ack','POST'),('resolve','POST'),('coffre-alert','GET')}:
             raise HTTPException(405,'Opération du connecteur inconnue.')
         body=await request.body()
         nonce=bridge.verify(request.method,request.url.path,request.headers,body)

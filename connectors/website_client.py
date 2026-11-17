@@ -59,6 +59,9 @@ class WebsiteClient:
         result=await asyncio.to_thread(self._request,'GET','commands')
         return result['commands']
 
+    async def coffre_alert(self):
+        return await asyncio.to_thread(self._request,'GET','coffre-alert')
+
     async def acknowledge(self,command_id,*,status='applied',result=None,error=None):
         payload={'guildId':self.guild_id,'commandId':command_id,'status':status}
         if result is not None:payload['result']=result

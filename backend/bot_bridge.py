@@ -149,6 +149,13 @@ class BotBridge:
             if db.execute('SELECT 1 FROM event_nonces WHERE nonce=?',(nonce,)).fetchone():
                 raise HTTPException(409,'Cette requête du bot a déjà été utilisée.')
             db.execute('INSERT INTO event_nonces VALUES(?,?)',(nonce,now+120))
+            if operation=='coffre-alert':
+                state=json.loads(db.execute('SELECT body FROM domain_store WHERE id=1').fetchone()['body'])
+                check=self.coffre.check(state)
+                return {'status':check['status'] if check else 'unavailable',
+                        'startedAt':check['startedAt'] if check else None,
+                        'issues':[{'id':row['id'],'delta':row['delta'],**row['issue']}
+                                  for row in check['tracked'] if row.get('issue')] if check else []}
             if operation=='commands':
                 if not self.settings.bot_commands_enabled:return {'commands':[]}
                 rows=db.execute("SELECT c.id,c.created,c.body FROM bot_commands c JOIN bot_machine_jobs j ON j.id=c.id WHERE c.acknowledged IS NULL AND j.status='pending' AND NOT EXISTS(SELECT 1 FROM bot_resolutions r WHERE r.command_id=c.id AND r.status='prepared') ORDER BY c.created,c.id LIMIT 50")
