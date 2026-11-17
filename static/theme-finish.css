@@ -260,6 +260,25 @@ main { z-index: 1; }
   background: #4f814b20;
 }
 .night-dossier .badge.recovery { max-width: 180px; text-align: left; }
+.sale-record.coffre-alert,
+.sale-record.coffre-alert:hover { --frame: #d46b6bb0; }
+.sale-record .badge.coffre-issue-badge {
+  color: #ffe1dc;
+  border: 1px solid #d46b6b;
+  background: #8f343354;
+  white-space: normal;
+  line-height: 1.25;
+  max-width: 180px;
+}
+.coffre-check.coffre-alert { border-color: #d46b6b; }
+.coffre-issue-detail {
+  padding: 10px 13px;
+  border-left: 3px solid #d46b6b;
+  background: #8f343326;
+  color: #ffe1dc;
+  line-height: 1.5;
+}
+.coffre-issue-detail strong { color: #fff1eb; }
 @media (max-width: 760px) {
   .sale-record > summary.cut-inner {
     display: grid;
@@ -277,6 +296,7 @@ main { z-index: 1; }
   .sale-record .night-dossier-amount { grid-column: 2; margin: 0; min-width: 0; padding: 0; }
   .sale-record > summary > .badge { grid-column: 3; margin: 0; padding: 0; }
   .sale-record > summary > .badge.recovery { max-width: 115px; }
+  .sale-record > summary > .badge.coffre-issue-badge { max-width: 115px; }
 }
 
 /* Feuille courante et archives hebdomadaires, dans la même direction visuelle. */

@@ -108,15 +108,33 @@ class Coffre:
                 GROUP BY l.item_id,l.action''',(CONTROL_EVENT,)).fetchall()
         if not targets: return None
         sales = {row['id']: row for row in state.get('sales', [])}
+        targets = sorted(targets, key=lambda row: (sales.get(row['sale_id'], {}).get('created', 0), row['sale_id']))
         started = min(row['started_at'] for row in targets)
-        recovered = sum(machine['amount'] for machine in state.get('machines', [])
-                        if machine.get('botStatus') == 'confirmed' and machine.get('recovered') is True
-                        and not machine.get('cancelled') and type(machine.get('amount')) is int
-                        and type(machine.get('recoveredAt')) is int and machine['recoveredAt'] / 1000 >= started)
-        uncertain_recovery = any(machine.get('botStatus') == 'confirmed' and machine.get('recovered') is True
-                                 and not machine.get('cancelled') and type(machine.get('recoveredAt')) is not int
-                                 and machine.get('id') not in legacy
-                                 for machine in state.get('machines', []))
+        recovered = 0
+        clean_recovered = 0
+        uncertain_recovery = False
+        for machine in state.get('machines', []):
+            if (machine.get('botStatus') != 'confirmed' or machine.get('recovered') is not True
+                    or machine.get('cancelled')):
+                continue
+            launched = machine.get('start')
+            if type(launched) is not int:
+                if machine.get('id') not in legacy:
+                    uncertain_recovery = True
+                continue
+            if launched / 1000 < started:
+                # A later recovery does not turn an old machine into a new one.
+                continue
+            amount = machine.get('amount')
+            recovered_at = machine.get('recoveredAt')
+            if (type(amount) is not int or amount <= 0
+                    or (recovered_at is not None and
+                        (type(recovered_at) is not int or recovered_at < launched))):
+                uncertain_recovery = True
+                continue
+            # The bot also accepts an undated recovery launched after the cutoff.
+            recovered += amount
+            clean_recovered += amount * 4 // 5
         entries = []
         for target in targets:
             sale = sales.get(target['sale_id'])
@@ -129,12 +147,22 @@ class Coffre:
                  and all(sales.get(target['sale_id'], {}).get('amount') == target['baseline_amount']
                          for target in targets))
         delta = sum(entry['delta'] for entry in entries) if known else None
+        if known and not uncertain_recovery:
+            allocated = 0
+            for entry in entries:
+                available = max(0, recovered - allocated)
+                if entry['delta'] > available:
+                    entry['issue'] = {'unexplained': entry['delta'] - available,
+                                      'available': available}
+                allocated += entry['delta']
         status = ('unavailable' if not known or uncertain_recovery else
                   'mismatch' if delta > recovered else
-                  'waiting' if delta == recovered == 0 else 'unmatched')
+                  'waiting' if delta == recovered == 0 else
+                  'matched' if delta == recovered else 'unmatched')
         totals = {item: sum(row['amount'] * (1 if row['action'] == 'depot' else -1)
                             for row in movements if row['item_id'] == item)
                   for item in ('money', 'saleMoney')}
         return {'status': status, 'tracked': entries, 'treatedDelta': delta,
-                'recoveredAmount': recovered, 'startedAt': datetime.fromtimestamp(started, ZONE).isoformat(),
+                'recoveredAmount': recovered, 'cleanRecoveredAmount': clean_recovered,
+                'startedAt': datetime.fromtimestamp(started, ZONE).isoformat(),
                 'coffreMovements': totals}

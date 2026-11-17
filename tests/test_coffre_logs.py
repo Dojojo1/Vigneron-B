@@ -65,12 +65,42 @@ def test_two_selected_sales_only_flag_proven_overcount(env):
         db.execute('UPDATE domain_store SET body=? WHERE id=1', (json.dumps(state),))
     check = Coffre(env['store']).check(state)
     assert check['status'] == 'mismatch' and check['treatedDelta'] == 1000000
+    assert check['tracked'][0]['issue'] == {'unexplained': 1000000, 'available': 0}
     state['machines'] = [{'id': 'machine-a', 'amount': 1000000, 'recovered': True,
-                          'recoveredAt': 1794870100000, 'botStatus': 'confirmed'}]
+                          'start': 1794870001000, 'recoveredAt': 1794870100000,
+                          'botStatus': 'confirmed'}]
     with env['store'].connect(True) as db:
         db.execute('UPDATE domain_store SET body=? WHERE id=1', (json.dumps(state),))
     check = Coffre(env['store']).check(state)
-    assert check['status'] == 'unmatched'
+    assert check['status'] == 'matched'
+    assert check['cleanRecoveredAmount'] == 800000
+    assert all('issue' not in entry for entry in check['tracked'])
+
+
+def test_old_launch_recovered_after_cutoff_is_not_attributed_to_new_sales(env):
+    configure(env)
+    state = env['store'].read_domain()
+    sample = sale(id='sale-a', treated=900000, botStatus='confirmed')
+    state['sales'] = [sample, {**sample, 'id': 'sale-b', 'treated': 0}]
+    state['machines'] = [
+        {'id': 'old', 'amount': 1000000, 'start': 1794869000000,
+         'recoveredAt': 1794870200000, 'recovered': True, 'botStatus': 'confirmed'},
+        {'id': 'new', 'amount': 900000, 'start': 1794870010000,
+         'recoveredAt': 1794870300000, 'recovered': True, 'botStatus': 'confirmed'},
+    ]
+    with env['store'].connect(True) as db:
+        db.executemany('INSERT INTO coffre_checks VALUES(?,?,?,?)',
+                       [('sale-a', 1794870000, 0, 5000000), ('sale-b', 1794870000, 0, 5000000)])
+    check = Coffre(env['store']).check(state)
+    assert check['status'] == 'matched'
+    assert check['recoveredAmount'] == 900000
+    assert check['cleanRecoveredAmount'] == 720000
+    assert check['coffreMovements']['money'] == 0  # A direct handoff needs no deposit.
+    state['sales'][1]['treated'] = 100000
+    check = Coffre(env['store']).check(state)
+    assert check['status'] == 'mismatch'
+    assert 'issue' not in check['tracked'][0]
+    assert check['tracked'][1]['issue'] == {'unexplained': 100000, 'available': 0}
 
 
 def test_known_undated_recoveries_are_frozen_but_new_ones_block_check(env):
