@@ -69,7 +69,7 @@ def test_logs_are_empty_and_have_a_separate_permission(env):
     with env['store'].connect(True) as db:
         env['store'].audit(db,MEMBER,'business_action',{'action':'add-sale','page':'sales'})
         env['store'].audit(db,MEMBER,'client_error',{'page':'overview','result':'failure'})
-    assert env['client'].get('/api/pages/logs').json()=={'page':'logs','entries':[]}
+    assert env['client'].get('/api/pages/logs').json()['entries']==[]
     assert env['client'].get('/api/pages/logs/entries/1').status_code==404
     assert env['client'].get('/api/pages/journal').status_code==403
 

@@ -413,7 +413,8 @@
  function bootstrapError(message){const error=new Error(message);error.clientKind='unexpected';window.heritageReportError?.('unexpected');return error;}
  async function preloadPages(routes=null,{resync=true}={}){
   if(!session)return false;
-  const selected=(routes||session.pages.map(page=>page.id)).filter((route,index,all)=>can(route)&&all.indexOf(route)===index);
+  const selected=(routes||session.pages.map(page=>page.id)).filter((route,index,all)=>
+   can(route)&&all.indexOf(route)===index&&(routes||route!=='logs'));
   if(!selected.length)return true;
   const epoch=cacheEpoch,scope=sessionScope(session),defaults=Object.fromEntries(selected.map(route=>[route,pageURL(route,true)]));
   const existing=[...bootstrapTasks].find(task=>task.epoch===epoch&&task.scope===scope&&selected.every(route=>task.routes.includes(route)));

@@ -14,7 +14,7 @@ const context=vm.createContext({Intl,Date,Map,Number,Math,
  saleContactText:()=>'',date:()=>''});
 vm.runInContext(block('function allocations(){','const pages=')+'\n'+
  block('function badge(s){','function machineFinish(m){')+'\n'+
- block('function midnightDossier(s,index){','function overview(){')+
+ block('function coffreFlag(s){','function overview(){')+
  '\nglobalThis.progress=saleProgress;globalThis.render=midnightDossier;globalThis.renderOld=dossier;',context);
 const sale={id:'test',amount:5000000,treated:5000000,progressKnown:true,
  status:'active',group:'Groupe test',employee:'Profil test',created:0};
@@ -107,7 +107,7 @@ sale._verifiedRevision=4;context.state.businessSources.sales.partial=false;
 assert.equal(progress().known,false,'A total outage invalidates even the previous partial progress.');
 context.state.businessSources.sales.partial=true;sale.botStatus='unconfirmed';
 assert.equal(progress().known,false,'A legacy record cannot claim a partial confirmation.');
-Object.assign(context,{businessConnectionPanel:()=>'',salesWeekSummary:()=>'',saleResults:()=>'',pagination:()=>'',search:''});
+Object.assign(context,{businessConnectionPanel:()=>'',coffreCheckPanel:()=>'',salesWeekSummary:()=>'',saleResults:()=>'',pagination:()=>'',search:''});
 vm.runInContext(block('function salesPage(){','function saleResults(){')+'\nglobalThis.renderSalesPage=salesPage;',context);
 const partialPage=context.renderSalesPage();
 assert.match(partialPage,/data-action="add-sale" disabled/);

@@ -491,7 +491,7 @@ def create_app(settings=None, provider=None):
     def screen_data(page,request,params,shared_state=None,projected_state=None,bridge_status=None):
         """Même construction des écrans pour une lecture seule ou groupée."""
         if page=='journal': return journal_data(params)
-        if page=='logs': return {'page':'logs','entries':[]}
+        if page=='logs': return bridge.coffre.page(params)
         if page=='profile': return {'page':page}
         if page=='council':
             return {'page':page,'access':access(request),'accounts':users(request)}
@@ -501,6 +501,7 @@ def create_app(settings=None, provider=None):
         if page in ('sales','machines','tombola','overview','stats','rankings'):
             state=projected_state if projected_state is not None else machine_projection(state)
         result=views.screen(state,page,params)
+        if page=='sales': result['coffreCheck']=bridge.coffre.check(state)
         if page in ('sales','tombola','overview','stats'):
             sources=state.get('businessSources',{})
             sales_source=sources.get('sales',{})
@@ -551,7 +552,7 @@ def create_app(settings=None, provider=None):
     def page_data(page:str,request:Request):
         user=require(request,page)
         if page=='journal': return journal_data(request.query_params)
-        if page=='logs': return {'page':'logs','entries':[]}
+        if page=='logs': return bridge.coffre.page(request.query_params)
         if page=='profile': return {'page':page}
         if page=='council':
             if request.query_params.get('view')=='screen':

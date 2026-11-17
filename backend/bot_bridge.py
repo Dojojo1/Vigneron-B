@@ -10,6 +10,7 @@ from datetime import datetime
 from fastapi import HTTPException
 from . import domain
 from .business_bridge import BusinessBridge
+from .coffre import Coffre
 from .auditing import business_changes
 
 PATH = '/internal/bot'
@@ -42,6 +43,7 @@ class BotBridge:
         self.settings,self.store=settings,store
         with store.connect() as db:db.executescript(SCHEMA)
         self.business=BusinessBridge(settings,store)
+        self.coffre=Coffre(store)
 
     def verify(self, method, path, headers, body):
         secret=self.settings.connector_secret
@@ -222,6 +224,8 @@ class BotBridge:
                 db.execute('DELETE FROM sessions WHERE user_id=?',(uid,))
         elif kind=='business_sync':
             result.update(self.business.apply_snapshot(db,payload.get('snapshot')))
+        elif kind=='coffre_log':
+            result.update(self.coffre.accept(db,payload.get('log')))
         elif kind=='machine_sync':
             result.update(self.sync_machine(db,payload.get('machine'),payload.get('commandId')))
         elif kind=='action':
